@@ -16,6 +16,7 @@
 10. `observability-slo.md`
 11. `musinsa-reference-notes.md`
 12. `traffic-mode-strategy.md`
+13. `infra-runbook.md`
 
 ## 작성 규칙
 

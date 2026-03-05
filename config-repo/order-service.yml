@@ -1,0 +1,8 @@
+wearhouse:
+  kafka:
+    test-topic: ${KAFKA_TEST_TOPIC:wearhouse.test.topic}
+
+spring:
+  kafka:
+    consumer:
+      group-id: ${ORDER_KAFKA_CONSUMER_GROUP:order-service-group}

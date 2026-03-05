@@ -10,5 +10,6 @@ include(
     "settlement",
     "inventory",
     "api-gateway",
-    "service-discovery"
+    "service-discovery",
+    "config-server"
 )

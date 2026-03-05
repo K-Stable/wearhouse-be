@@ -30,6 +30,20 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7.4.2
+    container_name: wearhouse-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: wearhouse-zookeeper
@@ -149,6 +163,23 @@ services:
     ports:
       - "${EUREKA_SERVER_PORT:-8761}:8761"
 
+  config-server:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        MODULE_NAME: config-server
+    container_name: wearhouse-config-server
+    depends_on:
+      - service-discovery
+    environment:
+      CONFIG_SERVER_PORT: ${CONFIG_SERVER_PORT:-8888}
+      CONFIG_REPO_LOCATIONS: ${CONFIG_REPO_LOCATIONS:-file:/config-repo}
+    volumes:
+      - ./config-repo:/config-repo:ro
+    ports:
+      - "${CONFIG_SERVER_PORT:-8888}:8888"
+
   order-service:
     build:
       context: .
@@ -158,16 +189,21 @@ services:
     container_name: wearhouse-order-service
     depends_on:
       - service-discovery
+      - config-server
       - kafka
       - mysql
+      - redis
     environment:
       ORDER_SERVER_PORT: ${ORDER_SERVER_PORT:-8104}
       EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
+      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI:-http://config-server:8888}
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       ORDER_DB_NAME: ${ORDER_DB_NAME}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KAFKA_TEST_TOPIC: ${KAFKA_TEST_TOPIC:-wearhouse.test.topic}
       ORDER_KAFKA_CONSUMER_GROUP: ${ORDER_KAFKA_CONSUMER_GROUP:-order-service-group}
@@ -183,15 +219,21 @@ services:
     container_name: wearhouse-api-gateway
     depends_on:
       - service-discovery
+      - config-server
       - order-service
+      - redis
     environment:
       API_GATEWAY_SERVER_PORT: ${API_GATEWAY_SERVER_PORT:-8000}
       EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
+      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI:-http://config-server:8888}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "${API_GATEWAY_SERVER_PORT:-8000}:8000"
 
 volumes:
   mysql-data:
+  redis-data:
   prometheus-data:
   grafana-data:
   alertmanager-data:

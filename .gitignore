@@ -40,3 +40,6 @@ out/
 .env
 .env.*
 !.env.example
+
+### Local docs ###
+docs/interview-questions.local.md

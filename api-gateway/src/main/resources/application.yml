@@ -2,9 +2,13 @@ server:
   port: ${API_GATEWAY_SERVER_PORT:8000}
 
 spring:
+  config:
+    import: optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
   application:
     name: api-gateway
   cloud:
+    config:
+      fail-fast: false
     gateway:
       server:
         webmvc:
@@ -51,6 +55,10 @@ spring:
                 - Path=/settlement-service/**
               filters:
                 - StripPrefix=1
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 eureka:
   client:
