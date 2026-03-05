@@ -17,6 +17,41 @@
 | 복원력 테스트 | 재시도/복구 유효성 | 스테이징 전 |
 | E2E 테스트 | 구매자/판매자 흐름 정확성 | 릴리스 전 |
 
+## 모듈별 REST Docs 도입 계획
+
+### 도입 순서
+
+1. `common`
+2. `order`, `payment`, `inventory`
+3. `product`, `user`, `auth`
+4. `settlement`
+5. `api-gateway`
+
+### 모듈별 P0 문서화 범위
+
+| 모듈 | P0 문서화 대상 | 완료 기준 |
+|---|---|---|
+| common | 공통 에러 응답, 공통 헤더(`X-Idempotency-Key`, traceId), 공통 snippet 템플릿 | 모든 서비스가 동일 템플릿 사용 |
+| order | 주문 생성, 주문 상세, 주문 취소, 주문 상태 조회 | 성공/실패 케이스 문서화 |
+| payment | 결제 승인, 결제 조회, 환불 요청 | 멱등성/중복요청 케이스 문서화 |
+| inventory | 재고 예약, 예약 해제, 재고 확정, 재고 조회 | 동시성 실패 케이스 문서화 |
+| product | 상품 목록/상세, 옵션/가격 조회 | 필터/정렬 파라미터 문서화 |
+| user | 마이페이지 조회, 배송지 CRUD | 권한/검증 오류 문서화 |
+| auth | 로그인, 토큰 재발급, 로그아웃 | 인증 실패/만료 문서화 |
+| settlement | 정산 내역 조회, 정산 상세, 지급 내역 조회 | 판매자 관점 응답 문서화 |
+| api-gateway | 서비스 문서 링크 집계, buyer/seller 문서 진입점 | 통합 index 문서 연결 |
+
+### 2주 실행 일정(REST Docs)
+
+| 기간 | 범위 | 산출물 |
+|---|---|---|
+| 1주차 Day 1-2 | `common` | 공통 문서 템플릿/규약 |
+| 1주차 Day 3-5 | `order`, `payment`, `inventory` | 거래 핵심 API 문서 |
+| 2주차 Day 1-2 | `product`, `user`, `auth` | 사용자/상품/인증 API 문서 |
+| 2주차 Day 3 | `settlement` | 정산 API 문서 |
+| 2주차 Day 4 | `api-gateway` | 통합 index 문서 |
+| 2주차 Day 5 | 전체 점검 | 누락/일관성 검수 결과 |
+
 ## 핵심 시나리오
 
 | ID | 시나리오 | 기대 결과 | 우선순위 |

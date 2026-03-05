@@ -108,6 +108,7 @@ DTO 작성 규칙:
 - record 대신 **class 사용**
 - **Builder 패턴 사용**
 - DTO 내부에 변환 로직 허용
+- 단, `common` 모듈의 **공통 응답/에러 모델은 record 사용 허용**
 
 허용 메서드:
 
@@ -197,14 +198,17 @@ Global Error Handler를 사용한다.
 global/error
 
 - ErrorCode
-- BusinessException
+- ErrorException
 - GlobalExceptionHandler
 
-응답 형식:
+에러 응답 형식:
 
 {
-"code": "ORDER_NOT_FOUND",
-"message": "Order does not exist"
+  "success": false,
+  "code": "ORDER_NOT_FOUND",
+  "message": "Order does not exist",
+  "data": null,
+  "timestamp": "2026-03-05T12:00:00"
 }
 
 ---
@@ -248,6 +252,39 @@ log.error()
 - common
 
 각 모듈은 독립 실행 가능해야 한다.
+
+---
+
+# 13. 공통 응답 규칙
+
+모든 API 응답은 `ApiResponse<T>` 포맷을 사용한다.
+
+성공 응답 형식:
+
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "요청이 성공적으로 처리되었습니다.",
+  "data": {},
+  "timestamp": "2026-03-05T12:00:00"
+}
+
+실패 응답 형식:
+
+{
+  "success": false,
+  "code": "COMMON_400_001",
+  "message": "요청 값이 올바르지 않습니다.",
+  "data": [],
+  "timestamp": "2026-03-05T12:00:00"
+}
+
+원칙:
+
+- Controller는 도메인 DTO를 반환하고, 공통 포맷 래핑은 `GlobalResponseBodyAdvice`가 담당한다.
+- 비즈니스/도메인 오류는 `ErrorException` + `ErrorCode`로 처리한다.
+- Validation 오류 상세는 `data` 필드에 배열/맵 형태로 담는다.
+- 컨트롤러에서 수동으로 응답 포맷을 직접 만들지 않는다.
 
 ---
 
