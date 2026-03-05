@@ -136,6 +136,60 @@ services:
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
 
+  service-discovery:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        MODULE_NAME: service-discovery
+    container_name: wearhouse-service-discovery
+    environment:
+      EUREKA_SERVER_PORT: ${EUREKA_SERVER_PORT:-8761}
+      EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
+    ports:
+      - "${EUREKA_SERVER_PORT:-8761}:8761"
+
+  order-service:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        MODULE_NAME: order
+    container_name: wearhouse-order-service
+    depends_on:
+      - service-discovery
+      - kafka
+      - mysql
+    environment:
+      ORDER_SERVER_PORT: ${ORDER_SERVER_PORT:-8104}
+      EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      ORDER_DB_NAME: ${ORDER_DB_NAME}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_TEST_TOPIC: ${KAFKA_TEST_TOPIC:-wearhouse.test.topic}
+      ORDER_KAFKA_CONSUMER_GROUP: ${ORDER_KAFKA_CONSUMER_GROUP:-order-service-group}
+    ports:
+      - "${ORDER_SERVER_PORT:-8104}:8104"
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        MODULE_NAME: api-gateway
+    container_name: wearhouse-api-gateway
+    depends_on:
+      - service-discovery
+      - order-service
+    environment:
+      API_GATEWAY_SERVER_PORT: ${API_GATEWAY_SERVER_PORT:-8000}
+      EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
+    ports:
+      - "${API_GATEWAY_SERVER_PORT:-8000}:8000"
+
 volumes:
   mysql-data:
   prometheus-data:

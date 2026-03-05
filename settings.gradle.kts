@@ -9,5 +9,6 @@ include(
     "payment",
     "settlement",
     "inventory",
-    "api-gateway"
+    "api-gateway",
+    "service-discovery"
 )
