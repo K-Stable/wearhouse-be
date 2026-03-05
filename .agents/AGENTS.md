@@ -288,4 +288,34 @@ log.error()
 
 ---
 
+# 14. 환경변수(.env) 규칙
+
+환경별 설정은 `.env` 기반으로 관리한다.
+
+파일 규칙:
+
+- `.env` : 로컬 개발자가 사용하는 실제 값 파일 (git 커밋 금지)
+- `.env.example` : 공유용 템플릿 파일 (git 커밋 필수)
+- 신규 환경변수 추가 시 `.env.example`를 반드시 함께 업데이트한다.
+
+보안 규칙:
+
+- 비밀번호, API Key, 토큰, 인증서 값은 `.env`에만 저장한다.
+- 실제 시크릿을 문서, 코드, 커밋 메시지에 남기지 않는다.
+- 운영/스테이징 시크릿은 AWS Parameter Store/Secrets Manager 등 외부 시크릿 저장소를 사용한다.
+
+사용 규칙:
+
+- Spring 설정(`application-*.yml`)에서는 `${ENV_NAME}` 형태로 참조한다.
+- 기본값이 필요한 값은 `${ENV_NAME:default}` 형식을 사용한다.
+- 로컬은 `application-local.yml` + `.env` 조합을 기본으로 한다.
+- 프로덕션은 `.env` 파일 직접 배포 대신 CI/CD 주입 방식을 사용한다.
+
+검증 규칙:
+
+- 애플리케이션 기동 시 필수 환경변수 누락 여부를 검사한다.
+- `.env.example`은 최소 실행 가능한 값으로 유지한다.
+
+---
+
 End of skill guide.
