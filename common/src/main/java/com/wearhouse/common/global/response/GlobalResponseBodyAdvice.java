@@ -12,7 +12,7 @@ import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.wearhouse")
 public class GlobalResponseBodyAdvice implements ResponseBodyAdvice<Object> {
 
     private final ObjectMapper objectMapper;

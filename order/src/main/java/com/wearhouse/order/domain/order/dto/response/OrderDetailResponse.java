@@ -2,46 +2,40 @@ package com.wearhouse.order.domain.order.dto.response;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import lombok.Builder;
-import lombok.Getter;
 
-@Getter
 @Builder
-public class OrderDetailResponse {
+public record OrderDetailResponse(
+        String orderNo,
+        Long buyerId,
+        String status,
+        String paymentMethod,
+        String recipientName,
+        String recipientPhone,
+        String zipCode,
+        String address1,
+        String address2,
+        String deliveryRequest,
+        BigDecimal itemAmount,
+        BigDecimal shippingFee,
+        BigDecimal discountAmount,
+        BigDecimal pointUsedAmount,
+        BigDecimal payAmount,
+        LocalDateTime orderedAt,
+        List<OrderItemDetailResponse> items
+) {
 
-    private final String orderNo;
-    private final Long buyerId;
-    private final String status;
-    private final String paymentMethod;
-    private final String recipientName;
-    private final String recipientPhone;
-    private final String zipCode;
-    private final String address1;
-    private final String address2;
-    private final String deliveryRequest;
-    private final BigDecimal itemAmount;
-    private final BigDecimal shippingFee;
-    private final BigDecimal discountAmount;
-    private final BigDecimal pointUsedAmount;
-    private final BigDecimal payAmount;
-    private final LocalDateTime orderedAt;
-
-    @Builder.Default
-    private final List<OrderItemDetailResponse> items = new ArrayList<>();
-
-    @Getter
     @Builder
-    public static class OrderItemDetailResponse {
-
-        private final Long productId;
-        private final Long optionId;
-        private final String productName;
-        private final String optionName;
-        private final BigDecimal unitPrice;
-        private final Integer quantity;
-        private final BigDecimal lineAmount;
-        private final String status;
+    public record OrderItemDetailResponse(
+            Long productId,
+            Long optionId,
+            String productName,
+            String optionName,
+            BigDecimal unitPrice,
+            Integer quantity,
+            BigDecimal lineAmount,
+            String status
+    ) {
     }
 }

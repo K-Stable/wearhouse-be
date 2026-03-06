@@ -21,3 +21,9 @@ scrape_configs:
     static_configs:
       - targets:
           - kafka-exporter:9308
+
+  - job_name: order-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - order-service:8104

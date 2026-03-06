@@ -2,7 +2,7 @@ package com.wearhouse.order.domain.order.event;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wearhouse.order.global.kafka.service.OrderOutboxKafkaPublishService;
+import com.wearhouse.order.infra.kafka.service.OrderOutboxKafkaPublishService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -27,18 +27,22 @@ public class OrderOutboxPublishListener {
             String payload = objectMapper.writeValueAsString(event.toEnvelope());
             orderOutboxKafkaPublishService.send(
                     event.getEventId(),
+                    event.getEventType(),
                     event.getTopic(),
                     event.getPartitionKey(),
                     payload,
-                    0
+                    0,
+                    "after_commit"
             );
         } catch (JsonProcessingException exception) {
             orderOutboxKafkaPublishService.send(
                     event.getEventId(),
+                    event.getEventType(),
                     event.getTopic(),
                     event.getPartitionKey(),
                     "{\"serializationError\":true}",
-                    0
+                    0,
+                    "serialization_fallback"
             );
         }
     }

@@ -8,43 +8,41 @@
 
 # 1. 패키지 구조
 
-Wearhouse 프로젝트는 **도메인 중심 패키지 구조**를 사용한다.
+Wearhouse 프로젝트는 **도메인 중심 + infra 분리 패키지 구조**를 사용한다.
 
 예시:
 
-com.wearhouse
-
-domain
-├ user
-│   ├ controller
-│   ├ dto
-│   ├ entity
-│   ├ exception
-│   ├ repository
-│   ├ service
-│
-├ product
-│   ├ controller
-│   ├ dto
-│   ├ entity
-│   ├ exception
-│   ├ repository
-│   ├ service
-│
-global
-├ auth
-├ config
-├ error
-├ common
+com.wearhouse.{module}
+├ domain
+│   └ {domain}
+│       ├ controller
+│       ├ dto
+│       ├ service
+│       │   ├ command
+│       │   └ query
+│       ├ event
+│       ├ exception
+│       ├ entity
+│       └ model
 ├ infra
-└ util
+│   ├ jpa
+│   │   ├ common
+│   │   └ repository
+│   └ kafka
+│       ├ config
+│       ├ consumer
+│       ├ controller
+│       ├ dto
+│       └ service
+└ support
 
 원칙:
 
-- 각 도메인은 controller / service / repository / entity / dto를 포함한다.
-- 공통 로직은 global 패키지에 위치한다.
+- 각 도메인은 `domain.{domain}` 하위에서 controller / service / entity / dto를 포함한다.
+- JPA/Kafka 같은 구현 기술은 `infra` 패키지에 위치한다.
+- 공통 유틸/헬퍼는 `support` 패키지에 위치한다.
 - 서비스 계층은 CQRS 기준으로 `service/command`, `service/query` 하위 패키지로 분리한다.
-- Kafka 연동 코드는 도메인 서비스와 분리하여 `global/kafka` 패키지에 배치한다.
+- Kafka 연동 코드는 도메인 서비스와 분리하여 `infra/kafka` 패키지에 배치한다.
 
 ---
 
@@ -99,8 +97,8 @@ Query:
 의존 규칙:
 
 - Controller는 CommandService/QueryService를 목적에 맞게 분리 호출한다.
-- Kafka Consumer는 `global.kafka.consumer`에서 메시지를 수신하고, 실제 도메인 처리는 CommandService에 위임한다.
-- Kafka 발행/재발행 로직은 `global.kafka.service`에 위치시킨다.
+- Kafka Consumer는 `infra.kafka.consumer`에서 메시지를 수신하고, 실제 도메인 처리는 CommandService에 위임한다.
+- Kafka 발행/재발행 로직은 `infra.kafka.service`에 위치시킨다.
 
 ---
 
@@ -118,14 +116,12 @@ ProductResponse
 
 DTO 작성 규칙:
 
-- record 대신 **class 사용**
-- **Builder 패턴 사용**
-- DTO 내부에 변환 로직 허용
-- 단, `common` 모듈의 **공통 응답/에러 모델은 record 사용 허용**
+- DTO는 기본적으로 **record 사용**
+- 요청/응답 DTO에서 불필요한 Builder 사용을 지양
+- DTO는 데이터 전달에 집중하고, 비즈니스 변환/상태 변경 로직은 Service에서 처리
 
 허용 메서드:
 
-toEntity()  
 from(Entity)  
 of(Entity, extra)
 
@@ -335,15 +331,15 @@ log.error()
 
 Kafka 관련 구성은 아래처럼 분리한다.
 
-- `global.kafka.config` : Topic/Producer/Consumer 공통 설정
-- `global.kafka.consumer` : Kafka Listener
-- `global.kafka.service` : Kafka publish, outbox publish 보조 서비스
-- `global.kafka.controller` : 내부 테스트/운영 점검용 엔드포인트
-- `global.kafka.dto` : Kafka 테스트/관리 API DTO
+- `infra.kafka.config` : Topic/Producer/Consumer 공통 설정
+- `infra.kafka.consumer` : Kafka Listener
+- `infra.kafka.service` : Kafka publish, outbox publish 보조 서비스
+- `infra.kafka.controller` : 내부 테스트/운영 점검용 엔드포인트
+- `infra.kafka.dto` : Kafka 테스트/관리 API DTO
 
 원칙:
 
 - 도메인 비즈니스 규칙(주문 상태 전이/검증)은 `domain` 패키지에서 관리한다.
-- Kafka I/O, 직렬화/역직렬화, 토픽 전송은 `global.kafka`에서 관리한다.
+- Kafka I/O, 직렬화/역직렬화, 토픽 전송은 `infra.kafka`에서 관리한다.
 
 End of skill guide.

@@ -1,8 +1,8 @@
 package com.wearhouse.order.domain.order.service.command;
 
-import com.wearhouse.order.global.kafka.service.OrderOutboxKafkaPublishService;
-import com.wearhouse.order.domain.order.repository.OrderOutboxRepository;
-import com.wearhouse.order.domain.order.repository.OrderOutboxRepository.OutboxCandidate;
+import com.wearhouse.order.infra.kafka.service.OrderOutboxKafkaPublishService;
+import com.wearhouse.order.infra.jpa.repository.OrderOutboxRepository;
+import com.wearhouse.order.infra.jpa.repository.OrderOutboxRepository.OutboxCandidate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,10 +38,12 @@ public class OrderOutboxRepublishScheduler {
         for (OutboxCandidate candidate : candidates) {
             orderOutboxKafkaPublishService.send(
                     candidate.getEventId(),
+                    candidate.getEventType(),
                     candidate.getTopic(),
                     candidate.getPartitionKey(),
                     candidate.getPayload(),
-                    candidate.getRetryCount()
+                    candidate.getRetryCount(),
+                    "republish"
             );
         }
     }

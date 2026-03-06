@@ -7,7 +7,7 @@ COPY . .
 ARG MODULE_NAME
 
 RUN chmod +x gradlew
-RUN ./gradlew ":${MODULE_NAME}:bootJar" -x test --no-daemon
+RUN ./gradlew ":${MODULE_NAME}:bootJar" --no-daemon
 
 RUN JAR_PATH="$(ls ${MODULE_NAME}/build/libs/*.jar | grep -v 'plain' | head -n 1)" \
     && cp "${JAR_PATH}" /workspace/app.jar

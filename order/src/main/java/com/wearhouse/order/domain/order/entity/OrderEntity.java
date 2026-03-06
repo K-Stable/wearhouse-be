@@ -2,7 +2,7 @@ package com.wearhouse.order.domain.order.entity;
 
 import com.wearhouse.order.domain.order.model.OrderItemStatus;
 import com.wearhouse.order.domain.order.model.OrderStatus;
-import com.wearhouse.order.global.common.entity.BaseEntity;
+import com.wearhouse.order.infra.jpa.common.BaseEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;

@@ -18,3 +18,26 @@ management:
     web:
       exposure:
         include: health,info,env,prometheus
+
+
+
+#  ALTER USER 'wearhouse'@'localhost' IDENTIFIED BY 'm072715!';
+#  ALTER USER 'wearhouse'@'%' IDENTIFIED BY 'm072715!';
+#
+#  GRANT ALL PRIVILEGES ON wearhouse_auth.*       TO 'wearhouse'@'localhost';
+#  GRANT ALL PRIVILEGES ON wearhouse_user.*       TO 'wearhouse'@'localhost';
+#  GRANT ALL PRIVILEGES ON wearhouse_product.*    TO 'wearhouse'@'localhost';
+#  GRANT ALL PRIVILEGES ON wearhouse_order.*      TO 'wearhouse'@'localhost';
+#  GRANT ALL PRIVILEGES ON wearhouse_payment.*    TO 'wearhouse'@'localhost';
+#  GRANT ALL PRIVILEGES ON wearhouse_inventory.*  TO 'wearhouse'@'localhost';
+#  GRANT ALL PRIVILEGES ON wearhouse_settlement.* TO 'wearhouse'@'localhost';
+#
+#  GRANT ALL PRIVILEGES ON wearhouse_auth.*       TO 'wearhouse'@'%';
+#  GRANT ALL PRIVILEGES ON wearhouse_user.*       TO 'wearhouse'@'%';
+#  GRANT ALL PRIVILEGES ON wearhouse_product.*    TO 'wearhouse'@'%';
+#  GRANT ALL PRIVILEGES ON wearhouse_order.*      TO 'wearhouse'@'%';
+#  GRANT ALL PRIVILEGES ON wearhouse_payment.*    TO 'wearhouse'@'%';
+#  GRANT ALL PRIVILEGES ON wearhouse_inventory.*  TO 'wearhouse'@'%';
+#  GRANT ALL PRIVILEGES ON wearhouse_settlement.* TO 'wearhouse'@'%';
+#
+#  FLUSH PRIVILEGES;

@@ -8,7 +8,7 @@ import com.wearhouse.order.domain.order.entity.OrderEntity;
 import com.wearhouse.order.domain.order.entity.OrderItemEntity;
 import com.wearhouse.order.domain.order.entity.OrderInfo;
 import com.wearhouse.order.domain.order.exception.OrderErrorCode;
-import com.wearhouse.order.domain.order.repository.OrderRepository;
+import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
@@ -29,20 +29,7 @@ public class OrderQueryService {
         OrderEntity order = orderRepository.findDetailByOrderNo(orderNo)
                 .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
 
-        List<OrderItemDetailResponse> detailItems = new ArrayList<>();
-        for (OrderItemEntity orderItem : order.getItems()) {
-            detailItems.add(OrderItemDetailResponse.builder()
-                    .productId(orderItem.getProductId())
-                    .optionId(orderItem.getOptionId())
-                    .productName(orderItem.getProductNameSnapshot())
-                    .optionName(orderItem.getOptionNameSnapshot())
-                    .unitPrice(orderItem.getUnitPrice())
-                    .quantity(orderItem.getQuantity())
-                    .lineAmount(orderItem.getLineAmount())
-                    .status(orderItem.getStatus().name())
-                    .build());
-        }
-
+        List<OrderItemDetailResponse> detailItems = mapDetailItems(order.getItems());
         OrderInfo info = order.getOrderInfo();
         return OrderDetailResponse.builder()
                 .orderNo(order.getOrderNo())
@@ -78,5 +65,22 @@ public class OrderQueryService {
                     .build());
         }
         return responses;
+    }
+
+    private List<OrderItemDetailResponse> mapDetailItems(List<OrderItemEntity> orderItems) {
+        List<OrderItemDetailResponse> detailItems = new ArrayList<>();
+        for (OrderItemEntity orderItem : orderItems) {
+            detailItems.add(OrderItemDetailResponse.builder()
+                    .productId(orderItem.getProductId())
+                    .optionId(orderItem.getOptionId())
+                    .productName(orderItem.getProductNameSnapshot())
+                    .optionName(orderItem.getOptionNameSnapshot())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .quantity(orderItem.getQuantity())
+                    .lineAmount(orderItem.getLineAmount())
+                    .status(orderItem.getStatus().name())
+                    .build());
+        }
+        return detailItems;
     }
 }
