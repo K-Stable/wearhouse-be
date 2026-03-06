@@ -1,0 +1,90 @@
+package com.wearhouse.order.domain.order.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+
+@Embeddable
+public class OrderInfo {
+
+    @Column(name = "payment_method")
+    private String paymentMethod;
+
+    @Column(name = "recipient_name")
+    private String recipientName;
+
+    @Column(name = "recipient_phone")
+    private String recipientPhone;
+
+    @Column(name = "zip_code")
+    private String zipCode;
+
+    @Column(name = "address1")
+    private String address1;
+
+    @Column(name = "address2")
+    private String address2;
+
+    @Column(name = "delivery_request")
+    private String deliveryRequest;
+
+    protected OrderInfo() {
+    }
+
+    private OrderInfo(
+            String paymentMethod,
+            String recipientName,
+            String recipientPhone,
+            String zipCode,
+            String address1,
+            String address2,
+            String deliveryRequest
+    ) {
+        this.paymentMethod = paymentMethod;
+        this.recipientName = recipientName;
+        this.recipientPhone = recipientPhone;
+        this.zipCode = zipCode;
+        this.address1 = address1;
+        this.address2 = address2;
+        this.deliveryRequest = deliveryRequest;
+    }
+
+    public static OrderInfo of(
+            String paymentMethod,
+            String recipientName,
+            String recipientPhone,
+            String zipCode,
+            String address1,
+            String address2,
+            String deliveryRequest
+    ) {
+        return new OrderInfo(paymentMethod, recipientName, recipientPhone, zipCode, address1, address2, deliveryRequest);
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public String getRecipientName() {
+        return recipientName;
+    }
+
+    public String getRecipientPhone() {
+        return recipientPhone;
+    }
+
+    public String getZipCode() {
+        return zipCode;
+    }
+
+    public String getAddress1() {
+        return address1;
+    }
+
+    public String getAddress2() {
+        return address2;
+    }
+
+    public String getDeliveryRequest() {
+        return deliveryRequest;
+    }
+}

@@ -2,7 +2,9 @@ package com.wearhouse.order;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
+@EnableScheduling
 @SpringBootApplication(scanBasePackages = "com.wearhouse")
 public class OrderApplication {
 
@@ -10,3 +12,5 @@ public class OrderApplication {
         SpringApplication.run(OrderApplication.class, args);
     }
 }
+
+

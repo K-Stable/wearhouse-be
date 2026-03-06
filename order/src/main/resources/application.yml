@@ -10,7 +10,7 @@ spring:
     config:
       fail-fast: false
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${ORDER_DB_NAME:wearhouse_order}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${ORDER_DB_NAME:wearhouse_order}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: ${MYSQL_USER:wearhouse}
     password: ${MYSQL_PASSWORD:wearhouse_password}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -22,6 +22,8 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      repositories:
+        enabled: false
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     admin:
@@ -40,6 +42,25 @@ spring:
 wearhouse:
   kafka:
     test-topic: ${KAFKA_TEST_TOPIC:wearhouse.test.topic}
+    inventory-reserve-topic: ${INVENTORY_RESERVE_TOPIC:wearhouse.inventory.command.v1}
+    inventory-command-topic: ${INVENTORY_COMMAND_TOPIC:wearhouse.inventory.command.v1}
+    inventory-event-topic: ${INVENTORY_EVENT_TOPIC:wearhouse.inventory.event.v1}
+    payment-prepare-topic: ${PAYMENT_PREPARE_TOPIC:wearhouse.payment.command.v1}
+    payment-event-topic: ${PAYMENT_EVENT_TOPIC:wearhouse.payment.event.v1}
+    order-event-topic: ${ORDER_EVENT_TOPIC:wearhouse.order.event.v1}
+  order:
+    payment-result-timeout-minutes: ${ORDER_PAYMENT_RESULT_TIMEOUT_MINUTES:30}
+  outbox:
+    send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:3000}
+    stale-minutes: ${OUTBOX_STALE_MINUTES:10}
+    republish-interval-ms: ${OUTBOX_REPUBLISH_INTERVAL_MS:60000}
+    republish-batch-size: ${OUTBOX_REPUBLISH_BATCH_SIZE:100}
+    retry:
+      max-retries: ${OUTBOX_MAX_RETRIES:3}
+      exponential:
+        initial-delay-ms: ${OUTBOX_RETRY_INITIAL_DELAY_MS:2000}
+        max-delay-ms: ${OUTBOX_RETRY_MAX_DELAY_MS:60000}
+        multiplier: ${OUTBOX_RETRY_MULTIPLIER:2.0}
 
 eureka:
   client:
@@ -47,3 +68,12 @@ eureka:
       defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka}
   instance:
     prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: order-service

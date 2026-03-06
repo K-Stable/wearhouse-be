@@ -1,0 +1,12 @@
+ALTER TABLE orders
+    ADD COLUMN item_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    ADD COLUMN shipping_fee DECIMAL(15,2) NOT NULL DEFAULT 0,
+    ADD COLUMN discount_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    ADD COLUMN point_used_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    ADD COLUMN payment_method VARCHAR(30) NULL,
+    ADD COLUMN recipient_name VARCHAR(100) NULL,
+    ADD COLUMN recipient_phone VARCHAR(30) NULL,
+    ADD COLUMN zip_code VARCHAR(20) NULL,
+    ADD COLUMN address1 VARCHAR(255) NULL,
+    ADD COLUMN address2 VARCHAR(255) NULL,
+    ADD COLUMN delivery_request VARCHAR(255) NULL;

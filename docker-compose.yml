@@ -3,7 +3,7 @@ services:
     image: mysql:8.0.41
     container_name: wearhouse-mysql
     ports:
-      - "${MYSQL_PORT:-3306}:3306"
+      - "${MYSQL_EXTERNAL_PORT:-3307}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
@@ -237,3 +237,4 @@ volumes:
   prometheus-data:
   grafana-data:
   alertmanager-data:
+
