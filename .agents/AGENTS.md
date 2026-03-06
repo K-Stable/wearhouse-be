@@ -43,6 +43,8 @@ global
 
 - 각 도메인은 controller / service / repository / entity / dto를 포함한다.
 - 공통 로직은 global 패키지에 위치한다.
+- 서비스 계층은 CQRS 기준으로 `service/command`, `service/query` 하위 패키지로 분리한다.
+- Kafka 연동 코드는 도메인 서비스와 분리하여 `global/kafka` 패키지에 배치한다.
 
 ---
 
@@ -88,6 +90,17 @@ Query:
 
 - 조회
 - 검색
+
+패키지 규칙:
+
+- `domain.{domain}.service.command` : 상태 변경 로직(생성/수정/취소/상태전이)
+- `domain.{domain}.service.query` : 조회 전용 로직
+
+의존 규칙:
+
+- Controller는 CommandService/QueryService를 목적에 맞게 분리 호출한다.
+- Kafka Consumer는 `global.kafka.consumer`에서 메시지를 수신하고, 실제 도메인 처리는 CommandService에 위임한다.
+- Kafka 발행/재발행 로직은 `global.kafka.service`에 위치시킨다.
 
 ---
 
@@ -317,5 +330,20 @@ log.error()
 - `.env.example`은 최소 실행 가능한 값으로 유지한다.
 
 ---
+
+# 15. Kafka 패키지 분리 규칙
+
+Kafka 관련 구성은 아래처럼 분리한다.
+
+- `global.kafka.config` : Topic/Producer/Consumer 공통 설정
+- `global.kafka.consumer` : Kafka Listener
+- `global.kafka.service` : Kafka publish, outbox publish 보조 서비스
+- `global.kafka.controller` : 내부 테스트/운영 점검용 엔드포인트
+- `global.kafka.dto` : Kafka 테스트/관리 API DTO
+
+원칙:
+
+- 도메인 비즈니스 규칙(주문 상태 전이/검증)은 `domain` 패키지에서 관리한다.
+- Kafka I/O, 직렬화/역직렬화, 토픽 전송은 `global.kafka`에서 관리한다.
 
 End of skill guide.

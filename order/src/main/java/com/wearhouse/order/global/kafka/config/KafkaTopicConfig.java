@@ -18,4 +18,54 @@ public class KafkaTopicConfig {
                 .replicas(1)
                 .build();
     }
+
+    @Bean
+    public NewTopic inventoryCommandTopic(
+            @Value("${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}") String topicName
+    ) {
+        return TopicBuilder.name(topicName)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic inventoryEventTopic(
+            @Value("${wearhouse.kafka.inventory-event-topic:wearhouse.inventory.event.v1}") String topicName
+    ) {
+        return TopicBuilder.name(topicName)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic paymentCommandTopic(
+            @Value("${wearhouse.kafka.payment-prepare-topic:wearhouse.payment.command.v1}") String topicName
+    ) {
+        return TopicBuilder.name(topicName)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic paymentEventTopic(
+            @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}") String topicName
+    ) {
+        return TopicBuilder.name(topicName)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic orderEventTopic(
+            @Value("${wearhouse.kafka.order-event-topic:wearhouse.order.event.v1}") String topicName
+    ) {
+        return TopicBuilder.name(topicName)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
 }
