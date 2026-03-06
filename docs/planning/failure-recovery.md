@@ -26,13 +26,13 @@
 |---|---|---|---|
 | 동기 커맨드 | Y/N |  |  |
 | 비동기 컨슈머 | Y | exponential |  |
-| PG 확정 조회 | Y | fixed/exponential |  |
+| PG 웹훅 정합화 조회 | Y | fixed/exponential |  |
 
 ## 보상 매트릭스
 
 | 실패 동작 | 보상 동작 | 담당 |
 |---|---|---|
-| 결제 승인 | 예약 재고 해제 | order/inventory |
+| 결제 승인 실패/타임아웃 | `InventoryReleaseRequested` 발행 후 예약 재고 해제 | order/inventory |
 | 주문 확정 | 결제 정합화 후 롤백 | order/payment |
 | 환불 이벤트 소비 | DLQ 리플레이 | settlement |
 | 조회계 적재 실패 | 재시도 후 역순 재적재 | read-model worker |
@@ -43,6 +43,18 @@
 - 리플레이 담당:
 - 리플레이 안전 점검:
 - 리플레이 런북 링크:
+
+## Outbox 재발행 배치
+
+| 항목 | 정책 |
+|---|---|
+| 대상 | `status != SEND_SUCCESS` |
+| 시간 조건 | `created_at <= now - 10분` |
+| 실행 주기 | 1분 |
+| 락 | `FOR UPDATE SKIP LOCKED` |
+| 성공 처리 | `SEND_SUCCESS` + `published_at` 기록 |
+| 실패 처리 | `SEND_FAIL` + `retry_count` 증가 + `next_retry_at` 갱신 |
+| 중단 처리 | 임계치 초과 시 `DEAD` 전환 + 알람 |
 
 ## 정합화 배치
 

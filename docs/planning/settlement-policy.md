@@ -27,13 +27,15 @@
 
 | 트리거 이벤트 | 원장 기록 |
 |---|---|
-| PaymentAuthorized/Confirmed | SALE, FEE |
+| PurchaseConfirmed(기본) / OrderDelivered(대체) | SALE, FEE |
 | RefundSucceeded | REFUND |
 | PayoutExecuted | PAYOUT |
 
 ## 이벤트 기반 반영 원칙
 
-- 결제/환불 이벤트를 기준으로 정산 원장에 비동기 반영
+- 정산 인식 시점은 기본적으로 `PurchaseConfirmed`를 사용한다.
+- 운영 단순화가 필요할 경우 `OrderDelivered`를 대체 기준으로 허용한다.
+- 결제/환불/배송/구매확정 이벤트를 기준으로 정산 원장에 비동기 반영
 - 이벤트 중복 수신 시 원장 중복 기표 금지(멱등키 강제)
 - 정산 조회계 지연은 허용하되, 원장 무결성은 즉시 보장
 
