@@ -99,3 +99,12 @@
 - 정합성 불일치율이 합의 임계치 이하
 - 런북 드라이런 완료
 - 장애 훈련(폴백/킬스위치/리플레이) 시나리오 통과
+
+## 자동화 반영 현황
+
+- `OrderSagaServiceFlowTest`
+  - 재고 예약 -> 결제 성공 -> 주문 확정 수렴
+  - 재고 예약 -> 결제 실패 -> 재고 해제 -> 주문 취소 수렴
+- `InventoryCommandServiceConcurrencyTest`
+  - 핫 SKU 락 획득 실패 시 `StockReserveFailed` 발행
+  - 낙관락 재시도 소진 시 `StockReserveFailed` 발행

@@ -3,6 +3,7 @@ package com.wearhouse.payment.infra.kafka.consumer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.payment.domain.payment.service.command.PaymentCommandService;
+import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import java.util.Map;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.Header;
@@ -13,13 +14,16 @@ public class PaymentCommandConsumer {
 
     private final ObjectMapper objectMapper;
     private final PaymentCommandService paymentCommandService;
+    private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
 
     public PaymentCommandConsumer(
             ObjectMapper objectMapper,
-            PaymentCommandService paymentCommandService
+            PaymentCommandService paymentCommandService,
+            PaymentKafkaFlowMetrics paymentKafkaFlowMetrics
     ) {
         this.objectMapper = objectMapper;
         this.paymentCommandService = paymentCommandService;
+        this.paymentKafkaFlowMetrics = paymentKafkaFlowMetrics;
     }
 
     @KafkaListener(topics = "${wearhouse.kafka.payment-prepare-topic:wearhouse.payment.command.v1}")
@@ -28,19 +32,26 @@ public class PaymentCommandConsumer {
             @Header(name = "kafka_receivedTopic", required = false) String topic,
             @Header(name = "kafka_receivedMessageKey", required = false) String key
     ) throws Exception {
-        Map<String, Object> envelope = objectMapper.readValue(message, new TypeReference<>() {});
-        String eventId = asString(envelope.get("eventId"));
-        String eventType = asString(envelope.get("eventType"));
-        Map<String, Object> payload = toMap(envelope.get("payload"));
+        String eventType = "unknown";
+        try {
+            Map<String, Object> envelope = objectMapper.readValue(message, new TypeReference<>() {});
+            String eventId = asString(envelope.get("eventId"));
+            eventType = asString(envelope.get("eventType"));
+            Map<String, Object> payload = toMap(envelope.get("payload"));
 
-        if ("PaymentPrepareRequested".equals(eventType)) {
-            paymentCommandService.handlePaymentPrepareRequested(
-                    eventId,
-                    topic,
-                    key,
-                    message,
-                    payload
-            );
+            if ("PaymentPrepareRequested".equals(eventType)) {
+                paymentCommandService.handlePaymentPrepareRequested(
+                        eventId,
+                        topic,
+                        key,
+                        message,
+                        payload
+                );
+            }
+            paymentKafkaFlowMetrics.incrementConsumerHandled("payment", eventType, topic, "success");
+        } catch (Exception exception) {
+            paymentKafkaFlowMetrics.incrementConsumerHandled("payment", eventType, topic, "failed");
+            throw exception;
         }
     }
 

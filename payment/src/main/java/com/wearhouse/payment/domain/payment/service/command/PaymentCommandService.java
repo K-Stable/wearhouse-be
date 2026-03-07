@@ -6,6 +6,7 @@ import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.infra.jdbc.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jdbc.repository.PaymentTransactionRecord;
 import com.wearhouse.payment.infra.jdbc.repository.PaymentTransactionRepository;
+import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import com.wearhouse.payment.support.PaymentIdGenerator;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -29,6 +30,7 @@ public class PaymentCommandService {
     private final PaymentInboxRepository paymentInboxRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final PaymentDomainEventPublisher paymentDomainEventPublisher;
+    private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
     private final String paymentEventTopic;
     private final int pendingTimeoutMinutes;
     private final int timeoutBatchSize;
@@ -39,6 +41,7 @@ public class PaymentCommandService {
             PaymentInboxRepository paymentInboxRepository,
             PaymentTransactionRepository paymentTransactionRepository,
             PaymentDomainEventPublisher paymentDomainEventPublisher,
+            PaymentKafkaFlowMetrics paymentKafkaFlowMetrics,
             @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}") String paymentEventTopic,
             @Value("${wearhouse.payment.mock.pending-timeout-minutes:30}") int pendingTimeoutMinutes,
             @Value("${wearhouse.payment.mock.timeout-batch-size:200}") int timeoutBatchSize,
@@ -48,6 +51,7 @@ public class PaymentCommandService {
         this.paymentInboxRepository = paymentInboxRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.paymentDomainEventPublisher = paymentDomainEventPublisher;
+        this.paymentKafkaFlowMetrics = paymentKafkaFlowMetrics;
         this.paymentEventTopic = paymentEventTopic;
         this.pendingTimeoutMinutes = pendingTimeoutMinutes;
         this.timeoutBatchSize = timeoutBatchSize;
@@ -112,6 +116,7 @@ public class PaymentCommandService {
                 );
             }
         }
+        paymentKafkaFlowMetrics.incrementTimeoutFailed(failedCount);
         return failedCount;
     }
 
@@ -135,6 +140,7 @@ public class PaymentCommandService {
                         command.paymentMethod(),
                         now.plusMinutes(pendingTimeoutMinutes)
                 );
+                paymentKafkaFlowMetrics.incrementPaymentDecision("pending_timeout");
                 return;
             }
 
@@ -156,6 +162,7 @@ public class PaymentCommandService {
                         "결제 승인에 실패했습니다.",
                         now
                 );
+                paymentKafkaFlowMetrics.incrementPaymentDecision("failed");
                 return;
             }
 
@@ -168,6 +175,7 @@ public class PaymentCommandService {
                     now
             );
             publishPaymentAuthorized(command, paymentId, now);
+            paymentKafkaFlowMetrics.incrementPaymentDecision("authorized");
         } catch (DuplicateKeyException ignored) {
             // order_id unique 충돌은 중복 요청으로 간주한다.
         }

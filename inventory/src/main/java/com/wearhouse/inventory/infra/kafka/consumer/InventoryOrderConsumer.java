@@ -3,6 +3,7 @@ package com.wearhouse.inventory.infra.kafka.consumer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.inventory.domain.service.command.InventoryCommandService;
+import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
 import java.util.Map;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.Header;
@@ -13,13 +14,16 @@ public class InventoryOrderConsumer {
 
     private final ObjectMapper objectMapper;
     private final InventoryCommandService inventoryCommandService;
+    private final InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics;
 
     public InventoryOrderConsumer(
             ObjectMapper objectMapper,
-            InventoryCommandService inventoryCommandService
+            InventoryCommandService inventoryCommandService,
+            InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics
     ) {
         this.objectMapper = objectMapper;
         this.inventoryCommandService = inventoryCommandService;
+        this.inventoryKafkaFlowMetrics = inventoryKafkaFlowMetrics;
     }
 
     @KafkaListener(topics = "${wearhouse.kafka.order-event-topic:wearhouse.order.event.v1}")
@@ -28,19 +32,26 @@ public class InventoryOrderConsumer {
             @Header(name = "kafka_receivedTopic", required = false) String topic,
             @Header(name = "kafka_receivedMessageKey", required = false) String key
     ) throws Exception {
-        Map<String, Object> envelope = objectMapper.readValue(message, new TypeReference<>() {});
-        String eventId = asString(envelope.get("eventId"));
-        String eventType = asString(envelope.get("eventType"));
-        Map<String, Object> payload = toMap(envelope.get("payload"));
+        String eventType = "unknown";
+        try {
+            Map<String, Object> envelope = objectMapper.readValue(message, new TypeReference<>() {});
+            String eventId = asString(envelope.get("eventId"));
+            eventType = asString(envelope.get("eventType"));
+            Map<String, Object> payload = toMap(envelope.get("payload"));
 
-        if ("OrderConfirmed".equals(eventType)) {
-            inventoryCommandService.onOrderConfirmed(
-                    eventId,
-                    topic,
-                    key,
-                    message,
-                    payload
-            );
+            if ("OrderConfirmed".equals(eventType)) {
+                inventoryCommandService.onOrderConfirmed(
+                        eventId,
+                        topic,
+                        key,
+                        message,
+                        payload
+                );
+            }
+            inventoryKafkaFlowMetrics.incrementConsumerHandled("order", eventType, topic, "success");
+        } catch (Exception exception) {
+            inventoryKafkaFlowMetrics.incrementConsumerHandled("order", eventType, topic, "failed");
+            throw exception;
         }
     }
 

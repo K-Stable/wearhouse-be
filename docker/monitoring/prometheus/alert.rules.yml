@@ -47,3 +47,97 @@ groups:
         annotations:
           summary: "Order Outbox DEAD 이벤트 발생"
           description: "order outbox dead 상태 이벤트가 1개 이상 감지되었습니다."
+
+      - alert: OrderConsumerFailureRateHigh
+        expr: sum(rate(wearhouse_order_kafka_consume_total{result="failed"}[5m])) / clamp_min(sum(rate(wearhouse_order_kafka_consume_total[5m])), 0.0001) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Order 컨슈머 실패율 급증"
+          description: "최근 10분 동안 order kafka consume 실패율이 5%를 초과했습니다."
+
+  - name: inventory-kafka-flow-alerts
+    rules:
+      - alert: InventoryServiceMetricsDown
+        expr: up{job="inventory-service"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Inventory Service 메트릭 수집 실패"
+          description: "inventory-service /actuator/prometheus 수집이 2분 이상 실패했습니다."
+
+      - alert: InventoryConsumerFailureRateHigh
+        expr: sum(rate(wearhouse_inventory_kafka_consume_total{result="failed"}[5m])) / clamp_min(sum(rate(wearhouse_inventory_kafka_consume_total[5m])), 0.0001) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Inventory 컨슈머 실패율 급증"
+          description: "최근 10분 동안 inventory kafka consume 실패율이 5%를 초과했습니다."
+
+      - alert: InventoryPublishFailureHigh
+        expr: sum(rate(wearhouse_inventory_event_publish_failure_total[5m])) > 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Inventory 이벤트 발행 실패 급증"
+          description: "inventory 이벤트 Kafka 발행 실패율이 분당 1건 초과 상태입니다."
+
+      - alert: InventoryHotSkuLockAcquireFailHigh
+        expr: sum(rate(wearhouse_inventory_concurrency_guard_total{control="hot_sku_lock",result="acquire_fail"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "핫 SKU 락 획득 실패 급증"
+          description: "hot sku lock acquire 실패가 5분 평균 5건/분 초과입니다."
+
+      - alert: InventoryOptimisticConflictHigh
+        expr: sum(rate(wearhouse_inventory_concurrency_guard_total{control="optimistic_lock",result="conflict"}[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Inventory 낙관락 충돌 급증"
+          description: "optimistic lock conflict가 5분 평균 10건/분 초과입니다."
+
+  - name: payment-kafka-flow-alerts
+    rules:
+      - alert: PaymentServiceMetricsDown
+        expr: up{job="payment-service"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Payment Service 메트릭 수집 실패"
+          description: "payment-service /actuator/prometheus 수집이 2분 이상 실패했습니다."
+
+      - alert: PaymentConsumerFailureRateHigh
+        expr: sum(rate(wearhouse_payment_kafka_consume_total{result="failed"}[5m])) / clamp_min(sum(rate(wearhouse_payment_kafka_consume_total[5m])), 0.0001) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Payment 컨슈머 실패율 급증"
+          description: "최근 10분 동안 payment kafka consume 실패율이 5%를 초과했습니다."
+
+      - alert: PaymentPublishFailureHigh
+        expr: sum(rate(wearhouse_payment_event_publish_failure_total[5m])) > 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Payment 이벤트 발행 실패 급증"
+          description: "payment 이벤트 Kafka 발행 실패율이 분당 1건 초과 상태입니다."
+
+      - alert: PaymentTimeoutFailedHigh
+        expr: sum(rate(wearhouse_payment_timeout_failed_total[15m])) > 0.2
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Payment 타임아웃 실패 증가"
+          description: "payment timeout 실패 건수가 15분 평균 0.2건/초를 초과했습니다."

@@ -1,0 +1,10 @@
+ifndef::snippets[]
+:snippets: ../../build/generated-snippets
+endif::[]
+
+= Wearhouse Inventory API Docs
+:toc: left
+:toclevels: 2
+:source-highlighter: highlightjs
+
+include::inventory-api.adoc[]

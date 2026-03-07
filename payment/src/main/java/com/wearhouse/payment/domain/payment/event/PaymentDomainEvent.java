@@ -38,6 +38,10 @@ public class PaymentDomainEvent {
         return eventId;
     }
 
+    public String getEventType() {
+        return eventType;
+    }
+
     public String getTopic() {
         return topic;
     }

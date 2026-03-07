@@ -16,3 +16,12 @@ spring:
   kafka:
     consumer:
       group-id: ${PAYMENT_KAFKA_CONSUMER_GROUP:payment-service-group}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: payment-service

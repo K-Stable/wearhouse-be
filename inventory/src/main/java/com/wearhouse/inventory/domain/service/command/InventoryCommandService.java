@@ -14,6 +14,7 @@ import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService;
 import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService.SkuLockHandle;
 import com.wearhouse.inventory.infra.redis.InventoryRedisStockCacheService;
 import com.wearhouse.inventory.support.InventoryIdGenerator;
+import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.OptimisticLockException;
 import java.time.LocalDateTime;
@@ -42,6 +43,7 @@ public class InventoryCommandService {
     private final InventoryDomainEventPublisher inventoryDomainEventPublisher;
     private final InventoryHotSkuLockService inventoryHotSkuLockService;
     private final InventoryRedisStockCacheService inventoryRedisStockCacheService;
+    private final InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics;
     private final EntityManager entityManager;
     private final String inventoryEventTopic;
     private final int reservationHoldMinutes;
@@ -56,6 +58,7 @@ public class InventoryCommandService {
             InventoryDomainEventPublisher inventoryDomainEventPublisher,
             InventoryHotSkuLockService inventoryHotSkuLockService,
             InventoryRedisStockCacheService inventoryRedisStockCacheService,
+            InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics,
             EntityManager entityManager,
             @Value("${wearhouse.kafka.inventory-event-topic:wearhouse.inventory.event.v1}") String inventoryEventTopic,
             @Value("${wearhouse.inventory.reservation-hold-minutes:15}") int reservationHoldMinutes,
@@ -69,6 +72,7 @@ public class InventoryCommandService {
         this.inventoryDomainEventPublisher = inventoryDomainEventPublisher;
         this.inventoryHotSkuLockService = inventoryHotSkuLockService;
         this.inventoryRedisStockCacheService = inventoryRedisStockCacheService;
+        this.inventoryKafkaFlowMetrics = inventoryKafkaFlowMetrics;
         this.entityManager = entityManager;
         this.inventoryEventTopic = inventoryEventTopic;
         this.reservationHoldMinutes = reservationHoldMinutes;
@@ -312,6 +316,7 @@ public class InventoryCommandService {
             for (Long skuId : hotTargets) {
                 SkuLockHandle handle = inventoryHotSkuLockService.acquire(skuId, ownerToken);
                 if (handle == null) {
+                    inventoryKafkaFlowMetrics.incrementConcurrencyGuard("hot_sku_lock", "acquire_fail");
                     throw new ErrorException(InventoryErrorCode.HOT_SKU_LOCK_ACQUIRE_FAILED);
                 }
                 lockHandles.add(handle);
@@ -348,6 +353,7 @@ public class InventoryCommandService {
                 return;
             } catch (ObjectOptimisticLockingFailureException | OptimisticLockException exception) {
                 if (attempt == optimisticRetryCount) {
+                    inventoryKafkaFlowMetrics.incrementConcurrencyGuard("optimistic_lock", "conflict");
                     throw new ErrorException(InventoryErrorCode.OPTIMISTIC_CONFLICT);
                 }
                 entityManager.clear();
@@ -366,6 +372,7 @@ public class InventoryCommandService {
                 return;
             } catch (ObjectOptimisticLockingFailureException | OptimisticLockException exception) {
                 if (attempt == optimisticRetryCount) {
+                    inventoryKafkaFlowMetrics.incrementConcurrencyGuard("optimistic_lock", "conflict");
                     throw new ErrorException(InventoryErrorCode.OPTIMISTIC_CONFLICT);
                 }
                 entityManager.clear();
@@ -384,6 +391,7 @@ public class InventoryCommandService {
                 return;
             } catch (ObjectOptimisticLockingFailureException | OptimisticLockException exception) {
                 if (attempt == optimisticRetryCount) {
+                    inventoryKafkaFlowMetrics.incrementConcurrencyGuard("optimistic_lock", "conflict");
                     throw new ErrorException(InventoryErrorCode.OPTIMISTIC_CONFLICT);
                 }
                 entityManager.clear();
