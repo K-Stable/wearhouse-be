@@ -2,7 +2,7 @@ package com.wearhouse.order.infra.kafka.consumer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wearhouse.order.domain.order.service.command.OrderSagaCommandService;
+import com.wearhouse.order.domain.service.command.OrderSagaService;
 import com.wearhouse.order.support.monitoring.OrderKafkaFlowMetrics;
 import java.util.Map;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -13,16 +13,16 @@ import org.springframework.stereotype.Component;
 public class OrderSagaEventConsumer {
 
     private final ObjectMapper objectMapper;
-    private final OrderSagaCommandService orderSagaCommandService;
+    private final OrderSagaService orderSagaService;
     private final OrderKafkaFlowMetrics orderKafkaFlowMetrics;
 
     public OrderSagaEventConsumer(
             ObjectMapper objectMapper,
-            OrderSagaCommandService orderSagaCommandService,
+            OrderSagaService orderSagaService,
             OrderKafkaFlowMetrics orderKafkaFlowMetrics
     ) {
         this.objectMapper = objectMapper;
-        this.orderSagaCommandService = orderSagaCommandService;
+        this.orderSagaService = orderSagaService;
         this.orderKafkaFlowMetrics = orderKafkaFlowMetrics;
     }
 
@@ -39,7 +39,7 @@ public class OrderSagaEventConsumer {
             eventType = asString(envelope.get("eventType"));
             Map<String, Object> payload = toMap(envelope.get("payload"));
 
-            orderSagaCommandService.handleInventoryEvent(
+            orderSagaService.onInventoryEvent(
                     eventId,
                     eventType,
                     topic,
@@ -67,7 +67,7 @@ public class OrderSagaEventConsumer {
             eventType = asString(envelope.get("eventType"));
             Map<String, Object> payload = toMap(envelope.get("payload"));
 
-            orderSagaCommandService.handlePaymentEvent(
+            orderSagaService.onPaymentEvent(
                     eventId,
                     eventType,
                     topic,

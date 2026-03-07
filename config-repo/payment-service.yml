@@ -1,0 +1,18 @@
+wearhouse:
+  kafka:
+    payment-prepare-topic: ${PAYMENT_PREPARE_TOPIC:wearhouse.payment.command.v1}
+    payment-event-topic: ${PAYMENT_EVENT_TOPIC:wearhouse.payment.event.v1}
+  payment:
+    kafka:
+      send-timeout-ms: ${PAYMENT_KAFKA_SEND_TIMEOUT_MS:3000}
+    mock:
+      pending-timeout-minutes: ${PAYMENT_MOCK_PENDING_TIMEOUT_MINUTES:30}
+      timeout-check-interval-ms: ${PAYMENT_MOCK_TIMEOUT_CHECK_INTERVAL_MS:10000}
+      timeout-batch-size: ${PAYMENT_MOCK_TIMEOUT_BATCH_SIZE:200}
+      fail-methods: ${PAYMENT_MOCK_FAIL_METHODS:FAIL}
+      timeout-methods: ${PAYMENT_MOCK_TIMEOUT_METHODS:TIMEOUT}
+
+spring:
+  kafka:
+    consumer:
+      group-id: ${PAYMENT_KAFKA_CONSUMER_GROUP:payment-service-group}

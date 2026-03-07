@@ -2,10 +2,10 @@
 
 ## 문서 정보
 
-- 담당자:
+- 담당자: inventory-service
 - 리뷰어:
-- 최종 수정일:
-- 상태: Draft | Approved
+- 최종 수정일: 2026-03-06
+- 상태: Draft
 
 ## 목표
 
@@ -28,6 +28,39 @@
 5. 성공 시 `reserved` 증가, `available` 감소
 6. 예약 레코드(TTL 포함) 저장
 7. `StockReserved` 이벤트 발행
+
+## 구현 반영 (Phase 1)
+
+### 예약 시작 시점
+
+- 장바구니/주문서 진입 단계:
+  - Redis 기반 재고 "조회/예측"만 수행(하드 예약 없음)
+- `결제하기` 버튼 클릭 단계:
+  - `InventoryReserveRequested` 수신 후 실제 DB 하드 예약 수행
+  - 실패 시 `StockReserveFailed`, 성공 시 `StockReserved` 발행
+
+### 현재 구현된 방어선
+
+1. Inbox 멱등성:
+  - `inventory_inbox_event` unique(`event_id`, `consumer_name`)로 중복 소비 차단
+2. DB 동시성 제어:
+  - `inventory_stock.version` 낙관적 락 기반 충돌 감지
+  - 충돌 시 제한 재시도 후 실패 이벤트 발행
+3. 예약/복구 원장:
+  - `inventory_reservation`에 예약 행 저장
+  - `InventoryReleaseRequested` 수신 시 RESERVED 행만 RELEASED로 전환하고 수량 복구
+4. 이벤트 응답:
+  - 성공: `StockReserved`, `InventoryReleased`
+  - 실패: `StockReserveFailed`
+
+### 트랜잭션 경계
+
+- `InventoryReserveRequested` 처리:
+  - 재고 차감 + 예약행 저장 + 도메인이벤트 생성을 단일 트랜잭션으로 처리
+  - `AFTER_COMMIT`에서 Kafka 발행
+- `InventoryReleaseRequested` 처리:
+  - 예약행 상태 전환 + 재고 복구를 단일 트랜잭션으로 처리
+  - `AFTER_COMMIT`에서 `InventoryReleased` 발행
 
 ## SQL/락 전략
 
@@ -79,3 +112,37 @@
 - 부분 배송 후 취소:
 - 캐시 Stampede:
 - 검색/조회 저장소 장애 시 폴백:
+  이벤트 계약(고정)
+1.
+InventoryReserveRequested
+2.
+StockReserved
+3.
+StockReserveFailed
+4.
+PaymentPrepareRequested
+5.
+PaymentAuthorized
+6.
+PaymentFailed
+7.
+InventoryReleaseRequested
+8.
+InventoryReleased
+9.
+OrderConfirmed
+10.
+OrderCancelled
+구현 순서
+1.
+Inventory 예약/해제 도메인 + 락/낙관락 구현.
+2.
+Order <-> Inventory Saga 연동 완료.
+3.
+Payment Mock 먼저 구현(승인/실패 이벤트).
+4.
+보상 트랜잭션 + 타임아웃 배치 완성.
+5.
+이후 PG 실연동(웹훅 멱등/서명검증 포함).
+6.
+Grafana에 reserve success rate, reserve fail reason, dead outbox, payment fail rate 패널 추가.

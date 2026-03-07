@@ -71,6 +71,9 @@
 | T-013 | Saga 중간 단계 실패(재고 성공 후 결제 실패) | 보상 실행 후 주문 취소/재고 복원 수렴 | P0 |
 | T-014 | 배치 재발행 대상 대량 누적 | `SKIP LOCKED` 기반으로 중복 없이 점진 소진 | P1 |
 | T-015 | PG 웹훅 중복/역순 도착 | Payment 멱등 처리 후 Order 최종 상태 1회 수렴 | P0 |
+| T-016 | `InventoryReserveRequested` 중복 수신 | Inbox unique 키로 1회만 처리 | P0 |
+| T-017 | 동일 SKU 동시 예약 충돌 | 낙관적 락 충돌 감지 + 실패 이벤트 발행 | P0 |
+| T-018 | `InventoryReleaseRequested` 처리 | 예약만 복구되고 최종 `InventoryReleased` 발행 | P0 |
 
 ## 비기능 목표
 

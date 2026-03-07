@@ -1,7 +1,7 @@
 package com.wearhouse.order.infra.jpa.repository;
 
-import com.wearhouse.order.domain.order.entity.OrderOutboxEventEntity;
-import com.wearhouse.order.domain.order.model.OrderOutboxStatus;
+import com.wearhouse.order.domain.entity.OrderOutboxEventEntity;
+import com.wearhouse.order.domain.model.OrderOutboxStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;

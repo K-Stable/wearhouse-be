@@ -1,0 +1,162 @@
+package com.wearhouse.inventory.domain.entity;
+
+import com.wearhouse.inventory.domain.model.InventoryInboxStatus;
+import com.wearhouse.inventory.infra.jpa.common.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(
+        name = "inventory_inbox_event",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_inventory_inbox_event_consumer",
+                columnNames = {"event_id", "consumer_name"}
+        )
+)
+public class InventoryInboxEventEntity extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "event_id", nullable = false, length = 26)
+    private String eventId;
+
+    @Column(name = "consumer_name", nullable = false, length = 80)
+    private String consumerName;
+
+    @Column(name = "event_type", nullable = false, length = 100)
+    private String eventType;
+
+    @Column(name = "topic", nullable = false, length = 120)
+    private String topic;
+
+    @Column(name = "partition_key", length = 100)
+    private String partitionKey;
+
+    @Column(name = "payload", nullable = false, columnDefinition = "json")
+    private String payload;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private InventoryInboxStatus status;
+
+    @Column(name = "fail_count", nullable = false)
+    private Integer failCount;
+
+    @Column(name = "fail_reason_code", length = 50)
+    private String failReasonCode;
+
+    @Column(name = "fail_reason_message", length = 255)
+    private String failReasonMessage;
+
+    @Column(name = "processed_at")
+    private LocalDateTime processedAt;
+
+    protected InventoryInboxEventEntity() {
+    }
+
+    private InventoryInboxEventEntity(
+            String eventId,
+            String consumerName,
+            String eventType,
+            String topic,
+            String partitionKey,
+            String payload
+    ) {
+        this.eventId = eventId;
+        this.consumerName = consumerName;
+        this.eventType = eventType;
+        this.topic = topic;
+        this.partitionKey = partitionKey;
+        this.payload = payload;
+        this.status = InventoryInboxStatus.RECEIVED;
+        this.failCount = 0;
+    }
+
+    public static InventoryInboxEventEntity received(
+            String eventId,
+            String consumerName,
+            String eventType,
+            String topic,
+            String partitionKey,
+            String payload
+    ) {
+        return new InventoryInboxEventEntity(eventId, consumerName, eventType, topic, partitionKey, payload);
+    }
+
+    public void markProcessed() {
+        this.status = InventoryInboxStatus.PROCESSED;
+        this.processedAt = LocalDateTime.now();
+    }
+
+    public void markFailed(String reasonCode, String reasonMessage) {
+        this.status = InventoryInboxStatus.FAILED;
+        this.failCount = this.failCount + 1;
+        this.failReasonCode = reasonCode;
+        this.failReasonMessage = truncate(reasonMessage, 255);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getEventId() {
+        return eventId;
+    }
+
+    public String getConsumerName() {
+        return consumerName;
+    }
+
+    public String getEventType() {
+        return eventType;
+    }
+
+    public String getTopic() {
+        return topic;
+    }
+
+    public String getPartitionKey() {
+        return partitionKey;
+    }
+
+    public String getPayload() {
+        return payload;
+    }
+
+    public InventoryInboxStatus getStatus() {
+        return status;
+    }
+
+    public Integer getFailCount() {
+        return failCount;
+    }
+
+    public String getFailReasonCode() {
+        return failReasonCode;
+    }
+
+    public String getFailReasonMessage() {
+        return failReasonMessage;
+    }
+
+    public LocalDateTime getProcessedAt() {
+        return processedAt;
+    }
+}

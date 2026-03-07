@@ -47,6 +47,12 @@
 - 현재: `BEFORE_COMMIT` Outbox 저장 + `AFTER_COMMIT` 즉시 발행 + 10분 경과 재발행 배치
 - 보류: Outbox Relay 완전 분리 여부는 추후 ADR에서 결정
 
+## 재고 서비스 소비 구현(현재)
+
+- `InventoryReserveRequested` / `InventoryReleaseRequested`를 `wearhouse.inventory.command.v1`에서 소비
+- Inbox unique(`eventId`, `consumer`)로 중복 소비 차단
+- 처리 성공 후 `wearhouse.inventory.event.v1`에 결과 이벤트 발행
+
 ## Outbox 기록/발행 시점
 
 | 항목 | 정책 |
@@ -134,4 +140,3 @@ FOR UPDATE SKIP LOCKED;
 | 주문/결제 최종 반영 지연 | 평시 5초 이내 / 피크 30초 이내 |
 | 판매자 주문 대시보드 지연 | 평시 3초 이내 / 피크 20초 이내 |
 | 재고 조회계 지연 | 평시 2초 이내 / 피크 10초 이내 |
-
