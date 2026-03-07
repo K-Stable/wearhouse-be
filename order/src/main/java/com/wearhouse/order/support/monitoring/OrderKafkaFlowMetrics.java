@@ -1,6 +1,6 @@
 package com.wearhouse.order.support.monitoring;
 
-import com.wearhouse.order.domain.order.model.OrderOutboxStatus;
+import com.wearhouse.order.domain.model.OrderOutboxStatus;
 import com.wearhouse.order.infra.jpa.repository.OrderOutboxEventJpaRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;

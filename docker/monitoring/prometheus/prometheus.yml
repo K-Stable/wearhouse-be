@@ -27,3 +27,15 @@ scrape_configs:
     static_configs:
       - targets:
           - order-service:8104
+
+  - job_name: payment-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - payment-service:8105
+
+  - job_name: inventory-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - inventory-service:8106

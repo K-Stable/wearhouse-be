@@ -210,6 +210,64 @@ services:
     ports:
       - "${ORDER_SERVER_PORT:-8104}:8104"
 
+  payment-service:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        MODULE_NAME: payment
+    container_name: wearhouse-payment-service
+    depends_on:
+      - service-discovery
+      - config-server
+      - kafka
+      - mysql
+      - redis
+    environment:
+      PAYMENT_SERVER_PORT: ${PAYMENT_SERVER_PORT:-8105}
+      EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
+      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI:-http://config-server:8888}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      PAYMENT_DB_NAME: ${PAYMENT_DB_NAME}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      PAYMENT_KAFKA_CONSUMER_GROUP: ${PAYMENT_KAFKA_CONSUMER_GROUP:-payment-service-group}
+    ports:
+      - "${PAYMENT_SERVER_PORT:-8105}:8105"
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        MODULE_NAME: inventory
+    container_name: wearhouse-inventory-service
+    depends_on:
+      - service-discovery
+      - config-server
+      - kafka
+      - mysql
+      - redis
+    environment:
+      INVENTORY_SERVER_PORT: ${INVENTORY_SERVER_PORT:-8106}
+      EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
+      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI:-http://config-server:8888}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      INVENTORY_DB_NAME: ${INVENTORY_DB_NAME}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      INVENTORY_KAFKA_CONSUMER_GROUP: ${INVENTORY_KAFKA_CONSUMER_GROUP:-inventory-service-group}
+    ports:
+      - "${INVENTORY_SERVER_PORT:-8106}:8106"
+
   api-gateway:
     build:
       context: .
@@ -237,4 +295,3 @@ volumes:
   prometheus-data:
   grafana-data:
   alertmanager-data:
-

@@ -24,6 +24,32 @@ spring:
       port: ${REDIS_PORT:6379}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    admin:
+      auto-create: true
+    listener:
+      missing-topics-fatal: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: ${PAYMENT_KAFKA_CONSUMER_GROUP:payment-service-group}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+wearhouse:
+  kafka:
+    payment-prepare-topic: ${PAYMENT_PREPARE_TOPIC:wearhouse.payment.command.v1}
+    payment-event-topic: ${PAYMENT_EVENT_TOPIC:wearhouse.payment.event.v1}
+  payment:
+    kafka:
+      send-timeout-ms: ${PAYMENT_KAFKA_SEND_TIMEOUT_MS:3000}
+    mock:
+      pending-timeout-minutes: ${PAYMENT_MOCK_PENDING_TIMEOUT_MINUTES:30}
+      timeout-check-interval-ms: ${PAYMENT_MOCK_TIMEOUT_CHECK_INTERVAL_MS:10000}
+      timeout-batch-size: ${PAYMENT_MOCK_TIMEOUT_BATCH_SIZE:200}
+      fail-methods: ${PAYMENT_MOCK_FAIL_METHODS:FAIL}
+      timeout-methods: ${PAYMENT_MOCK_TIMEOUT_METHODS:TIMEOUT}
 
 eureka:
   client:
@@ -31,3 +57,12 @@ eureka:
       defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka}
   instance:
     prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: payment-service

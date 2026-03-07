@@ -1,4 +1,4 @@
-package com.wearhouse.order.domain.order.controller;
+package com.wearhouse.order.domain.controller;
 
 import static com.wearhouse.order.support.restdocs.ApiDocumentUtils.getDocumentRequest;
 import static com.wearhouse.order.support.restdocs.ApiDocumentUtils.getDocumentResponse;
@@ -19,16 +19,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.global.error.GlobalExceptionHandler;
 import com.wearhouse.common.global.response.GlobalResponseBodyAdvice;
-import com.wearhouse.order.domain.order.dto.request.OrderCancelRequest;
-import com.wearhouse.order.domain.order.dto.request.OrderCreateRequest;
-import com.wearhouse.order.domain.order.dto.request.OrderCreateRequest.OrderCreateItemRequest;
-import com.wearhouse.order.domain.order.dto.response.OrderCancelResponse;
-import com.wearhouse.order.domain.order.dto.response.OrderCreateResponse;
-import com.wearhouse.order.domain.order.dto.response.OrderDetailResponse;
-import com.wearhouse.order.domain.order.dto.response.OrderDetailResponse.OrderItemDetailResponse;
-import com.wearhouse.order.domain.order.dto.response.OrderSummaryResponse;
-import com.wearhouse.order.domain.order.service.command.OrderCommandService;
-import com.wearhouse.order.domain.order.service.query.OrderQueryService;
+import com.wearhouse.order.domain.dto.request.OrderCancelRequest;
+import com.wearhouse.order.domain.dto.request.OrderCreateRequest;
+import com.wearhouse.order.domain.dto.request.OrderCreateRequest.OrderCreateItemRequest;
+import com.wearhouse.order.domain.dto.response.OrderCancelResponse;
+import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
+import com.wearhouse.order.domain.dto.response.OrderDetailResponse;
+import com.wearhouse.order.domain.dto.response.OrderDetailResponse.OrderItemDetailResponse;
+import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
+import com.wearhouse.order.domain.service.command.OrderCommandService;
+import com.wearhouse.order.domain.service.query.OrderQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;

@@ -22,8 +22,44 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      repositories:
+        enabled: false
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    admin:
+      auto-create: true
+    listener:
+      missing-topics-fatal: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: ${INVENTORY_KAFKA_CONSUMER_GROUP:inventory-service-group}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+wearhouse:
+  kafka:
+    inventory-command-topic: ${INVENTORY_COMMAND_TOPIC:wearhouse.inventory.command.v1}
+    inventory-event-topic: ${INVENTORY_EVENT_TOPIC:wearhouse.inventory.event.v1}
+    order-event-topic: ${ORDER_EVENT_TOPIC:wearhouse.order.event.v1}
+  inventory:
+    reservation-hold-minutes: ${INVENTORY_RESERVATION_HOLD_MINUTES:15}
+    optimistic-retry-count: ${INVENTORY_OPTIMISTIC_RETRY_COUNT:3}
+    reservation-expire-interval-ms: ${INVENTORY_RESERVATION_EXPIRE_INTERVAL_MS:30000}
+    reservation-expire-batch-size: ${INVENTORY_RESERVATION_EXPIRE_BATCH_SIZE:200}
+    hot-skus: ${INVENTORY_HOT_SKUS:}
+    lock:
+      wait-time-ms: ${INVENTORY_LOCK_WAIT_TIME_MS:1200}
+      lease-time-ms: ${INVENTORY_LOCK_LEASE_TIME_MS:3000}
+      retry-interval-ms: ${INVENTORY_LOCK_RETRY_INTERVAL_MS:40}
+      key-prefix: ${INVENTORY_LOCK_KEY_PREFIX:inventory:lock:sku:}
+    cache:
+      stock-ttl-seconds: ${INVENTORY_STOCK_CACHE_TTL_SECONDS:30}
+      stock-key-prefix: ${INVENTORY_STOCK_CACHE_KEY_PREFIX:inventory:stock:available:}
+    kafka:
+      send-timeout-ms: ${INVENTORY_KAFKA_SEND_TIMEOUT_MS:3000}
 
 eureka:
   client:
@@ -31,3 +67,12 @@ eureka:
       defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka}
   instance:
     prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: inventory-service

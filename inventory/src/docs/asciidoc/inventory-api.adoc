@@ -1,0 +1,13 @@
+== Inventory API
+
+=== 재고 등록/수정
+
+operation::inventory-stock-upsert[snippets='http-request,request-fields,http-response,response-fields']
+
+=== 재고 조회
+
+operation::inventory-stock-get[snippets='http-request,path-parameters,http-response,response-fields']
+
+=== 재고 가용성 체크
+
+operation::inventory-availability-check[snippets='http-request,request-fields,http-response,response-fields']
