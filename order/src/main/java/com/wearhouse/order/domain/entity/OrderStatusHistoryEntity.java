@@ -13,9 +13,15 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Getter
 @Table(name = "order_status_history")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OrderStatusHistoryEntity {
 
     @Id
@@ -46,9 +52,7 @@ public class OrderStatusHistoryEntity {
     @Column(name = "changed_at", nullable = false)
     private LocalDateTime changedAt;
 
-    protected OrderStatusHistoryEntity() {
-    }
-
+    @Builder
     private OrderStatusHistoryEntity(
             OrderEntity order,
             OrderStatus fromStatus,

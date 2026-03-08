@@ -14,9 +14,15 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Getter
 @Table(name = "order_item")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OrderItemEntity extends BaseEntity {
 
     @Id
@@ -55,9 +61,7 @@ public class OrderItemEntity extends BaseEntity {
     @Column(name = "status", nullable = false, length = 30)
     private OrderItemStatus status;
 
-    protected OrderItemEntity() {
-    }
-
+    @Builder
     private OrderItemEntity(
             OrderEntity order,
             Long productId,

@@ -20,9 +20,15 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Getter
 @Table(name = "orders")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OrderEntity extends BaseEntity {
 
     @Id
@@ -80,9 +86,7 @@ public class OrderEntity extends BaseEntity {
     @OrderBy("id ASC")
     private List<OrderItemEntity> items = new ArrayList<>();
 
-    protected OrderEntity() {
-    }
-
+    @Builder
     private OrderEntity(
             String orderNo,
             Long buyerId,

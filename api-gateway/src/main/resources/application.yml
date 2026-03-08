@@ -60,6 +60,22 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+wearhouse:
+  cors:
+    allowed-origins: ${API_GATEWAY_ALLOWED_ORIGINS:http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+  gateway:
+    auth:
+      validate-url: ${GATEWAY_AUTH_VALIDATE_URL:http://localhost:8101/api/v1/internal/auth/validate}
+      internal-shared-secret: ${GATEWAY_AUTH_INTERNAL_SHARED_SECRET:wearhouse-internal-shared-secret}
+    passport:
+      shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
+      cache-ttl-seconds: ${PASSPORT_CACHE_TTL_SECONDS:60}
+      user-index-ttl-seconds: ${PASSPORT_USER_INDEX_TTL_SECONDS:1800}
+      user-changed-channel: ${AUTH_USER_CHANGED_CHANNEL:wearhouse.auth.user-changed.v1}
+    cookie:
+      buyer-access-name: ${AUTH_COOKIE_BUYER_ACCESS_NAME:buyer_access_token}
+      seller-access-name: ${AUTH_COOKIE_SELLER_ACCESS_NAME:seller_access_token}
+
 eureka:
   client:
     service-url:

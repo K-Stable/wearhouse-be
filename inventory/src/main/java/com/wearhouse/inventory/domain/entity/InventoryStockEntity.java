@@ -8,9 +8,15 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Getter
 @Table(name = "inventory_stock")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InventoryStockEntity extends BaseEntity {
 
     @Id
@@ -30,9 +36,7 @@ public class InventoryStockEntity extends BaseEntity {
     @Column(name = "version", nullable = false)
     private Long version;
 
-    protected InventoryStockEntity() {
-    }
-
+    @Builder
     private InventoryStockEntity(Long skuId, Integer availableQty) {
         this.skuId = skuId;
         this.availableQty = availableQty;

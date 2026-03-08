@@ -1,0 +1,16 @@
+wearhouse:
+  user:
+    internal:
+      shared-secret: ${USER_AUTH_INTERNAL_SHARED_SECRET:${AUTH_INTERNAL_SHARED_SECRET:wearhouse-internal-shared-secret}}
+    auth:
+      buyer-signup-url: ${USER_AUTH_BUYER_SIGNUP_URL:http://localhost:8101/api/v1/internal/auth/buyers/signup}
+      seller-signup-url: ${USER_AUTH_SELLER_SIGNUP_URL:http://localhost:8101/api/v1/internal/auth/sellers/signup}
+      internal-shared-secret: ${USER_AUTH_INTERNAL_SHARED_SECRET:${AUTH_INTERNAL_SHARED_SECRET:wearhouse-internal-shared-secret}}
+    cookie:
+      buyer-access-name: ${AUTH_COOKIE_BUYER_ACCESS_NAME:buyer_access_token}
+      seller-access-name: ${AUTH_COOKIE_SELLER_ACCESS_NAME:seller_access_token}
+      buyer-refresh-name: ${AUTH_COOKIE_BUYER_REFRESH_NAME:buyer_refresh_token}
+      seller-refresh-name: ${AUTH_COOKIE_SELLER_REFRESH_NAME:seller_refresh_token}
+      secure: ${AUTH_COOKIE_SECURE:false}
+      same-site: ${AUTH_COOKIE_SAME_SITE:Lax}
+      path: ${AUTH_COOKIE_PATH:/}

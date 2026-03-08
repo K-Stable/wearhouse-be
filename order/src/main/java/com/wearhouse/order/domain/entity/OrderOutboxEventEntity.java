@@ -11,9 +11,15 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Getter
 @Table(name = "order_outbox_event")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OrderOutboxEventEntity extends BaseEntity {
 
     @Id
@@ -60,9 +66,7 @@ public class OrderOutboxEventEntity extends BaseEntity {
     @Column(name = "error_message", length = 255)
     private String errorMessage;
 
-    protected OrderOutboxEventEntity() {
-    }
-
+    @Builder
     private OrderOutboxEventEntity(
             String eventId,
             String aggregateType,

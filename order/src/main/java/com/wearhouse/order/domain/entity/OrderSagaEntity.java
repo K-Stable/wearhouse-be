@@ -14,9 +14,15 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Getter
 @Table(name = "order_saga")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OrderSagaEntity extends BaseEntity {
 
     @Id
@@ -49,9 +55,7 @@ public class OrderSagaEntity extends BaseEntity {
     @Column(name = "fail_reason_code", length = 50)
     private String failReasonCode;
 
-    protected OrderSagaEntity() {
-    }
-
+    @Builder
     private OrderSagaEntity(
             OrderEntity order,
             String sagaId,

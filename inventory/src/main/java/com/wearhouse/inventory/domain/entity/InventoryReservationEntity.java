@@ -11,9 +11,15 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Getter
 @Table(name = "inventory_reservation")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InventoryReservationEntity extends BaseEntity {
 
     @Id
@@ -51,9 +57,7 @@ public class InventoryReservationEntity extends BaseEntity {
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 
-    protected InventoryReservationEntity() {
-    }
-
+    @Builder
     private InventoryReservationEntity(
             String reservationId,
             String sourceEventId,
