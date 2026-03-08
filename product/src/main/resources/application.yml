@@ -18,6 +18,13 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -31,3 +38,8 @@ eureka:
       defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka}
   instance:
     prefer-ip-address: true
+
+wearhouse:
+  product:
+    passport:
+      shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}

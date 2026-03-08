@@ -22,6 +22,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final String SELLER_PATH_SEGMENT = "/api/v1/seller/";
+    private static final String ROLE_SELLER = "ROLE_SELLER";
     private static final Set<String> SKIP_PREFIXES = Set.of(
             "/auth-service/api/v1/auth/",
             "/actuator",
@@ -86,6 +88,10 @@ public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
             writeUnauthorized(response, "ACCESS_TOKEN_INVALID", "access token 검증에 실패했습니다.");
             return;
         }
+        if (requiresSellerRole(request.getRequestURI()) && !hasRole(passportContext.roles(), ROLE_SELLER)) {
+            writeForbidden(response, "FORBIDDEN_SELLER_ONLY", "seller 권한이 필요한 경로입니다.");
+            return;
+        }
 
         String encodedUser = encodePassport(passportContext);
         String timestamp = String.valueOf(Instant.now().toEpochMilli());
@@ -123,8 +129,27 @@ public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
+    private boolean requiresSellerRole(String requestUri) {
+        return requestUri != null && requestUri.contains(SELLER_PATH_SEGMENT);
+    }
+
+    private boolean hasRole(List<String> roles, String requiredRole) {
+        if (roles == null || roles.isEmpty()) {
+            return false;
+        }
+        return roles.stream().anyMatch(requiredRole::equalsIgnoreCase);
+    }
+
     private void writeUnauthorized(HttpServletResponse response, String code, String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write(
+                "{\"success\":false,\"code\":\"" + code + "\",\"message\":\"" + message + "\",\"data\":null}"
+        );
+    }
+
+    private void writeForbidden(HttpServletResponse response, String code, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json;charset=UTF-8");
         response.getWriter().write(
                 "{\"success\":false,\"code\":\"" + code + "\",\"message\":\"" + message + "\",\"data\":null}"
