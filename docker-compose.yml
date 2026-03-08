@@ -234,6 +234,7 @@ services:
       USER_AUTH_BUYER_SIGNUP_URL: ${USER_AUTH_BUYER_SIGNUP_URL:-http://auth-service:8101/api/v1/internal/auth/buyers/signup}
       USER_AUTH_SELLER_SIGNUP_URL: ${USER_AUTH_SELLER_SIGNUP_URL:-http://auth-service:8101/api/v1/internal/auth/sellers/signup}
       USER_AUTH_INTERNAL_SHARED_SECRET: ${USER_AUTH_INTERNAL_SHARED_SECRET:-wearhouse-internal-shared-secret}
+      PASSPORT_SHARED_SECRET: ${PASSPORT_SHARED_SECRET:-wearhouse-passport-shared-secret}
     ports:
       - "${USER_SERVER_PORT:-8102}:8102"
 

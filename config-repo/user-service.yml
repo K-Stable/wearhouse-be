@@ -1,5 +1,7 @@
 wearhouse:
   user:
+    passport:
+      shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
     internal:
       shared-secret: ${USER_AUTH_INTERNAL_SHARED_SECRET:${AUTH_INTERNAL_SHARED_SECRET:wearhouse-internal-shared-secret}}
     auth:

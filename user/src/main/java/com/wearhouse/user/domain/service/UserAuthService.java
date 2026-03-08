@@ -1,35 +1,60 @@
-package com.wearhouse.user.domain.service.command;
+package com.wearhouse.user.domain.service;
 
 import com.wearhouse.common.global.error.ErrorException;
+import com.wearhouse.user.domain.dto.request.UserSignupRequest;
+import com.wearhouse.user.domain.dto.response.UserSignupResponse;
 import com.wearhouse.user.domain.entity.BuyerEntity;
 import com.wearhouse.user.domain.entity.SellerEntity;
 import com.wearhouse.user.domain.exception.UserErrorCode;
 import com.wearhouse.user.domain.model.UserAuthAccount;
 import com.wearhouse.user.domain.model.UserType;
+import com.wearhouse.user.infra.auth.AuthSignupClient;
+import com.wearhouse.user.infra.auth.dto.AuthInternalSignupResponse;
 import com.wearhouse.user.infra.jpa.repository.BuyerRepository;
 import com.wearhouse.user.infra.jpa.repository.SellerRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class UserInternalAuthCommandService {
+public class UserAuthService {
 
+    private final AuthSignupClient authSignupClient;
     private final BuyerRepository buyerRepository;
     private final SellerRepository sellerRepository;
 
-    public UserInternalAuthCommandService(
+    public UserAuthService(
+            AuthSignupClient authSignupClient,
             BuyerRepository buyerRepository,
             SellerRepository sellerRepository
     ) {
+        this.authSignupClient = authSignupClient;
         this.buyerRepository = buyerRepository;
         this.sellerRepository = sellerRepository;
+    }
+
+    public UserSignupSession signupBuyer(UserSignupRequest request) {
+        AuthInternalSignupResponse response = authSignupClient.signupBuyer(
+                request.email(),
+                request.password(),
+                request.displayName()
+        );
+        return toSession(response);
+    }
+
+    public UserSignupSession signupSeller(UserSignupRequest request) {
+        AuthInternalSignupResponse response = authSignupClient.signupSeller(
+                request.email(),
+                request.password(),
+                request.displayName()
+        );
+        return toSession(response);
     }
 
     @Transactional
     public UserAuthAccount signup(UserType userType, String email, String passwordHash, String displayName) {
         return switch (userType) {
-            case BUYER -> signupBuyer(email, passwordHash, displayName);
-            case SELLER -> signupSeller(email, passwordHash, displayName);
+            case BUYER -> signupBuyerInternal(email, passwordHash, displayName);
+            case SELLER -> signupSellerInternal(email, passwordHash, displayName);
         };
     }
 
@@ -57,7 +82,7 @@ public class UserInternalAuthCommandService {
         };
     }
 
-    private UserAuthAccount signupBuyer(String email, String passwordHash, String displayName) {
+    private UserAuthAccount signupBuyerInternal(String email, String passwordHash, String displayName) {
         if (buyerRepository.existsByEmail(email)) {
             throw new ErrorException(UserErrorCode.EMAIL_ALREADY_EXISTS);
         }
@@ -65,7 +90,7 @@ public class UserInternalAuthCommandService {
         return toBuyerAuthAccount(buyer);
     }
 
-    private UserAuthAccount signupSeller(String email, String passwordHash, String displayName) {
+    private UserAuthAccount signupSellerInternal(String email, String passwordHash, String displayName) {
         if (sellerRepository.existsByEmail(email)) {
             throw new ErrorException(UserErrorCode.EMAIL_ALREADY_EXISTS);
         }
@@ -93,5 +118,22 @@ public class UserInternalAuthCommandService {
                 entity.getStatus(),
                 entity.getUserVersion()
         );
+    }
+
+    private UserSignupSession toSession(AuthInternalSignupResponse response) {
+        UserSignupResponse payload = new UserSignupResponse(
+                response.userId(),
+                response.userType(),
+                response.email(),
+                response.accessTokenExpiresAt()
+        );
+        return new UserSignupSession(payload, response.accessToken(), response.refreshToken());
+    }
+
+    public record UserSignupSession(
+            UserSignupResponse response,
+            String accessToken,
+            String refreshToken
+    ) {
     }
 }

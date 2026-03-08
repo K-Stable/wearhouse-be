@@ -8,7 +8,7 @@ import com.wearhouse.user.domain.dto.response.InternalUserAuthAccountResponse;
 import com.wearhouse.user.domain.exception.UserErrorCode;
 import com.wearhouse.user.domain.model.UserAuthAccount;
 import com.wearhouse.user.domain.model.UserType;
-import com.wearhouse.user.domain.service.command.UserInternalAuthCommandService;
+import com.wearhouse.user.domain.service.UserAuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,14 +23,14 @@ public class UserInternalAuthController {
 
     private static final String INTERNAL_SECRET_HEADER = "X-Internal-Secret";
 
-    private final UserInternalAuthCommandService userInternalAuthCommandService;
+    private final UserAuthService userAuthService;
     private final String internalSharedSecret;
 
     public UserInternalAuthController(
-            UserInternalAuthCommandService userInternalAuthCommandService,
+            UserAuthService userAuthService,
             @Value("${wearhouse.user.internal.shared-secret}") String internalSharedSecret
     ) {
-        this.userInternalAuthCommandService = userInternalAuthCommandService;
+        this.userAuthService = userAuthService;
         this.internalSharedSecret = internalSharedSecret;
     }
 
@@ -41,7 +41,7 @@ public class UserInternalAuthController {
     ) {
         requireInternalSecret(headerSecret);
         UserType userType = parseUserType(request.userType());
-        UserAuthAccount account = userInternalAuthCommandService.signup(
+        UserAuthAccount account = userAuthService.signup(
                 userType,
                 request.email(),
                 request.passwordHash(),
@@ -56,7 +56,7 @@ public class UserInternalAuthController {
             @Valid @RequestBody InternalUserAuthByEmailRequest request
     ) {
         requireInternalSecret(headerSecret);
-        UserAuthAccount account = userInternalAuthCommandService.findByEmail(
+        UserAuthAccount account = userAuthService.findByEmail(
                 parseUserType(request.userType()),
                 request.email()
         );
@@ -69,7 +69,7 @@ public class UserInternalAuthController {
             @Valid @RequestBody InternalUserAuthByIdRequest request
     ) {
         requireInternalSecret(headerSecret);
-        UserAuthAccount account = userInternalAuthCommandService.findById(
+        UserAuthAccount account = userAuthService.findById(
                 parseUserType(request.userType()),
                 request.userId()
         );

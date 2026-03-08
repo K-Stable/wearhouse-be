@@ -50,4 +50,9 @@ public class BuyerEntity extends BaseEntity {
     public boolean isActive() {
         return "ACTIVE".equalsIgnoreCase(status);
     }
+
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+        this.userVersion = this.userVersion + 1;
+    }
 }

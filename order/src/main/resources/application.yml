@@ -49,6 +49,8 @@ wearhouse:
     payment-event-topic: ${PAYMENT_EVENT_TOPIC:wearhouse.payment.event.v1}
     order-event-topic: ${ORDER_EVENT_TOPIC:wearhouse.order.event.v1}
   order:
+    passport:
+      shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
     payment-result-timeout-minutes: ${ORDER_PAYMENT_RESULT_TIMEOUT_MINUTES:30}
   outbox:
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:3000}
