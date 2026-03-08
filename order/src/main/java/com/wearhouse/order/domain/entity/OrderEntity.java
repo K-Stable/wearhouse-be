@@ -38,7 +38,7 @@ public class OrderEntity extends BaseEntity {
     @Column(name = "order_no", nullable = false, unique = true, length = 40)
     private String orderNo;
 
-    @Column(name = "buyer_id", nullable = false)
+    @Column(name = "buyer_id")
     private Long buyerId;
 
     @Enumerated(EnumType.STRING)

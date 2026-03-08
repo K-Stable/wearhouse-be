@@ -41,6 +41,9 @@ public class ProductPassportAuthenticationFilter extends OncePerRequestFilter {
             return true;
         }
         String path = request.getRequestURI();
+        if ("GET".equalsIgnoreCase(request.getMethod()) && path.startsWith("/api/v1/buyer/products")) {
+            return true;
+        }
         return path.startsWith("/api/v1/internal/")
                 || path.startsWith("/actuator")
                 || path.startsWith("/error");

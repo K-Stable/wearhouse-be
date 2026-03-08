@@ -360,7 +360,7 @@ public class OrderCommandService {
     }
 
     private void validateCreateRequest(OrderCreateRequest request) {
-        if (request == null || request.buyerId() == null) {
+        if (request == null) {
             throw new ErrorException(OrderErrorCode.INVALID_ORDER_AMOUNT);
         }
         if (request.items() == null || request.items().isEmpty()) {

@@ -27,6 +27,8 @@ public class OrderSecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/v1/internal/**", "/actuator/**", "/error").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/orders").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/orders/").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/orders/**").hasRole("BUYER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders/**").hasRole("BUYER")
                         .anyRequest().denyAll()

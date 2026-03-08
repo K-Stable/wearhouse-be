@@ -12,9 +12,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Base64;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -23,6 +25,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String SELLER_PATH_SEGMENT = "/api/v1/seller/";
+    private static final String PRODUCT_BUYER_PATH_PREFIX = "/product-service/api/v1/buyer/products";
+    private static final String ORDER_CREATE_PATH = "/order-service/api/v1/orders";
     private static final String ROLE_SELLER = "ROLE_SELLER";
     private static final Set<String> SKIP_PREFIXES = Set.of(
             "/auth-service/api/v1/auth/",
@@ -39,19 +43,26 @@ public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
     private final PassportSigner passportSigner;
     private final String buyerAccessCookieName;
     private final String sellerAccessCookieName;
+    private final Set<String> sellerOrigins;
 
     public GatewayPassportAuthenticationFilter(
             GatewayPassportService gatewayPassportService,
             ObjectMapper objectMapper,
             @Value("${wearhouse.gateway.passport.shared-secret}") String passportSharedSecret,
             @Value("${wearhouse.gateway.cookie.buyer-access-name:buyer_access_token}") String buyerAccessCookieName,
-            @Value("${wearhouse.gateway.cookie.seller-access-name:seller_access_token}") String sellerAccessCookieName
+            @Value("${wearhouse.gateway.cookie.seller-access-name:seller_access_token}") String sellerAccessCookieName,
+            @Value("${wearhouse.gateway.seller-origins:http://localhost:3002,http://127.0.0.1:3002}")
+            String sellerOriginsRaw
     ) {
         this.gatewayPassportService = gatewayPassportService;
         this.objectMapper = objectMapper;
         this.passportSigner = new PassportSigner(passportSharedSecret);
         this.buyerAccessCookieName = buyerAccessCookieName;
         this.sellerAccessCookieName = sellerAccessCookieName;
+        this.sellerOrigins = Arrays.stream(sellerOriginsRaw.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
@@ -74,6 +85,11 @@ public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
         wrapped.removeHeader(PassportHeaders.USER);
         wrapped.removeHeader(PassportHeaders.SIGNATURE);
         wrapped.removeHeader(PassportHeaders.TIMESTAMP);
+
+        if (isPublicRequest(request)) {
+            filterChain.doFilter(wrapped, response);
+            return;
+        }
 
         String accessToken = resolveAccessToken(request);
         if (accessToken == null || accessToken.isBlank()) {
@@ -102,6 +118,27 @@ public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
         wrapped.putHeader(PassportHeaders.SIGNATURE, signature);
 
         filterChain.doFilter(wrapped, response);
+    }
+
+    private boolean isPublicRequest(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        String method = request.getMethod();
+        if (isSellerOriginRequest(request)) {
+            return false;
+        }
+        if ("GET".equalsIgnoreCase(method) && path != null && path.startsWith(PRODUCT_BUYER_PATH_PREFIX)) {
+            return true;
+        }
+        return "POST".equalsIgnoreCase(method)
+                && (ORDER_CREATE_PATH.equals(path) || (ORDER_CREATE_PATH + "/").equals(path));
+    }
+
+    private boolean isSellerOriginRequest(HttpServletRequest request) {
+        String origin = request.getHeader("Origin");
+        if (origin == null || origin.isBlank()) {
+            return false;
+        }
+        return sellerOrigins.contains(origin);
     }
 
     private String resolveAccessToken(HttpServletRequest request) {

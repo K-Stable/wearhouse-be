@@ -40,7 +40,7 @@ public class GlobalResponseBodyAdvice implements ResponseBodyAdvice<Object> {
             ServerHttpResponse response
     ) {
         if (body == null) {
-            return ApiResponse.success(null);
+            return ApiResponse.success(CommonSuccessCode.SUCCESS, null);
         }
         if (body instanceof ApiResponse<?>) {
             return body;
@@ -49,7 +49,7 @@ public class GlobalResponseBodyAdvice implements ResponseBodyAdvice<Object> {
             return body;
         }
 
-        ApiResponse<Object> wrapped = ApiResponse.success(body);
+        ApiResponse<Object> wrapped = ApiResponse.success(CommonSuccessCode.SUCCESS, body);
         if (StringHttpMessageConverter.class.isAssignableFrom(selectedConverterType)) {
             response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
             try {

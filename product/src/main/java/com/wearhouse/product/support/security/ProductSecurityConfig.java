@@ -27,7 +27,7 @@ public class ProductSecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/v1/internal/**", "/actuator/**", "/error").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/buyer/products/**").hasAnyRole("BUYER", "SELLER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/buyer/products/**").permitAll()
                         .requestMatchers("/api/v1/seller/products/**").hasRole("SELLER")
                         .anyRequest().denyAll()
                 )

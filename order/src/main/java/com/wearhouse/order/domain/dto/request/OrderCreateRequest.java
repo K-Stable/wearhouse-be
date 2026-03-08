@@ -14,7 +14,7 @@ import lombok.extern.jackson.Jacksonized;
 @Builder
 @Jacksonized
 public record OrderCreateRequest(
-        @NotNull Long buyerId,
+        Long buyerId,
         @NotBlank String paymentMethod,
         @NotBlank String recipientName,
         @NotBlank String recipientPhone,
