@@ -45,6 +45,8 @@ wearhouse:
     inventory-event-topic: ${INVENTORY_EVENT_TOPIC:wearhouse.inventory.event.v1}
     order-event-topic: ${ORDER_EVENT_TOPIC:wearhouse.order.event.v1}
   inventory:
+    passport:
+      shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
     reservation-hold-minutes: ${INVENTORY_RESERVATION_HOLD_MINUTES:15}
     optimistic-retry-count: ${INVENTORY_OPTIMISTIC_RETRY_COUNT:3}
     reservation-expire-interval-ms: ${INVENTORY_RESERVATION_EXPIRE_INTERVAL_MS:30000}

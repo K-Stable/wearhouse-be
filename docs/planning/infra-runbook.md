@@ -144,6 +144,41 @@ docker exec -it wearhouse-kafka kafka-console-consumer \
 - Kafka UI: `http://localhost:8085`
 - Alertmanager: `http://localhost:9093`
 
+### 4.7 프론트 연동(local)
+
+- 공통 API Gateway 주소: `http://localhost:8000`
+- buyer 프론트(`wearhouse-fe`) 권장 실행:
+  - `npm run dev:local` (127.0.0.1:3001)
+- seller 프론트(`wearhouse-seller-fe`) 기본 실행:
+  - `npm run dev` (localhost:3000)
+- CORS 허용 Origin은 `API_GATEWAY_ALLOWED_ORIGINS`로 제어한다.
+  - 기본값: `http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001`
+- 프론트 API baseURL 권장:
+  - `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`
+- 라우팅 규칙:
+  - 주문 API: `${NEXT_PUBLIC_API_BASE_URL}/order-service/api/v1/orders`
+  - 재고 API: `${NEXT_PUBLIC_API_BASE_URL}/inventory-service/api/v1/internal/inventory`
+
+### 4.8 인증/로그인(local)
+
+- Gateway 경유 URL:
+  - Buyer 회원가입: `POST http://localhost:8000/user-service/api/v1/users/buyers/signup`
+  - Buyer 로그인: `POST http://localhost:8000/auth-service/api/v1/auth/buyers/login`
+  - Seller 회원가입: `POST http://localhost:8000/user-service/api/v1/users/sellers/signup`
+  - Seller 로그인: `POST http://localhost:8000/auth-service/api/v1/auth/sellers/login`
+- 예시(Buyer 로그인):
+
+```bash
+curl -i -X POST "http://localhost:8000/auth-service/api/v1/auth/buyers/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"buyer@example.com","password":"pass1234"}'
+```
+
+- 응답의 `Set-Cookie`로 `buyer_access_token`, `buyer_refresh_token`이 내려오면 성공
+- 이후 API 호출 시 동일 쿠키를 포함해 Gateway 경유 호출
+- 로그아웃(`.../logout`) 시 Auth가 `AUTH_USER_CHANGED_CHANNEL`로 사용자 변경 이벤트를 발행하고,
+  Gateway는 해당 사용자 Passport 캐시를 Pub/Sub 기반으로 즉시 무효화한다.
+
 ## 5. 트러블슈팅
 
 MySQL 컨테이너가 바로 종료될 때:

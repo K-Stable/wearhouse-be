@@ -42,6 +42,8 @@ wearhouse:
     payment-prepare-topic: ${PAYMENT_PREPARE_TOPIC:wearhouse.payment.command.v1}
     payment-event-topic: ${PAYMENT_EVENT_TOPIC:wearhouse.payment.event.v1}
   payment:
+    passport:
+      shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
     kafka:
       send-timeout-ms: ${PAYMENT_KAFKA_SEND_TIMEOUT_MS:3000}
     mock:

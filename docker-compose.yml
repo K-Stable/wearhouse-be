@@ -180,6 +180,64 @@ services:
     ports:
       - "${CONFIG_SERVER_PORT:-8888}:8888"
 
+  auth-service:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        MODULE_NAME: auth
+    container_name: wearhouse-auth-service
+    depends_on:
+      - service-discovery
+      - config-server
+      - redis
+    environment:
+      AUTH_SERVER_PORT: ${AUTH_SERVER_PORT:-8101}
+      EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
+      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI:-http://config-server:8888}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-wearhouse-auth}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-wearhouse-local-jwt-secret-key-change-me-please-1234567890}
+      AUTH_ACCESS_TOKEN_MINUTES: ${AUTH_ACCESS_TOKEN_MINUTES:-30}
+      AUTH_REFRESH_TOKEN_TTL_DAYS: ${AUTH_REFRESH_TOKEN_TTL_DAYS:-14}
+      AUTH_INTERNAL_SHARED_SECRET: ${AUTH_INTERNAL_SHARED_SECRET:-wearhouse-internal-shared-secret}
+      AUTH_USER_CHANGED_CHANNEL: ${AUTH_USER_CHANGED_CHANNEL:-wearhouse.auth.user-changed.v1}
+      PASSPORT_SHARED_SECRET: ${PASSPORT_SHARED_SECRET:-wearhouse-passport-shared-secret}
+    ports:
+      - "${AUTH_SERVER_PORT:-8101}:8101"
+
+  user-service:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        MODULE_NAME: user
+    container_name: wearhouse-user-service
+    depends_on:
+      - service-discovery
+      - config-server
+      - auth-service
+      - mysql
+      - redis
+    environment:
+      USER_SERVER_PORT: ${USER_SERVER_PORT:-8102}
+      EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
+      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI:-http://config-server:8888}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      USER_DB_NAME: ${USER_DB_NAME}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      USER_AUTH_BUYER_SIGNUP_URL: ${USER_AUTH_BUYER_SIGNUP_URL:-http://auth-service:8101/api/v1/internal/auth/buyers/signup}
+      USER_AUTH_SELLER_SIGNUP_URL: ${USER_AUTH_SELLER_SIGNUP_URL:-http://auth-service:8101/api/v1/internal/auth/sellers/signup}
+      USER_AUTH_INTERNAL_SHARED_SECRET: ${USER_AUTH_INTERNAL_SHARED_SECRET:-wearhouse-internal-shared-secret}
+      PASSPORT_SHARED_SECRET: ${PASSPORT_SHARED_SECRET:-wearhouse-passport-shared-secret}
+    ports:
+      - "${USER_SERVER_PORT:-8102}:8102"
+
   order-service:
     build:
       context: .
@@ -278,12 +336,21 @@ services:
     depends_on:
       - service-discovery
       - config-server
+      - auth-service
+      - user-service
       - order-service
       - redis
     environment:
       API_GATEWAY_SERVER_PORT: ${API_GATEWAY_SERVER_PORT:-8000}
+      API_GATEWAY_ALLOWED_ORIGINS: "${API_GATEWAY_ALLOWED_ORIGINS:-http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}"
       EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
       SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI:-http://config-server:8888}
+      GATEWAY_AUTH_VALIDATE_URL: ${GATEWAY_AUTH_VALIDATE_URL:-http://auth-service:8101/api/v1/internal/auth/validate}
+      GATEWAY_AUTH_INTERNAL_SHARED_SECRET: ${AUTH_INTERNAL_SHARED_SECRET:-wearhouse-internal-shared-secret}
+      PASSPORT_SHARED_SECRET: ${PASSPORT_SHARED_SECRET:-wearhouse-passport-shared-secret}
+      AUTH_USER_CHANGED_CHANNEL: ${AUTH_USER_CHANGED_CHANNEL:-wearhouse.auth.user-changed.v1}
+      PASSPORT_CACHE_TTL_SECONDS: ${PASSPORT_CACHE_TTL_SECONDS:-60}
+      PASSPORT_USER_INDEX_TTL_SECONDS: ${PASSPORT_USER_INDEX_TTL_SECONDS:-1800}
       REDIS_HOST: redis
       REDIS_PORT: 6379
     ports:

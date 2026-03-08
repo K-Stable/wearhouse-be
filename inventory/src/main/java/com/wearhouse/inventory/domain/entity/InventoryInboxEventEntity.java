@@ -12,8 +12,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Getter
 @Table(
         name = "inventory_inbox_event",
         uniqueConstraints = @UniqueConstraint(
@@ -21,6 +26,7 @@ import java.time.LocalDateTime;
                 columnNames = {"event_id", "consumer_name"}
         )
 )
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InventoryInboxEventEntity extends BaseEntity {
 
     @Id
@@ -61,9 +67,7 @@ public class InventoryInboxEventEntity extends BaseEntity {
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
-    protected InventoryInboxEventEntity() {
-    }
-
+    @Builder
     private InventoryInboxEventEntity(
             String eventId,
             String consumerName,
