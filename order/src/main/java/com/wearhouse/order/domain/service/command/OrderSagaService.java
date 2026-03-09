@@ -18,7 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.wearhouse.common.global.transactional.WriteTx;
 
 @Service
 public class OrderSagaService {
@@ -55,7 +55,7 @@ public class OrderSagaService {
         this.orderEventTopic = orderEventTopic;
     }
 
-    @Transactional
+    @WriteTx
     public void onInventoryEvent(
             String eventId,
             String eventType,
@@ -87,7 +87,7 @@ public class OrderSagaService {
         }
     }
 
-    @Transactional
+    @WriteTx
     public void onPaymentEvent(
             String eventId,
             String eventType,

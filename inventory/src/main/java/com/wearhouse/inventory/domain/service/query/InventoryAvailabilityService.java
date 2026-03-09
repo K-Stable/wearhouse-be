@@ -13,7 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.wearhouse.common.global.transactional.ReadTx;
 
 @Service
 public class InventoryAvailabilityService {
@@ -24,7 +24,7 @@ public class InventoryAvailabilityService {
         this.inventoryRedisStockCacheService = inventoryRedisStockCacheService;
     }
 
-    @Transactional(readOnly = true)
+    @ReadTx
     public InventoryAvailabilityCheckResponse check(InventoryAvailabilityCheckRequest request) {
         Map<Long, Integer> requestedBySku = aggregateRequestedBySku(request.items());
         AtomicAvailabilityCheckResult availabilityCheckResult =

@@ -8,7 +8,7 @@ import com.wearhouse.inventory.domain.exception.InventoryErrorCode;
 import com.wearhouse.inventory.infra.jpa.repository.InventoryStockJpaRepository;
 import com.wearhouse.inventory.infra.redis.InventoryRedisStockCacheService;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.wearhouse.common.global.transactional.WriteTx;
 
 @Service
 public class InventoryStockService {
@@ -24,7 +24,7 @@ public class InventoryStockService {
         this.inventoryRedisStockCacheService = inventoryRedisStockCacheService;
     }
 
-    @Transactional
+    @WriteTx
     public InventoryStockResponse upsert(InventoryStockUpsertRequest request) {
         validate(request);
 

@@ -1,7 +1,7 @@
 package com.wearhouse.product.domain.service;
 
 import com.wearhouse.common.global.error.ErrorException;
-import com.wearhouse.common.security.current.CurrentUserPrincipal;
+import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.product.domain.dto.response.BuyerProductDetailResponse;
 import com.wearhouse.product.domain.dto.response.BuyerProductListResponse;
 import com.wearhouse.product.domain.dto.response.ProductOptionResponse;
@@ -11,29 +11,39 @@ import com.wearhouse.product.domain.entity.ProductEntity;
 import com.wearhouse.product.domain.entity.ProductImageEntity;
 import com.wearhouse.product.domain.entity.ProductOptionEntity;
 import com.wearhouse.product.domain.exception.ProductErrorCode;
+import com.wearhouse.product.domain.model.Category;
 import com.wearhouse.product.domain.model.ProductImageType;
 import com.wearhouse.product.domain.model.ProductStatus;
-import com.wearhouse.product.infra.jpa.repository.ProductJpaRepository;
+import com.wearhouse.product.infra.inventory.ProductInventoryClient;
+import com.wearhouse.product.domain.repository.ProductRepository;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.wearhouse.common.global.transactional.ReadTx;
 
 @Service
 public class ProductQueryService {
 
-    private final ProductJpaRepository productJpaRepository;
+    private final ProductRepository productRepository;
+    private final ProductInventoryClient productInventoryClient;
 
-    public ProductQueryService(ProductJpaRepository productJpaRepository) {
-        this.productJpaRepository = productJpaRepository;
+    public ProductQueryService(
+            ProductRepository productRepository,
+            ProductInventoryClient productInventoryClient
+    ) {
+        this.productRepository = productRepository;
+        this.productInventoryClient = productInventoryClient;
     }
 
-    @Transactional(readOnly = true)
+    @ReadTx
     public List<SellerProductListResponse> getSellerProducts(
-            CurrentUserPrincipal currentUser,
+            LoginUser currentUser,
             ProductStatus status,
             String keyword,
             int limit
@@ -42,29 +52,29 @@ public class ProductQueryService {
         String normalizedKeyword = normalizeKeyword(keyword);
         int normalizedLimit = normalizeLimit(limit, 100);
 
-        List<ProductEntity> products = productJpaRepository.findSellerProducts(sellerId, status, normalizedKeyword);
+        List<ProductEntity> products = productRepository.findSellerProducts(sellerId, status, normalizedKeyword);
         return products.stream()
                 .limit(normalizedLimit)
                 .map(this::toSellerListResponse)
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public SellerProductResponse getSellerProduct(CurrentUserPrincipal currentUser, Long productId) {
+    @ReadTx
+    public SellerProductResponse getSellerProduct(LoginUser currentUser, Long productId) {
         Long sellerId = requireSeller(currentUser);
-        ProductEntity product = productJpaRepository.findByIdAndSellerId(productId, sellerId)
+        ProductEntity product = productRepository.findByIdAndSellerId(productId, sellerId)
                 .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_NOT_FOUND));
         return toSellerProductResponse(product);
     }
 
-    @Transactional(readOnly = true)
+    @ReadTx
     public List<BuyerProductListResponse> getBuyerProducts(String category, String keyword, String sort, int limit) {
-        String normalizedCategory = normalizeBlank(category);
+        Category normalizedCategory = normalizeCategory(category);
         String normalizedKeyword = normalizeKeyword(keyword);
         String normalizedSort = normalizeSort(sort);
         int normalizedLimit = normalizeLimit(limit, 100);
 
-        List<ProductEntity> products = new ArrayList<>(productJpaRepository.findBuyerProducts(normalizedCategory, normalizedKeyword));
+        List<ProductEntity> products = new ArrayList<>(productRepository.findBuyerProducts(normalizedCategory, normalizedKeyword));
         applySort(products, normalizedSort);
 
         return products.stream()
@@ -73,36 +83,36 @@ public class ProductQueryService {
                         product.getId(),
                         product.getName(),
                         product.getPrice(),
-                        product.getCategory(),
+                        formatCategory(product.getCategory()),
                         product.getMainImageUrl(),
                         false
                 ))
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @ReadTx
     public BuyerProductDetailResponse getBuyerProductDetail(Long productId) {
-        ProductEntity product = productJpaRepository.findByIdAndStatus(productId, ProductStatus.RELEASED)
+        ProductEntity product = productRepository.findByIdAndStatus(productId, ProductStatus.RELEASED)
                 .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_NOT_FOUND));
 
-        List<ProductEntity> similarProducts = productJpaRepository
+        List<ProductEntity> similarProducts = productRepository
                 .findTop8ByStatusAndCategoryAndIdNotOrderByIdDesc(ProductStatus.RELEASED, product.getCategory(), product.getId());
 
         return new BuyerProductDetailResponse(
                 product.getId(),
                 product.getName(),
                 product.getPrice(),
-                product.getCategory(),
+                formatCategory(product.getCategory()),
                 product.getDescription(),
                 product.getMainImageUrl(),
                 extractImages(product, ProductImageType.PREVIEW),
                 extractImages(product, ProductImageType.DETAIL),
-                toOptionResponses(product.getOptions()),
+                toOptionResponsesFromProduct(product.getOptions()),
                 similarProducts.stream().limit(4).map(similar -> new BuyerProductListResponse(
                         similar.getId(),
                         similar.getName(),
                         similar.getPrice(),
-                        similar.getCategory(),
+                        formatCategory(similar.getCategory()),
                         similar.getMainImageUrl(),
                         false
                 )).toList()
@@ -110,20 +120,21 @@ public class ProductQueryService {
     }
 
     private SellerProductListResponse toSellerListResponse(ProductEntity product) {
+        Map<Long, Integer> stockQuantities = loadStockQuantities(product.getOptions());
         Set<String> sizes = new LinkedHashSet<>();
         Set<String> colors = new LinkedHashSet<>();
         int totalStock = 0;
         for (ProductOptionEntity option : product.getOptions()) {
             sizes.add(option.getSizeLabel());
             colors.add(option.getColorLabel());
-            totalStock += option.getStockQuantity() == null ? 0 : option.getStockQuantity();
+            totalStock += stockQuantities.getOrDefault(option.getId(), 0);
         }
 
         return new SellerProductListResponse(
                 product.getId(),
                 product.getName(),
                 product.getPrice(),
-                product.getCategory(),
+                formatCategory(product.getCategory()),
                 product.getStatus(),
                 product.getMainImageUrl(),
                 List.copyOf(sizes),
@@ -133,18 +144,19 @@ public class ProductQueryService {
     }
 
     private SellerProductResponse toSellerProductResponse(ProductEntity product) {
+        Map<Long, Integer> stockQuantities = loadStockQuantities(product.getOptions());
         return new SellerProductResponse(
                 product.getId(),
                 product.getSellerId(),
                 product.getName(),
                 product.getPrice(),
-                product.getCategory(),
+                formatCategory(product.getCategory()),
                 product.getDescription(),
                 product.getStatus(),
                 product.getMainImageUrl(),
                 extractImages(product, ProductImageType.PREVIEW),
                 extractImages(product, ProductImageType.DETAIL),
-                toOptionResponses(product.getOptions())
+                toOptionResponses(product.getOptions(), stockQuantities)
         );
     }
 
@@ -156,7 +168,23 @@ public class ProductQueryService {
                 .toList();
     }
 
-    private List<ProductOptionResponse> toOptionResponses(List<ProductOptionEntity> options) {
+    private List<ProductOptionResponse> toOptionResponses(
+            List<ProductOptionEntity> options,
+            Map<Long, Integer> stockQuantities
+    ) {
+        return options.stream()
+                .sorted(Comparator.comparing(ProductOptionEntity::getSortOrder).thenComparing(ProductOptionEntity::getId))
+                .map(option -> new ProductOptionResponse(
+                        option.getId(),
+                        option.getSizeLabel(),
+                        option.getColorLabel(),
+                        stockQuantities.getOrDefault(option.getId(), 0),
+                        option.getAdditionalPrice()
+                ))
+                .toList();
+    }
+
+    private List<ProductOptionResponse> toOptionResponsesFromProduct(List<ProductOptionEntity> options) {
         return options.stream()
                 .sorted(Comparator.comparing(ProductOptionEntity::getSortOrder).thenComparing(ProductOptionEntity::getId))
                 .map(option -> new ProductOptionResponse(
@@ -177,7 +205,7 @@ public class ProductQueryService {
         }
     }
 
-    private Long requireSeller(CurrentUserPrincipal currentUser) {
+    private Long requireSeller(LoginUser currentUser) {
         if (currentUser == null || currentUser.userId() == null || !"SELLER".equalsIgnoreCase(currentUser.userType())) {
             throw new ErrorException(ProductErrorCode.FORBIDDEN_PRODUCT_ACCESS);
         }
@@ -192,6 +220,32 @@ public class ProductQueryService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    private Category normalizeCategory(String rawCategory) {
+        String normalized = normalizeBlank(rawCategory);
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            return Category.valueOf(normalized.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new ErrorException(ProductErrorCode.INVALID_PRODUCT_CATEGORY);
+        }
+    }
+
+    private Map<Long, Integer> loadStockQuantities(List<ProductOptionEntity> options) {
+        Map<Long, Integer> stockByOptionId = new HashMap<>();
+        for (ProductOptionEntity option : options) {
+            Integer availableQty;
+            try {
+                availableQty = productInventoryClient.getAvailableQty(option.getId());
+            } catch (RuntimeException exception) {
+                throw new ErrorException(ProductErrorCode.INVENTORY_STOCK_SYNC_FAILED);
+            }
+            stockByOptionId.put(option.getId(), availableQty);
+        }
+        return stockByOptionId;
+    }
+
     private int normalizeLimit(int value, int max) {
         if (value <= 0) {
             return 20;
@@ -204,5 +258,10 @@ public class ProductQueryService {
             return "latest";
         }
         return sort.trim();
+    }
+
+    private String formatCategory(Category category) {
+        String upper = category.name();
+        return upper.substring(0, 1) + upper.substring(1).toLowerCase(Locale.ROOT);
     }
 }

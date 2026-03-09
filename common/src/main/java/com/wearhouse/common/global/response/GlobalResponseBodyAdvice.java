@@ -40,7 +40,7 @@ public class GlobalResponseBodyAdvice implements ResponseBodyAdvice<Object> {
             ServerHttpResponse response
     ) {
         if (body == null) {
-            return ApiResponse.success(CommonSuccessCode.SUCCESS, null);
+            return ApiResponse.success(CommonSuccessCode.SUCCESS);
         }
         if (body instanceof ApiResponse<?>) {
             return body;

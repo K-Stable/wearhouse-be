@@ -2,7 +2,6 @@ package com.wearhouse.payment.domain.payment.service.command;
 
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
-import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.infra.jdbc.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jdbc.repository.PaymentTransactionRecord;
 import com.wearhouse.payment.infra.jdbc.repository.PaymentTransactionRepository;
@@ -18,7 +17,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.wearhouse.common.global.transactional.WriteTx;
 
 @Service
 public class PaymentCommandService {
@@ -59,7 +58,7 @@ public class PaymentCommandService {
         this.timeoutMethods = parseUpperCaseSet(timeoutMethods);
     }
 
-    @Transactional
+    @WriteTx
     public void handlePaymentPrepareRequested(
             String eventId,
             String topic,
@@ -94,7 +93,7 @@ public class PaymentCommandService {
         }
     }
 
-    @Transactional
+    @WriteTx
     public int failExpiredPendingPayments() {
         int failedCount = 0;
         LocalDateTime now = LocalDateTime.now();

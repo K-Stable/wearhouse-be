@@ -1,5 +1,6 @@
 package com.wearhouse.product.domain.entity;
 
+import com.wearhouse.product.domain.model.Category;
 import com.wearhouse.product.domain.model.ProductImageType;
 import com.wearhouse.product.domain.model.ProductStatus;
 import com.wearhouse.product.infra.jpa.common.BaseEntity;
@@ -41,18 +42,20 @@ public class ProductEntity extends BaseEntity {
     @Column(name = "price", nullable = false, precision = 15, scale = 2)
     private BigDecimal price;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false, length = 60)
-    private String category;
+    private Category category;
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "main_image_url", nullable = false, length = 500)
+    private String mainImageUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private ProductStatus status;
 
-    @Column(name = "main_image_url", length = 500)
-    private String mainImageUrl;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id ASC")
@@ -67,28 +70,28 @@ public class ProductEntity extends BaseEntity {
             Long sellerId,
             String name,
             BigDecimal price,
-            String category,
+            Category category,
             String description,
-            ProductStatus status,
-            String mainImageUrl
+            String mainImageUrl,
+            ProductStatus status
     ) {
         this.sellerId = sellerId;
         this.name = name;
         this.price = price;
         this.category = category;
         this.description = description;
-        this.status = status;
         this.mainImageUrl = mainImageUrl;
+        this.status = status;
     }
 
     public static ProductEntity create(
             Long sellerId,
             String name,
             BigDecimal price,
-            String category,
+            Category category,
             String description,
-            ProductStatus status,
-            String mainImageUrl
+            String mainImageUrl,
+            ProductStatus status
     ) {
         return ProductEntity.builder()
                 .sellerId(sellerId)
@@ -96,17 +99,17 @@ public class ProductEntity extends BaseEntity {
                 .price(price)
                 .category(category)
                 .description(description)
-                .status(status)
                 .mainImageUrl(mainImageUrl)
+                .status(status)
                 .build();
     }
 
-    public void addOption(String sizeLabel, String colorLabel, Integer stockQuantity, BigDecimal additionalPrice, int sortOrder) {
-        ProductOptionEntity option = ProductOptionEntity.create(this, sizeLabel, colorLabel, stockQuantity, additionalPrice, sortOrder);
+    public void addOption(String size, String color, Integer stockQuantity, BigDecimal additionalPrice, Integer sortOrder) {
+        ProductOptionEntity option = ProductOptionEntity.create(this, size, color, stockQuantity, additionalPrice, sortOrder);
         this.options.add(option);
     }
 
-    public void addImage(ProductImageType imageType, String imageUrl, int sortOrder) {
+    public void addImage(ProductImageType imageType, String imageUrl, Integer sortOrder) {
         ProductImageEntity image = ProductImageEntity.create(this, imageType, imageUrl, sortOrder);
         this.images.add(image);
     }

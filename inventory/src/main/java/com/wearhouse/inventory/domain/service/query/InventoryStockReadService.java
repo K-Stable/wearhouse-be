@@ -6,7 +6,7 @@ import com.wearhouse.inventory.domain.entity.InventoryStockEntity;
 import com.wearhouse.inventory.domain.exception.InventoryErrorCode;
 import com.wearhouse.inventory.infra.jpa.repository.InventoryStockJpaRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.wearhouse.common.global.transactional.ReadTx;
 
 @Service
 public class InventoryStockReadService {
@@ -17,7 +17,7 @@ public class InventoryStockReadService {
         this.inventoryStockJpaRepository = inventoryStockJpaRepository;
     }
 
-    @Transactional(readOnly = true)
+    @ReadTx
     public InventoryStockResponse getBySkuId(Long skuId) {
         InventoryStockEntity entity = inventoryStockJpaRepository.findBySkuId(skuId)
                 .orElseThrow(() -> new ErrorException(InventoryErrorCode.STOCK_NOT_FOUND));

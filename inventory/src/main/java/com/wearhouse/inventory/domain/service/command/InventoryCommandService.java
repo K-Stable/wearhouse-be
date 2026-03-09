@@ -29,7 +29,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.wearhouse.common.global.transactional.WriteTx;
 
 @Service
 public class InventoryCommandService {
@@ -81,7 +81,7 @@ public class InventoryCommandService {
         this.hotSkuIds = parseHotSkuIds(hotSkuRaw);
     }
 
-    @Transactional
+    @WriteTx
     public void onReserveRequested(
             String eventId,
             String topic,
@@ -128,7 +128,7 @@ public class InventoryCommandService {
         }
     }
 
-    @Transactional
+    @WriteTx
     public void onReleaseRequested(
             String eventId,
             String topic,
@@ -164,7 +164,7 @@ public class InventoryCommandService {
         }
     }
 
-    @Transactional
+    @WriteTx
     public void onOrderConfirmed(
             String eventId,
             String topic,
@@ -199,7 +199,7 @@ public class InventoryCommandService {
         }
     }
 
-    @Transactional
+    @WriteTx
     public int releaseExpiredReservations() {
         LocalDateTime now = LocalDateTime.now();
         List<InventoryReservationEntity> expiredReservations = inventoryReservationJpaRepository

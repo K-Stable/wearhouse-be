@@ -57,26 +57,27 @@ public class ProductOptionEntity extends BaseEntity {
         this.product = product;
         this.sizeLabel = sizeLabel;
         this.colorLabel = colorLabel;
-        this.stockQuantity = stockQuantity;
+        this.stockQuantity = stockQuantity == null ? 0 : stockQuantity;
         this.additionalPrice = additionalPrice;
-        this.sortOrder = sortOrder;
+        this.sortOrder = sortOrder == null ? 0 : sortOrder;
     }
 
     public static ProductOptionEntity create(
             ProductEntity product,
-            String sizeLabel,
-            String colorLabel,
+            String size,
+            String color,
             Integer stockQuantity,
             BigDecimal additionalPrice,
             Integer sortOrder
+
     ) {
         return ProductOptionEntity.builder()
                 .product(product)
-                .sizeLabel(sizeLabel)
-                .colorLabel(colorLabel)
+                .sizeLabel(size)
+                .colorLabel(color)
                 .stockQuantity(stockQuantity)
                 .additionalPrice(additionalPrice == null ? BigDecimal.ZERO : additionalPrice)
-                .sortOrder(sortOrder == null ? 0 : sortOrder)
+                .sortOrder(sortOrder)
                 .build();
     }
 }

@@ -3,7 +3,7 @@ package com.wearhouse.inventory.domain.service.command;
 import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import com.wearhouse.common.global.transactional.WriteTx;
 
 @Component
 public class InventoryReservationScheduler {
@@ -19,7 +19,7 @@ public class InventoryReservationScheduler {
         this.inventoryKafkaFlowMetrics = inventoryKafkaFlowMetrics;
     }
 
-    @Transactional
+    @WriteTx
     @Scheduled(fixedDelayString = "${wearhouse.inventory.reservation-expire-interval-ms:30000}")
     public void releaseExpiredReservations() {
         int releasedCount = inventoryCommandService.releaseExpiredReservations();

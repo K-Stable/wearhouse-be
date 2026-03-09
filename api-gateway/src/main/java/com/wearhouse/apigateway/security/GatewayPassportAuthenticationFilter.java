@@ -33,8 +33,14 @@ public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
             "/actuator",
             "/error"
     );
-    private static final List<String> PUBLIC_SIGNUP_PATHS = List.of(
+    private static final List<String> PUBLIC_USER_SIGNUP_PATHS = List.of(
+            "/user-service/api/v1/users/buyers/login-id/availability",
+            "/user-service/api/v1/users/buyers/email-code/send",
+            "/user-service/api/v1/users/buyers/email-code/verify",
             "/user-service/api/v1/users/buyers/signup",
+            "/user-service/api/v1/users/sellers/login-id/availability",
+            "/user-service/api/v1/users/sellers/email-code/send",
+            "/user-service/api/v1/users/sellers/email-code/verify",
             "/user-service/api/v1/users/sellers/signup"
     );
 
@@ -72,7 +78,7 @@ public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
         }
         String path = request.getRequestURI();
         return SKIP_PREFIXES.stream().anyMatch(path::startsWith)
-                || PUBLIC_SIGNUP_PATHS.stream().anyMatch(path::equals);
+                || PUBLIC_USER_SIGNUP_PATHS.stream().anyMatch(path::equals);
     }
 
     @Override

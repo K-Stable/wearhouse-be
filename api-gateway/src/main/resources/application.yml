@@ -65,7 +65,6 @@ wearhouse:
     allowed-origins: ${API_GATEWAY_ALLOWED_ORIGINS:http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
   gateway:
     auth:
-      validate-url: ${GATEWAY_AUTH_VALIDATE_URL:http://localhost:8101/api/v1/internal/auth/validate}
       internal-shared-secret: ${GATEWAY_AUTH_INTERNAL_SHARED_SECRET:wearhouse-internal-shared-secret}
     passport:
       shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}

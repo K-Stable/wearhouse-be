@@ -17,6 +17,10 @@ public record ApiResponse<T>(
         return success(CommonSuccessCode.SUCCESS, data);
     }
 
+    public static ApiResponse<Void> success(SuccessCode successCode) {
+        return new ApiResponse<>(true, successCode.code(), successCode.message(), null, LocalDateTime.now());
+    }
+
     public static <T> ApiResponse<T> success(SuccessCode successCode, T data) {
         return new ApiResponse<>(true, successCode.code(), successCode.message(), data, LocalDateTime.now());
     }

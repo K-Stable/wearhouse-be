@@ -16,3 +16,16 @@ wearhouse:
       secure: ${AUTH_COOKIE_SECURE:false}
       same-site: ${AUTH_COOKIE_SAME_SITE:Lax}
       path: ${AUTH_COOKIE_PATH:/}
+
+spring:
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:mooneydeevy@gmail.com}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: $MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:false}

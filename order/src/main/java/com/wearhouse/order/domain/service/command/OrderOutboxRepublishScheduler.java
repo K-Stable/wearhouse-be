@@ -8,7 +8,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import com.wearhouse.common.global.transactional.WriteTx;
 
 @Component
 public class OrderOutboxRepublishScheduler {
@@ -30,7 +30,7 @@ public class OrderOutboxRepublishScheduler {
         this.batchSize = batchSize;
     }
 
-    @Transactional
+    @WriteTx
     @Scheduled(fixedDelayString = "${wearhouse.outbox.republish-interval-ms:60000}")
     public void republish() {
         LocalDateTime cutoffAt = LocalDateTime.now().minusMinutes(staleMinutes);

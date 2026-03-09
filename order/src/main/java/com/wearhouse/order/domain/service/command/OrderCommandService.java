@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.wearhouse.common.global.transactional.WriteTx;
 
 @Service
 public class OrderCommandService {
@@ -79,7 +79,7 @@ public class OrderCommandService {
         this.paymentResultTimeoutMinutes = paymentResultTimeoutMinutes;
     }
 
-    @Transactional
+    @WriteTx
     public OrderCreateResponse createOrder(OrderCreateRequest request) {
         validateCreateRequest(request);
 
@@ -107,7 +107,7 @@ public class OrderCommandService {
                 .build();
     }
 
-    @Transactional
+    @WriteTx
     public OrderCancelResponse cancelOrder(String orderNo, OrderCancelRequest request) {
         OrderEntity order = orderRepository.findDetailByOrderNo(orderNo)
                 .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));

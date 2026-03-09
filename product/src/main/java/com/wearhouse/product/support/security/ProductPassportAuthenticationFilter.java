@@ -1,7 +1,7 @@
 package com.wearhouse.product.support.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wearhouse.common.security.current.CurrentUserPrincipal;
+import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.common.security.passport.PassportHeaders;
 import com.wearhouse.common.security.passport.PassportSigner;
 import jakarta.servlet.FilterChain;
@@ -78,7 +78,7 @@ public class ProductPassportAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        CurrentUserPrincipal principal = new CurrentUserPrincipal(
+        LoginUser principal = new LoginUser(
                 payload.userId(),
                 payload.userType(),
                 payload.roles(),

@@ -1,8 +1,8 @@
 package com.wearhouse.product.domain.controller;
 
 import com.wearhouse.common.global.response.ApiResponse;
-import com.wearhouse.common.security.current.CurrentUser;
-import com.wearhouse.common.security.current.CurrentUserPrincipal;
+import com.wearhouse.common.security.current.LoginSeller;
+import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.product.domain.dto.request.ProductCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductStatusUpdateRequest;
 import com.wearhouse.product.domain.dto.response.SellerProductListResponse;
@@ -13,7 +13,9 @@ import com.wearhouse.product.domain.service.ProductCommandService;
 import com.wearhouse.product.domain.service.ProductQueryService;
 import jakarta.validation.Valid;
 import java.util.List;
-import org.springframework.http.HttpStatus;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -22,35 +24,29 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/seller/products")
+@RequiredArgsConstructor
+@Slf4j
 public class ProductSellerController {
 
     private final ProductCommandService productCommandService;
     private final ProductQueryService productQueryService;
 
-    public ProductSellerController(ProductCommandService productCommandService, ProductQueryService productQueryService) {
-        this.productCommandService = productCommandService;
-        this.productQueryService = productQueryService;
-    }
-
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<SellerProductResponse> createProduct(
-            @CurrentUser CurrentUserPrincipal currentUser,
+    @PostMapping({"", "/", "/create"})
+    public ApiResponse<Void> createProduct(
+            @LoginSeller LoginUser currentUser,
             @Valid @RequestBody ProductCreateRequest request
     ) {
-        Long productId = productCommandService.createProduct(currentUser, request);
-        SellerProductResponse response = productQueryService.getSellerProduct(currentUser, productId);
-        return ApiResponse.success(ProductSuccessCode.PRODUCT_CREATED, response);
+        productCommandService.createProduct(currentUser, request);
+        return ApiResponse.success(ProductSuccessCode.PRODUCT_CREATED);
     }
 
     @GetMapping
     public ApiResponse<List<SellerProductListResponse>> getSellerProducts(
-            @CurrentUser CurrentUserPrincipal currentUser,
+            @LoginSeller LoginUser currentUser,
             @RequestParam(required = false) ProductStatus status,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "50") int limit
@@ -61,7 +57,7 @@ public class ProductSellerController {
 
     @GetMapping("/{productId}")
     public ApiResponse<SellerProductResponse> getSellerProduct(
-            @CurrentUser CurrentUserPrincipal currentUser,
+            @LoginSeller LoginUser currentUser,
             @PathVariable Long productId
     ) {
         SellerProductResponse response = productQueryService.getSellerProduct(currentUser, productId);
@@ -69,22 +65,21 @@ public class ProductSellerController {
     }
 
     @PatchMapping("/{productId}/status")
-    public ApiResponse<SellerProductResponse> updateStatus(
-            @CurrentUser CurrentUserPrincipal currentUser,
+    public ApiResponse<Void> updateStatus(
+            @LoginSeller LoginUser currentUser,
             @PathVariable Long productId,
             @Valid @RequestBody ProductStatusUpdateRequest request
     ) {
         productCommandService.updateProductStatus(currentUser, productId, request.status());
-        SellerProductResponse response = productQueryService.getSellerProduct(currentUser, productId);
-        return ApiResponse.success(ProductSuccessCode.PRODUCT_STATUS_UPDATED, response);
+        return ApiResponse.success(ProductSuccessCode.PRODUCT_STATUS_UPDATED);
     }
 
     @DeleteMapping("/{productId}")
     public ApiResponse<Void> deleteProduct(
-            @CurrentUser CurrentUserPrincipal currentUser,
+            @LoginSeller LoginUser currentUser,
             @PathVariable Long productId
     ) {
         productCommandService.deleteProduct(currentUser, productId);
-        return ApiResponse.success(ProductSuccessCode.PRODUCT_DELETED, null);
+        return ApiResponse.success(ProductSuccessCode.PRODUCT_DELETED);
     }
 }

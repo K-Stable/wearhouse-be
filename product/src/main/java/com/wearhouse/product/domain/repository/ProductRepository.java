@@ -1,4 +1,4 @@
-package com.wearhouse.product.infra.jpa.repository;
+package com.wearhouse.product.domain.repository;
 
 import com.wearhouse.product.domain.entity.ProductEntity;
 import com.wearhouse.product.domain.model.Category;
