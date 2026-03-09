@@ -14,24 +14,16 @@ import com.wearhouse.user.infra.auth.AuthSignupClient;
 import com.wearhouse.user.infra.auth.dto.AuthInternalSignupResponse;
 import com.wearhouse.user.infra.jpa.repository.BuyerRepository;
 import com.wearhouse.user.infra.jpa.repository.SellerRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
-public class UserAuthService {
+@RequiredArgsConstructor
+public class BuyerService {
 
     private final AuthSignupClient authSignupClient;
     private final BuyerRepository buyerRepository;
     private final SellerRepository sellerRepository;
-
-    public UserAuthService(
-            AuthSignupClient authSignupClient,
-            BuyerRepository buyerRepository,
-            SellerRepository sellerRepository
-    ) {
-        this.authSignupClient = authSignupClient;
-        this.buyerRepository = buyerRepository;
-        this.sellerRepository = sellerRepository;
-    }
 
     public UserSignupSession signupBuyer(UserSignupRequest request) {
         AuthInternalSignupResponse response = authSignupClient.signupBuyer(

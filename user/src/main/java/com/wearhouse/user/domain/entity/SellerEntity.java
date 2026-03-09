@@ -17,14 +17,23 @@ public class SellerEntity extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 255)
-    private String email;
+    @Column(name ="login_id", nullable = false, unique = true, length = 255)
+    private String loginId;
 
     @Column(name = "password", nullable = false, length = 255)
     private String password;
 
+    @Column(nullable = false, unique = true, length = 255)
+    private String email;
+
     @Column(name = "name", nullable = false, length = 100)
     private String name;
+
+    @Column(name = "phone", nullable = false, length = 255)
+    private String name;
+
+    @Column(name = "seller_no", nullable = false, length = 100)
+    private String sellerNo;
 
     @Column(name = "status", nullable = false, length = 20)
     private String status;
@@ -33,7 +42,7 @@ public class SellerEntity extends BaseEntity {
     private Long userVersion;
 
     @Builder
-    private SellerEntity(String email, String password, String name, String status, Long userVersion) {
+    private SellerEntity(String loginId, String email, String password, String name, String status, Long userVersion) {
         this.email = email;
         this.password = password;
         this.name = name;

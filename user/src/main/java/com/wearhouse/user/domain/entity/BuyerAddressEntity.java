@@ -14,9 +14,9 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "user_address")
+@Table(name = "buyer_address")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class UserAddressEntity extends BaseEntity {
+public class BuyerAddressEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -50,7 +50,7 @@ public class UserAddressEntity extends BaseEntity {
     private boolean isDefault;
 
     @Builder
-    private UserAddressEntity(
+    private BuyerAddressEntity(
             String userType,
             Long userId,
             String label,
@@ -72,7 +72,7 @@ public class UserAddressEntity extends BaseEntity {
         this.isDefault = isDefault;
     }
 
-    public static UserAddressEntity create(
+    public static BuyerAddressEntity create(
             String userType,
             Long userId,
             String label,
@@ -83,7 +83,7 @@ public class UserAddressEntity extends BaseEntity {
             String address2,
             boolean isDefault
     ) {
-        return UserAddressEntity.builder()
+        return BuyerAddressEntity.builder()
                 .userType(userType)
                 .userId(userId)
                 .label(label)

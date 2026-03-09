@@ -11,7 +11,7 @@ import com.wearhouse.user.infra.feign.dto.OrderSummaryItem;
 import feign.FeignException;
 import java.util.List;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.wearhouse.common.global.transactional.ReadTx;
 
 @Service
 public class UserOrderService {
@@ -22,7 +22,7 @@ public class UserOrderService {
         this.orderQueryFeignClient = orderQueryFeignClient;
     }
 
-    @Transactional(readOnly = true)
+    @ReadTx
     public List<UserOrderSummaryResponse> getMyOrders(CurrentUserPrincipal currentUser, int limit) {
         UserType userType = parseUserType(currentUser.userType());
         if (userType != UserType.BUYER) {

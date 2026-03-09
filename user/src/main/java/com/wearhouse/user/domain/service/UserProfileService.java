@@ -1,6 +1,8 @@
 package com.wearhouse.user.domain.service;
 
 import com.wearhouse.common.global.error.ErrorException;
+import com.wearhouse.common.global.transactional.ReadTx;
+import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.common.security.current.CurrentUserPrincipal;
 import com.wearhouse.user.domain.dto.request.AddressCreateRequest;
 import com.wearhouse.user.domain.dto.request.AddressUpdateRequest;
@@ -9,7 +11,7 @@ import com.wearhouse.user.domain.dto.response.UserAddressResponse;
 import com.wearhouse.user.domain.dto.response.UserProfileResponse;
 import com.wearhouse.user.domain.entity.BuyerEntity;
 import com.wearhouse.user.domain.entity.SellerEntity;
-import com.wearhouse.user.domain.entity.UserAddressEntity;
+import com.wearhouse.user.domain.entity.BuyerAddressEntity;
 import com.wearhouse.user.domain.exception.UserErrorCode;
 import com.wearhouse.user.domain.model.UserType;
 import com.wearhouse.user.infra.jpa.repository.BuyerRepository;
@@ -18,7 +20,6 @@ import com.wearhouse.user.infra.jpa.repository.UserAddressRepository;
 import java.util.List;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserProfileService {
@@ -40,7 +41,7 @@ public class UserProfileService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    @Transactional(readOnly = true)
+    @ReadTx
     public UserProfileResponse getMyProfile(CurrentUserPrincipal currentUser) {
         UserType userType = parseUserType(currentUser.userType());
         return switch (userType) {
@@ -67,7 +68,7 @@ public class UserProfileService {
         };
     }
 
-    @Transactional
+    @WriteTx
     public void changePassword(CurrentUserPrincipal currentUser, PasswordChangeRequest request) {
         UserType userType = parseUserType(currentUser.userType());
         switch (userType) {
@@ -76,30 +77,30 @@ public class UserProfileService {
         }
     }
 
-    @Transactional(readOnly = true)
+    @ReadTx
     public List<UserAddressResponse> getMyAddresses(CurrentUserPrincipal currentUser) {
-        List<UserAddressEntity> addresses = userAddressRepository.findByUserTypeAndUserIdOrderByIsDefaultDescIdDesc(
+        List<BuyerAddressEntity> addresses = userAddressRepository.findByUserTypeAndUserIdOrderByIsDefaultDescIdDesc(
                 currentUser.userType(),
                 currentUser.userId()
         );
         return addresses.stream().map(this::toAddressResponse).toList();
     }
 
-    @Transactional(readOnly = true)
+    @ReadTx
     public UserAddressResponse getMyDefaultAddress(CurrentUserPrincipal currentUser) {
         return userAddressRepository.findFirstByUserTypeAndUserIdAndIsDefaultTrue(currentUser.userType(), currentUser.userId())
                 .map(this::toAddressResponse)
                 .orElseThrow(() -> new ErrorException(UserErrorCode.ADDRESS_NOT_FOUND));
     }
 
-    @Transactional
+    @WriteTx
     public UserAddressResponse createAddress(CurrentUserPrincipal currentUser, AddressCreateRequest request) {
         boolean shouldDefault = Boolean.TRUE.equals(request.defaultAddress())
                 || !userAddressRepository.existsByUserTypeAndUserIdAndIsDefaultTrue(currentUser.userType(), currentUser.userId());
         if (shouldDefault) {
             userAddressRepository.clearDefault(currentUser.userType(), currentUser.userId());
         }
-        UserAddressEntity address = userAddressRepository.save(UserAddressEntity.create(
+        BuyerAddressEntity address = userAddressRepository.save(BuyerAddressEntity.create(
                 currentUser.userType(),
                 currentUser.userId(),
                 request.label(),
@@ -113,9 +114,9 @@ public class UserProfileService {
         return toAddressResponse(address);
     }
 
-    @Transactional
+    @WriteTx
     public UserAddressResponse updateAddress(CurrentUserPrincipal currentUser, Long addressId, AddressUpdateRequest request) {
-        UserAddressEntity address = userAddressRepository.findByIdAndUserTypeAndUserId(
+        BuyerAddressEntity address = userAddressRepository.findByIdAndUserTypeAndUserId(
                         addressId, currentUser.userType(), currentUser.userId()
                 )
                 .orElseThrow(() -> new ErrorException(UserErrorCode.ADDRESS_NOT_FOUND));
@@ -130,9 +131,9 @@ public class UserProfileService {
         return toAddressResponse(address);
     }
 
-    @Transactional
+    @WriteTx
     public UserAddressResponse setDefaultAddress(CurrentUserPrincipal currentUser, Long addressId) {
-        UserAddressEntity address = userAddressRepository.findByIdAndUserTypeAndUserId(
+        BuyerAddressEntity address = userAddressRepository.findByIdAndUserTypeAndUserId(
                         addressId, currentUser.userType(), currentUser.userId()
                 )
                 .orElseThrow(() -> new ErrorException(UserErrorCode.ADDRESS_NOT_FOUND));
@@ -141,9 +142,9 @@ public class UserProfileService {
         return toAddressResponse(address);
     }
 
-    @Transactional
+    @WriteTx
     public void deleteAddress(CurrentUserPrincipal currentUser, Long addressId) {
-        UserAddressEntity address = userAddressRepository.findByIdAndUserTypeAndUserId(
+        BuyerAddressEntity address = userAddressRepository.findByIdAndUserTypeAndUserId(
                         addressId, currentUser.userType(), currentUser.userId()
                 )
                 .orElseThrow(() -> new ErrorException(UserErrorCode.ADDRESS_NOT_FOUND));
@@ -176,7 +177,7 @@ public class UserProfileService {
         seller.changePassword(passwordEncoder.encode(request.newPassword()));
     }
 
-    private UserAddressResponse toAddressResponse(UserAddressEntity entity) {
+    private UserAddressResponse toAddressResponse(BuyerAddressEntity entity) {
         return new UserAddressResponse(
                 entity.getId(),
                 entity.getLabel(),
