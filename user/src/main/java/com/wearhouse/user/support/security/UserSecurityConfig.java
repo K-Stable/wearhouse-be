@@ -29,8 +29,8 @@ public class UserSecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
                                 "/api/v1/internal/**",
-                                "/api/v1/users/buyers/signup",
-                                "/api/v1/users/sellers/signup",
+                                "/api/v1/users/buyers/**",
+                                "/api/v1/users/sellers/**",
                                 "/actuator/**",
                                 "/error"
                         ).permitAll()

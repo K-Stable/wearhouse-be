@@ -3,7 +3,7 @@ package com.wearhouse.user.domain.service;
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.transactional.ReadTx;
 import com.wearhouse.common.global.transactional.WriteTx;
-import com.wearhouse.common.security.current.CurrentUserPrincipal;
+import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.user.domain.dto.request.AddressCreateRequest;
 import com.wearhouse.user.domain.dto.request.AddressUpdateRequest;
 import com.wearhouse.user.domain.dto.request.PasswordChangeRequest;
@@ -42,7 +42,7 @@ public class UserProfileService {
     }
 
     @ReadTx
-    public UserProfileResponse getMyProfile(CurrentUserPrincipal currentUser) {
+    public UserProfileResponse getMyProfile(LoginUser currentUser) {
         UserType userType = parseUserType(currentUser.userType());
         return switch (userType) {
             case BUYER -> buyerRepository.findById(currentUser.userId())
@@ -69,7 +69,7 @@ public class UserProfileService {
     }
 
     @WriteTx
-    public void changePassword(CurrentUserPrincipal currentUser, PasswordChangeRequest request) {
+    public void changePassword(LoginUser currentUser, PasswordChangeRequest request) {
         UserType userType = parseUserType(currentUser.userType());
         switch (userType) {
             case BUYER -> changeBuyerPassword(currentUser.userId(), request);
@@ -78,7 +78,7 @@ public class UserProfileService {
     }
 
     @ReadTx
-    public List<UserAddressResponse> getMyAddresses(CurrentUserPrincipal currentUser) {
+    public List<UserAddressResponse> getMyAddresses(LoginUser currentUser) {
         List<BuyerAddressEntity> addresses = userAddressRepository.findByUserTypeAndUserIdOrderByIsDefaultDescIdDesc(
                 currentUser.userType(),
                 currentUser.userId()
@@ -87,14 +87,14 @@ public class UserProfileService {
     }
 
     @ReadTx
-    public UserAddressResponse getMyDefaultAddress(CurrentUserPrincipal currentUser) {
+    public UserAddressResponse getMyDefaultAddress(LoginUser currentUser) {
         return userAddressRepository.findFirstByUserTypeAndUserIdAndIsDefaultTrue(currentUser.userType(), currentUser.userId())
                 .map(this::toAddressResponse)
                 .orElseThrow(() -> new ErrorException(UserErrorCode.ADDRESS_NOT_FOUND));
     }
 
     @WriteTx
-    public UserAddressResponse createAddress(CurrentUserPrincipal currentUser, AddressCreateRequest request) {
+    public UserAddressResponse createAddress(LoginUser currentUser, AddressCreateRequest request) {
         boolean shouldDefault = Boolean.TRUE.equals(request.defaultAddress())
                 || !userAddressRepository.existsByUserTypeAndUserIdAndIsDefaultTrue(currentUser.userType(), currentUser.userId());
         if (shouldDefault) {
@@ -115,7 +115,7 @@ public class UserProfileService {
     }
 
     @WriteTx
-    public UserAddressResponse updateAddress(CurrentUserPrincipal currentUser, Long addressId, AddressUpdateRequest request) {
+    public UserAddressResponse updateAddress(LoginUser currentUser, Long addressId, AddressUpdateRequest request) {
         BuyerAddressEntity address = userAddressRepository.findByIdAndUserTypeAndUserId(
                         addressId, currentUser.userType(), currentUser.userId()
                 )
@@ -132,7 +132,7 @@ public class UserProfileService {
     }
 
     @WriteTx
-    public UserAddressResponse setDefaultAddress(CurrentUserPrincipal currentUser, Long addressId) {
+    public UserAddressResponse setDefaultAddress(LoginUser currentUser, Long addressId) {
         BuyerAddressEntity address = userAddressRepository.findByIdAndUserTypeAndUserId(
                         addressId, currentUser.userType(), currentUser.userId()
                 )
@@ -143,7 +143,7 @@ public class UserProfileService {
     }
 
     @WriteTx
-    public void deleteAddress(CurrentUserPrincipal currentUser, Long addressId) {
+    public void deleteAddress(LoginUser currentUser, Long addressId) {
         BuyerAddressEntity address = userAddressRepository.findByIdAndUserTypeAndUserId(
                         addressId, currentUser.userType(), currentUser.userId()
                 )

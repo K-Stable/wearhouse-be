@@ -1,7 +1,8 @@
 package com.wearhouse.user.domain.controller;
 
 import com.wearhouse.common.security.current.CurrentUser;
-import com.wearhouse.common.security.current.CurrentUserPrincipal;
+import com.wearhouse.common.security.current.LoginBuyer;
+import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.user.domain.dto.request.AddressCreateRequest;
 import com.wearhouse.user.domain.dto.request.AddressUpdateRequest;
 import com.wearhouse.user.domain.dto.request.PasswordChangeRequest;
@@ -35,31 +36,31 @@ public class UserMyController {
     }
 
     @GetMapping("/profile")
-    public UserProfileResponse getMyProfile(@CurrentUser CurrentUserPrincipal currentUser) {
+    public UserProfileResponse getMyProfile(@CurrentUser LoginUser currentUser) {
         return userProfileService.getMyProfile(currentUser);
     }
 
     @PatchMapping("/password")
     public void changeMyPassword(
-            @CurrentUser CurrentUserPrincipal currentUser,
+            @CurrentUser LoginUser currentUser,
             @Valid @RequestBody PasswordChangeRequest request
     ) {
         userProfileService.changePassword(currentUser, request);
     }
 
     @GetMapping("/addresses")
-    public List<UserAddressResponse> getMyAddresses(@CurrentUser CurrentUserPrincipal currentUser) {
+    public List<UserAddressResponse> getMyAddresses(@CurrentUser LoginUser currentUser) {
         return userProfileService.getMyAddresses(currentUser);
     }
 
     @GetMapping("/addresses/default")
-    public UserAddressResponse getMyDefaultAddress(@CurrentUser CurrentUserPrincipal currentUser) {
+    public UserAddressResponse getMyDefaultAddress(@CurrentUser LoginUser currentUser) {
         return userProfileService.getMyDefaultAddress(currentUser);
     }
 
     @PostMapping("/addresses")
     public UserAddressResponse createAddress(
-            @CurrentUser CurrentUserPrincipal currentUser,
+            @CurrentUser LoginUser currentUser,
             @Valid @RequestBody AddressCreateRequest request
     ) {
         return userProfileService.createAddress(currentUser, request);
@@ -67,7 +68,7 @@ public class UserMyController {
 
     @PatchMapping("/addresses/{addressId}")
     public UserAddressResponse updateAddress(
-            @CurrentUser CurrentUserPrincipal currentUser,
+            @CurrentUser LoginUser currentUser,
             @PathVariable Long addressId,
             @Valid @RequestBody AddressUpdateRequest request
     ) {
@@ -76,7 +77,7 @@ public class UserMyController {
 
     @PatchMapping("/addresses/{addressId}/default")
     public UserAddressResponse setDefaultAddress(
-            @CurrentUser CurrentUserPrincipal currentUser,
+            @CurrentUser LoginUser currentUser,
             @PathVariable Long addressId
     ) {
         return userProfileService.setDefaultAddress(currentUser, addressId);
@@ -84,7 +85,7 @@ public class UserMyController {
 
     @DeleteMapping("/addresses/{addressId}")
     public void deleteAddress(
-            @CurrentUser CurrentUserPrincipal currentUser,
+            @CurrentUser LoginUser currentUser,
             @PathVariable Long addressId
     ) {
         userProfileService.deleteAddress(currentUser, addressId);
@@ -92,7 +93,7 @@ public class UserMyController {
 
     @GetMapping("/orders")
     public List<UserOrderSummaryResponse> getMyOrders(
-            @CurrentUser CurrentUserPrincipal currentUser,
+            @LoginBuyer LoginUser currentUser,
             @RequestParam(defaultValue = "20") int limit
     ) {
         return userOrderService.getMyOrders(currentUser, limit);

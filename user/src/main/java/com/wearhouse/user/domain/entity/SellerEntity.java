@@ -1,7 +1,12 @@
 package com.wearhouse.user.domain.entity;
 
 import com.wearhouse.user.infra.jpa.common.BaseEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -17,20 +22,20 @@ public class SellerEntity extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name ="login_id", nullable = false, unique = true, length = 255)
+    @Column(name = "login_id", nullable = false, unique = true, length = 255)
     private String loginId;
 
     @Column(name = "password", nullable = false, length = 255)
     private String password;
 
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(name = "phone", nullable = false, length = 255)
-    private String name;
+    @Column(name = "phone", nullable = false, length = 30)
+    private String phone;
 
     @Column(name = "seller_no", nullable = false, length = 100)
     private String sellerNo;
@@ -42,26 +47,57 @@ public class SellerEntity extends BaseEntity {
     private Long userVersion;
 
     @Builder
-    private SellerEntity(String loginId, String email, String password, String name, String status, Long userVersion) {
-        this.email = email;
+    private SellerEntity(
+            String loginId,
+            String password,
+            String email,
+            String name,
+            String phone,
+            String sellerNo,
+            String status,
+            Long userVersion
+    ) {
+        this.loginId = loginId;
         this.password = password;
+        this.email = email;
         this.name = name;
+        this.phone = phone;
+        this.sellerNo = sellerNo;
         this.status = status;
         this.userVersion = userVersion;
     }
 
-    public static SellerEntity create(String email, String password, String name) {
+    public static SellerEntity create(
+            String loginId,
+            String email,
+            String encodedPassword,
+            String name,
+            String phone,
+            String sellerNo
+    ) {
         return SellerEntity.builder()
+                .loginId(loginId)
+                .password(encodedPassword)
                 .email(email)
-                .password(password)
                 .name(name)
+                .phone(phone)
+                .sellerNo(sellerNo)
                 .status("ACTIVE")
                 .userVersion(1L)
                 .build();
     }
 
-    public boolean isActive() {
-        return "ACTIVE".equalsIgnoreCase(status);
+    public static SellerEntity create(String email, String encodedPassword, String name) {
+        return SellerEntity.builder()
+                .loginId(email)
+                .password(encodedPassword)
+                .email(email)
+                .name(name)
+                .phone("")
+                .sellerNo("")
+                .status("ACTIVE")
+                .userVersion(1L)
+                .build();
     }
 
     public void changePassword(String encodedPassword) {

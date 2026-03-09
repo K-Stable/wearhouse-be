@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "buyer_address")
+@Table(name = "user_address")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class BuyerAddressEntity extends BaseEntity {
 

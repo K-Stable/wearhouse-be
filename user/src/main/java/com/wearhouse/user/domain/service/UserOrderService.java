@@ -2,7 +2,7 @@ package com.wearhouse.user.domain.service;
 
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.response.ApiResponse;
-import com.wearhouse.common.security.current.CurrentUserPrincipal;
+import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.user.domain.dto.response.UserOrderSummaryResponse;
 import com.wearhouse.user.domain.exception.UserErrorCode;
 import com.wearhouse.user.domain.model.UserType;
@@ -23,7 +23,7 @@ public class UserOrderService {
     }
 
     @ReadTx
-    public List<UserOrderSummaryResponse> getMyOrders(CurrentUserPrincipal currentUser, int limit) {
+    public List<UserOrderSummaryResponse> getMyOrders(LoginUser currentUser, int limit) {
         UserType userType = parseUserType(currentUser.userType());
         if (userType != UserType.BUYER) {
             return List.of();

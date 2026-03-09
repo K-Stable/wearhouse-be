@@ -1,6 +1,7 @@
 package com.wearhouse.product.infra.jpa.repository;
 
 import com.wearhouse.product.domain.entity.ProductEntity;
+import com.wearhouse.product.domain.model.Category;
 import com.wearhouse.product.domain.model.ProductStatus;
 import java.util.List;
 import java.util.Optional;
@@ -9,7 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface ProductJpaRepository extends JpaRepository<ProductEntity, Long> {
+public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
 
     @EntityGraph(attributePaths = {"options", "images"})
     @Query("""
@@ -39,7 +40,7 @@ public interface ProductJpaRepository extends JpaRepository<ProductEntity, Long>
             ORDER BY p.id DESC
             """)
     List<ProductEntity> findBuyerProducts(
-            @Param("category") String category,
+            @Param("category") Category category,
             @Param("keyword") String keyword
     );
 
@@ -47,5 +48,5 @@ public interface ProductJpaRepository extends JpaRepository<ProductEntity, Long>
     Optional<ProductEntity> findByIdAndStatus(Long id, ProductStatus status);
 
     @EntityGraph(attributePaths = {"options"})
-    List<ProductEntity> findTop8ByStatusAndCategoryAndIdNotOrderByIdDesc(ProductStatus status, String category, Long id);
+    List<ProductEntity> findTop8ByStatusAndCategoryAndIdNotOrderByIdDesc(ProductStatus status, Category category, Long id);
 }

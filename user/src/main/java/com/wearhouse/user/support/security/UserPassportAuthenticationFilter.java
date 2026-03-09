@@ -1,7 +1,7 @@
 package com.wearhouse.user.support.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wearhouse.common.security.current.CurrentUserPrincipal;
+import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.common.security.passport.PassportHeaders;
 import com.wearhouse.common.security.passport.PassportSigner;
 import jakarta.servlet.FilterChain;
@@ -42,8 +42,8 @@ public class UserPassportAuthenticationFilter extends OncePerRequestFilter {
         }
         String path = request.getRequestURI();
         return path.startsWith("/api/v1/internal/")
-                || "/api/v1/users/buyers/signup".equals(path)
-                || "/api/v1/users/sellers/signup".equals(path)
+                || path.startsWith("/api/v1/users/buyers/")
+                || path.startsWith("/api/v1/users/sellers/")
                 || path.startsWith("/actuator")
                 || path.startsWith("/error");
     }
@@ -74,7 +74,7 @@ public class UserPassportAuthenticationFilter extends OncePerRequestFilter {
             writeUnauthorized(response, "PASSPORT_INVALID", "passport payload가 유효하지 않습니다.");
             return;
         }
-        CurrentUserPrincipal principal = new CurrentUserPrincipal(
+        LoginUser principal = new LoginUser(
                 payload.userId(),
                 payload.userType(),
                 payload.roles(),
