@@ -4,11 +4,14 @@ import com.wearhouse.common.global.response.SuccessCode;
 import org.springframework.http.HttpStatus;
 
 public enum ProductSuccessCode implements SuccessCode {
+    PRODUCT_SEASON_CREATED(HttpStatus.CREATED, "PRODUCT_201_002", "상품 시즌이 생성되었습니다."),
     PRODUCT_CREATED(HttpStatus.CREATED, "PRODUCT_201_001", "상품이 생성되었습니다."),
+    SELLER_PRODUCT_SEASON_LIST_FETCHED(HttpStatus.OK, "PRODUCT_200_007", "판매자 상품 시즌 목록 조회에 성공했습니다."),
     SELLER_PRODUCT_LIST_FETCHED(HttpStatus.OK, "PRODUCT_200_001", "판매자 상품 목록 조회에 성공했습니다."),
     SELLER_PRODUCT_FETCHED(HttpStatus.OK, "PRODUCT_200_002", "판매자 상품 상세 조회에 성공했습니다."),
     PRODUCT_STATUS_UPDATED(HttpStatus.OK, "PRODUCT_200_003", "상품 상태가 변경되었습니다."),
     PRODUCT_DELETED(HttpStatus.OK, "PRODUCT_200_004", "상품이 삭제되었습니다."),
+    BUYER_PRODUCT_SEASON_LIST_FETCHED(HttpStatus.OK, "PRODUCT_200_008", "구매자 상품 시즌 목록 조회에 성공했습니다."),
     BUYER_PRODUCT_LIST_FETCHED(HttpStatus.OK, "PRODUCT_200_005", "구매자 상품 목록 조회에 성공했습니다."),
     BUYER_PRODUCT_FETCHED(HttpStatus.OK, "PRODUCT_200_006", "구매자 상품 상세 조회에 성공했습니다.");
 

@@ -1,5 +1,6 @@
 package com.wearhouse.order.support.security;
 
+import com.wearhouse.common.security.passport.order.OrderPassportAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

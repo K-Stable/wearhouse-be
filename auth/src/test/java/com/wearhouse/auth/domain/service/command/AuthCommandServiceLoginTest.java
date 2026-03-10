@@ -3,69 +3,66 @@ package com.wearhouse.auth.domain.service.command;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wearhouse.auth.domain.dto.request.LoginRequest;
 import com.wearhouse.auth.domain.exception.AuthErrorCode;
+import com.wearhouse.auth.domain.model.AuthAccount;
 import com.wearhouse.auth.domain.model.AuthUserType;
-import com.wearhouse.auth.infra.feign.UserAuthFeignClient;
-import com.wearhouse.auth.infra.feign.dto.UserAuthAccountResponse;
-import com.wearhouse.auth.infra.feign.dto.UserAuthByLoginIdRequest;
-import com.wearhouse.auth.infra.redis.RefreshTokenStore;
 import com.wearhouse.auth.support.event.AuthUserChangedPublisher;
-import com.wearhouse.auth.support.jwt.JwtTokenProvider;
+import com.wearhouse.auth.support.jwt.JwtTokenService;
+import com.wearhouse.auth.support.security.PrincipalDetailsService;
 import com.wearhouse.common.global.error.ErrorException;
-import com.wearhouse.common.global.response.ApiResponse;
+import com.wearhouse.common.security.jwt.JwtProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 class AuthCommandServiceLoginTest {
 
     @Mock
-    private UserAuthFeignClient userAuthFeignClient;
-    @Mock
-    private RefreshTokenStore refreshTokenStore;
-    @Mock
-    private JwtTokenProvider jwtTokenProvider;
+    private JwtTokenService jwtTokenService;
     @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
     private AuthUserChangedPublisher authUserChangedPublisher;
+    @Mock
+    private PrincipalDetailsService principalDetailsService;
+    @Mock
+    private JwtProvider jwtProvider;
 
     @Test
     void loginShouldUseLoginIdForAccountLookup() {
         AuthCommandService authCommandService = new AuthCommandService(
-                userAuthFeignClient,
-                refreshTokenStore,
-                jwtTokenProvider,
+                jwtTokenService,
                 passwordEncoder,
                 authUserChangedPublisher,
-                "internal-secret"
+                principalDetailsService,
+                jwtProvider
         );
         LoginRequest request = new LoginRequest("buyer01", "plain-password");
 
-        when(userAuthFeignClient.findByLoginId(any(), any(UserAuthByLoginIdRequest.class)))
-                .thenReturn(ApiResponse.success(new UserAuthAccountResponse(
+        when(principalDetailsService.getAccountByLoginId(any(), any()))
+                .thenReturn(new AuthAccount(
                         1L,
-                        "BUYER",
                         "buyer@example.com",
                         "encoded-password",
+                        null,
                         "ACTIVE",
-                        1L
-                )));
+                        1L,
+                        AuthUserType.BUYER
+                ));
         when(passwordEncoder.matches("plain-password", "encoded-password")).thenReturn(false);
 
         ErrorException exception = assertThrows(
                 ErrorException.class,
-                () -> authCommandService.login(AuthUserType.BUYER, request)
+                () -> authCommandService.login(AuthUserType.BUYER, request, new MockHttpServletResponse())
         );
 
-        verify(userAuthFeignClient).findByLoginId("internal-secret", new UserAuthByLoginIdRequest("BUYER", "buyer01"));
         assertEquals(AuthErrorCode.INVALID_CREDENTIALS, exception.errorCode());
     }
 }

@@ -6,6 +6,7 @@ import com.wearhouse.product.domain.model.ProductStatus;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,12 +21,15 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
             WHERE p.sellerId = :sellerId
               AND (:status IS NULL OR p.status = :status)
               AND (:keyword IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND (:cursor IS NULL OR p.id < :cursor)
             ORDER BY p.id DESC
             """)
     List<ProductEntity> findSellerProducts(
             @Param("sellerId") Long sellerId,
             @Param("status") ProductStatus status,
-            @Param("keyword") String keyword
+            @Param("keyword") String keyword,
+            @Param("cursor") Long cursor,
+            Pageable pageable
     );
 
     @EntityGraph(attributePaths = {"options", "images"})
@@ -41,11 +45,14 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
             WHERE p.status = com.wearhouse.product.domain.model.ProductStatus.RELEASED
               AND (:category IS NULL OR p.category = :category)
               AND (:keyword IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND (:cursor IS NULL OR p.id < :cursor)
             ORDER BY p.id DESC
             """)
     List<ProductEntity> findBuyerProducts(
             @Param("category") Category category,
-            @Param("keyword") String keyword
+            @Param("keyword") String keyword,
+            @Param("cursor") Long cursor,
+            Pageable pageable
     );
 
     @EntityGraph(attributePaths = {"options", "images"})

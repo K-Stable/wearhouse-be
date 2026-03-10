@@ -1,22 +1,27 @@
 package com.wearhouse.product.domain.service.seller;
 
 import com.wearhouse.common.global.error.ErrorException;
+import com.wearhouse.common.global.pagination.CursorPageResponse;
+import com.wearhouse.common.global.pagination.CursorPaginationSupport;
+import com.wearhouse.common.global.transactional.ReadTx;
 import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.product.domain.dto.response.BuyerProductDetailResponse;
 import com.wearhouse.product.domain.dto.response.BuyerProductListResponse;
 import com.wearhouse.product.domain.dto.response.ProductOptionResponse;
+import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductResponse;
 import com.wearhouse.product.domain.entity.ProductEntity;
 import com.wearhouse.product.domain.entity.ProductImageEntity;
 import com.wearhouse.product.domain.entity.ProductOptionEntity;
+import com.wearhouse.product.domain.entity.ProductSeasonEntity;
 import com.wearhouse.product.domain.exception.ProductErrorCode;
 import com.wearhouse.product.domain.model.Category;
 import com.wearhouse.product.domain.model.ProductImageType;
 import com.wearhouse.product.domain.model.ProductStatus;
-import com.wearhouse.product.infra.inventory.ProductInventoryClient;
 import com.wearhouse.product.domain.repository.ProductRepository;
-import java.util.ArrayList;
+import com.wearhouse.product.domain.repository.ProductSeasonRepository;
+import com.wearhouse.product.infra.inventory.ProductInventoryClient;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -24,30 +29,92 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import com.wearhouse.common.global.transactional.ReadTx;
 
 @Service
 @RequiredArgsConstructor
 public class SellerProductQueryService {
 
+    private static final String SELLER_USER_TYPE = "SELLER";
+
     private final ProductRepository productRepository;
+    private final ProductSeasonRepository productSeasonRepository;
     private final ProductInventoryClient productInventoryClient;
 
     @ReadTx
-    public List<SellerProductListResponse> getSellerProducts(
+    public CursorPageResponse<SellerProductListResponse> getSellerProducts(
             LoginUser currentUser,
-            int limit
+            ProductStatus status,
+            String keyword,
+            Long cursor,
+            Integer limit
     ) {
-        int normalizedLimit = normalizeLimit(limit, 100);
+        Long sellerId = requireSeller(currentUser);
+        int normalizedLimit = CursorPaginationSupport.normalizeLimit(limit);
+        List<ProductEntity> products = productRepository.findSellerProducts(
+                sellerId,
+                status,
+                normalizeKeyword(keyword),
+                cursor,
+                PageRequest.of(0, normalizedLimit + 1)
+        );
+        return CursorPaginationSupport.toCursorPage(products, normalizedLimit, ProductEntity::getId, this::toSellerListResponse);
+    }
 
-        List<ProductEntity> products = productRepository.findSellerProducts(sellerId);
-        return products.stream()
-                .limit(normalizedLimit)
-                .map(this::toSellerListResponse)
-                .toList();
+    @ReadTx
+    public CursorPageResponse<BuyerProductListResponse> getBuyerProducts(
+            String category,
+            String keyword,
+            Long cursor,
+            Integer limit
+    ) {
+        int normalizedLimit = CursorPaginationSupport.normalizeLimit(limit);
+        Category normalizedCategory = normalizeCategory(category);
+        List<ProductEntity> products = productRepository.findBuyerProducts(
+                normalizedCategory,
+                normalizeKeyword(keyword),
+                cursor,
+                PageRequest.of(0, normalizedLimit + 1)
+        );
+        return CursorPaginationSupport.toCursorPage(products, normalizedLimit, ProductEntity::getId, this::toBuyerListResponse);
+    }
+
+    @ReadTx
+    public CursorPageResponse<ProductSeasonListResponse> getSellerSeasons(
+            LoginUser currentUser,
+            Long cursor,
+            Integer limit
+    ) {
+        Long sellerId = requireSeller(currentUser);
+        int normalizedLimit = CursorPaginationSupport.normalizeLimit(limit);
+        List<ProductSeasonEntity> seasons = productSeasonRepository.findSellerSeasons(
+                sellerId,
+                cursor,
+                PageRequest.of(0, normalizedLimit + 1)
+        );
+        return CursorPaginationSupport.toCursorPage(
+                seasons,
+                normalizedLimit,
+                ProductSeasonEntity::getId,
+                this::toSeasonListResponse
+        );
+    }
+
+    @ReadTx
+    public CursorPageResponse<ProductSeasonListResponse> getBuyerSeasons(Long cursor, Integer limit) {
+        int normalizedLimit = CursorPaginationSupport.normalizeLimit(limit);
+        List<ProductSeasonEntity> seasons = productSeasonRepository.findBuyerSeasons(
+                cursor,
+                PageRequest.of(0, normalizedLimit + 1)
+        );
+        return CursorPaginationSupport.toCursorPage(
+                seasons,
+                normalizedLimit,
+                ProductSeasonEntity::getId,
+                this::toSeasonListResponse
+        );
     }
 
     @ReadTx
@@ -56,29 +123,6 @@ public class SellerProductQueryService {
         ProductEntity product = productRepository.findByIdAndSellerId(productId, sellerId)
                 .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_NOT_FOUND));
         return toSellerProductResponse(product);
-    }
-
-    @ReadTx
-    public List<BuyerProductListResponse> getBuyerProducts(String category, String keyword, String sort, int limit) {
-        Category normalizedCategory = normalizeCategory(category);
-        String normalizedKeyword = normalizeKeyword(keyword);
-        String normalizedSort = normalizeSort(sort);
-        int normalizedLimit = normalizeLimit(limit, 100);
-
-        List<ProductEntity> products = new ArrayList<>(productRepository.findBuyerProducts(normalizedCategory, normalizedKeyword));
-        applySort(products, normalizedSort);
-
-        return products.stream()
-                .limit(normalizedLimit)
-                .map(product -> new BuyerProductListResponse(
-                        product.getId(),
-                        product.getName(),
-                        product.getPrice(),
-                        formatCategory(product.getCategory()),
-                        extractMainImageUrl(product),
-                        false
-                ))
-                .toList();
     }
 
     @ReadTx
@@ -94,19 +138,12 @@ public class SellerProductQueryService {
                 product.getName(),
                 product.getPrice(),
                 formatCategory(product.getCategory()),
-                product.getDescription(),
+                product.getDetails(),
                 extractMainImageUrl(product),
                 extractImages(product, ProductImageType.PREVIEW),
                 extractImages(product, ProductImageType.DETAIL),
-                toOptionResponsesFromProduct(product.getOptions()),
-                similarProducts.stream().limit(4).map(similar -> new BuyerProductListResponse(
-                        similar.getId(),
-                        similar.getName(),
-                        similar.getPrice(),
-                        formatCategory(similar.getCategory()),
-                        extractMainImageUrl(similar),
-                        false
-                )).toList()
+                toOptionResponses(product.getOptions()),
+                similarProducts.stream().limit(4).map(this::toBuyerListResponse).toList()
         );
     }
 
@@ -116,8 +153,8 @@ public class SellerProductQueryService {
         Set<String> colors = new LinkedHashSet<>();
         int totalStock = 0;
         for (ProductOptionEntity option : product.getOptions()) {
-            sizes.add(option.getSizeLabel());
-            colors.add(option.getColorLabel());
+            sizes.add(option.getSize());
+            colors.add(option.getColor());
             totalStock += stockQuantities.getOrDefault(option.getId(), 0);
         }
 
@@ -135,19 +172,34 @@ public class SellerProductQueryService {
     }
 
     private SellerProductResponse toSellerProductResponse(ProductEntity product) {
-        Map<Long, Integer> stockQuantities = loadStockQuantities(product.getOptions());
         return new SellerProductResponse(
                 product.getId(),
                 product.getSellerId(),
                 product.getName(),
                 product.getPrice(),
                 formatCategory(product.getCategory()),
-                product.getDescription(),
+                product.getDetails(),
                 product.getStatus(),
                 extractMainImageUrl(product),
                 extractImages(product, ProductImageType.PREVIEW),
                 extractImages(product, ProductImageType.DETAIL),
-                toOptionResponses(product.getOptions(), stockQuantities)
+                toOptionResponses(product.getOptions())
+        );
+    }
+
+    private BuyerProductListResponse toBuyerListResponse(ProductEntity product) {
+        return new BuyerProductListResponse(
+                product.getId(),
+                product.getName(),
+                product.getPrice(),
+                extractMainImageUrl(product)
+        );
+    }
+
+    private ProductSeasonListResponse toSeasonListResponse(ProductSeasonEntity season) {
+        return new ProductSeasonListResponse(
+                season.getId(),
+                season.getName()
         );
     }
 
@@ -168,73 +220,24 @@ public class SellerProductQueryService {
                 .toList();
     }
 
-    private List<ProductOptionResponse> toOptionResponses(
-            List<ProductOptionEntity> options,
-            Map<Long, Integer> stockQuantities
-    ) {
+    private List<ProductOptionResponse> toOptionResponses(List<ProductOptionEntity> options) {
         return options.stream()
                 .sorted(Comparator.comparing(ProductOptionEntity::getSortOrder).thenComparing(ProductOptionEntity::getId))
                 .map(option -> new ProductOptionResponse(
                         option.getId(),
-                        option.getSizeLabel(),
-                        option.getColorLabel(),
-                        stockQuantities.getOrDefault(option.getId(), 0),
-                        option.getAdditionalPrice()
+                        option.getSize(),
+                        option.getColor()
                 ))
                 .toList();
-    }
-
-    private List<ProductOptionResponse> toOptionResponsesFromProduct(List<ProductOptionEntity> options) {
-        return options.stream()
-                .sorted(Comparator.comparing(ProductOptionEntity::getSortOrder).thenComparing(ProductOptionEntity::getId))
-                .map(option -> new ProductOptionResponse(
-                        option.getId(),
-                        option.getSizeLabel(),
-                        option.getColorLabel(),
-                        option.getStockQuantity(),
-                        option.getAdditionalPrice()
-                ))
-                .toList();
-    }
-
-    private void applySort(List<ProductEntity> products, String sort) {
-        switch (sort) {
-            case "priceAsc" -> products.sort(Comparator.comparing(ProductEntity::getPrice).thenComparing(ProductEntity::getId));
-            case "priceDesc" -> products.sort(Comparator.comparing(ProductEntity::getPrice).reversed().thenComparing(ProductEntity::getId, Comparator.reverseOrder()));
-            default -> products.sort(Comparator.comparing(ProductEntity::getId).reversed());
-        }
-    }
-
-    private Long requireSeller(LoginUser currentUser) {
-        if (currentUser == null || currentUser.userId() == null || !"SELLER".equalsIgnoreCase(currentUser.userType())) {
-            throw new ErrorException(ProductErrorCode.FORBIDDEN_PRODUCT_ACCESS);
-        }
-        return currentUser.userId();
-    }
-
-    private String normalizeKeyword(String keyword) {
-        return normalizeBlank(keyword);
-    }
-
-    private String normalizeBlank(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private Category normalizeCategory(String rawCategory) {
-        String normalized = normalizeBlank(rawCategory);
-        if (normalized == null) {
-            return null;
-        }
-        try {
-            return Category.valueOf(normalized.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException exception) {
-            throw new ErrorException(ProductErrorCode.INVALID_PRODUCT_CATEGORY);
-        }
     }
 
     private Map<Long, Integer> loadStockQuantities(List<ProductOptionEntity> options) {
         Map<Long, Integer> stockByOptionId = new HashMap<>();
         for (ProductOptionEntity option : options) {
+            if (option.getId() == null) {
+                stockByOptionId.put(null, option.getStockQuantity());
+                continue;
+            }
             Integer availableQty;
             try {
                 availableQty = productInventoryClient.getAvailableQty(option.getId());
@@ -246,18 +249,27 @@ public class SellerProductQueryService {
         return stockByOptionId;
     }
 
-    private int normalizeLimit(int value, int max) {
-        if (value <= 0) {
-            return 20;
+    private Long requireSeller(LoginUser currentUser) {
+        if (currentUser == null || currentUser.userId() == null || !SELLER_USER_TYPE.equalsIgnoreCase(currentUser.userType())) {
+            throw new ErrorException(ProductErrorCode.FORBIDDEN_PRODUCT_ACCESS);
         }
-        return Math.min(value, max);
+        return currentUser.userId();
     }
 
-    private String normalizeSort(String sort) {
-        if (sort == null || sort.isBlank()) {
-            return "latest";
+    private String normalizeKeyword(String keyword) {
+        return keyword == null || keyword.isBlank() ? null : keyword.trim();
+    }
+
+    private Category normalizeCategory(String rawCategory) {
+        String normalized = rawCategory == null || rawCategory.isBlank() ? null : rawCategory.trim();
+        if (normalized == null) {
+            return null;
         }
-        return sort.trim();
+        try {
+            return Category.valueOf(normalized.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new ErrorException(ProductErrorCode.INVALID_PRODUCT_CATEGORY);
+        }
     }
 
     private String formatCategory(Category category) {

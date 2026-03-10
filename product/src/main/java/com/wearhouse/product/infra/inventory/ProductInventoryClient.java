@@ -1,10 +1,10 @@
 package com.wearhouse.product.infra.inventory;
 
 import com.wearhouse.common.global.response.ApiResponse;
+import com.wearhouse.common.infra.feign.inventory.InventoryStockFeignClient;
+import com.wearhouse.common.infra.feign.inventory.dto.InventoryStockResponse;
+import com.wearhouse.common.infra.feign.inventory.dto.InventoryStockUpsertRequest;
 import com.wearhouse.common.security.passport.PassportHeaders;
-import com.wearhouse.product.infra.feign.InventoryStockFeignClient;
-import com.wearhouse.product.infra.feign.dto.InventoryStockResponse;
-import com.wearhouse.product.infra.feign.dto.InventoryStockUpsertRequest;
 import feign.FeignException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;

@@ -9,9 +9,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
@@ -66,6 +69,10 @@ public class ProductEntity extends BaseEntity {
     @OrderBy("imageType ASC, sortOrder ASC, id ASC")
     private List<ProductImageEntity> images = new ArrayList<>();
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "season_id")
+    private ProductSeasonEntity productSeason;
+
     @Builder
     private ProductEntity(
             Long sellerId,
@@ -75,16 +82,18 @@ public class ProductEntity extends BaseEntity {
             String details,
             String sizeGuide,
             String shipping,
-            ProductStatus status
+            ProductStatus status,
+            ProductSeasonEntity productSeason
     ) {
         this.sellerId = sellerId;
         this.name = name;
         this.price = price;
         this.category = category;
-        this.details=details;
-        this.sizeGuide=sizeGuide;
-        this.shipping=shipping;
+        this.details = details;
+        this.sizeGuide = sizeGuide;
+        this.shipping = shipping;
         this.status = status;
+        this.productSeason = productSeason;
     }
 
     public static ProductEntity create(
@@ -97,6 +106,20 @@ public class ProductEntity extends BaseEntity {
             String shipping,
             ProductStatus status
     ) {
+        return create(sellerId, name, price, category, details, sizeGuide, shipping, status, null);
+    }
+
+    public static ProductEntity create(
+            Long sellerId,
+            String name,
+            BigDecimal price,
+            Category category,
+            String details,
+            String sizeGuide,
+            String shipping,
+            ProductStatus status,
+            ProductSeasonEntity productSeason
+    ) {
         return ProductEntity.builder()
                 .sellerId(sellerId)
                 .name(name)
@@ -106,6 +129,7 @@ public class ProductEntity extends BaseEntity {
                 .sizeGuide(sizeGuide)
                 .shipping(shipping)
                 .status(status)
+                .productSeason(productSeason)
                 .build();
     }
 
@@ -121,5 +145,9 @@ public class ProductEntity extends BaseEntity {
 
     public void updateStatus(ProductStatus status) {
         this.status = status;
+    }
+
+    public void assignSeason(ProductSeasonEntity season) {
+        this.productSeason = season;
     }
 }

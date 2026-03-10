@@ -4,7 +4,10 @@ plugins {
 
 dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:3.5.11"))
+    api(platform("org.springframework.cloud:spring-cloud-dependencies:2025.0.1"))
     api("org.springframework.boot:spring-boot-autoconfigure")
+    api("org.springframework.cloud:spring-cloud-openfeign-core")
+    api("io.jsonwebtoken:jjwt-api:0.12.6")
     api("org.springframework:spring-web")
     api("org.springframework:spring-webmvc")
     api("org.springframework:spring-tx")

@@ -1,12 +1,12 @@
 package com.wearhouse.product.domain.controller;
 
+import com.wearhouse.common.global.pagination.CursorPageResponse;
 import com.wearhouse.common.global.response.ApiResponse;
 import com.wearhouse.product.domain.dto.response.BuyerProductDetailResponse;
 import com.wearhouse.product.domain.dto.response.BuyerProductListResponse;
+import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
 import com.wearhouse.product.domain.response.ProductSuccessCode;
 import com.wearhouse.product.domain.service.seller.SellerProductQueryService;
-import java.util.List;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,14 +25,24 @@ public class ProductBuyerController {
 
 
     @GetMapping
-    public ApiResponse<List<BuyerProductListResponse>> getBuyerProducts(
+    public ApiResponse<CursorPageResponse<BuyerProductListResponse>> getBuyerProducts(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "latest") String sort,
-            @RequestParam(defaultValue = "20") int limit
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") Integer limit
     ) {
-        List<BuyerProductListResponse> response = sellerProductQueryService.getBuyerProducts(category, keyword, sort, limit);
+        CursorPageResponse<BuyerProductListResponse> response =
+                sellerProductQueryService.getBuyerProducts(category, keyword, cursor, limit);
         return ApiResponse.success(ProductSuccessCode.BUYER_PRODUCT_LIST_FETCHED, response);
+    }
+
+    @GetMapping("/seasons")
+    public ApiResponse<CursorPageResponse<ProductSeasonListResponse>> getBuyerProductSeasons(
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") Integer limit
+    ) {
+        CursorPageResponse<ProductSeasonListResponse> response = sellerProductQueryService.getBuyerSeasons(cursor, limit);
+        return ApiResponse.success(ProductSuccessCode.BUYER_PRODUCT_SEASON_LIST_FETCHED, response);
     }
 
     @GetMapping("/{productId}")

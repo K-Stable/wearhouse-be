@@ -1,17 +1,20 @@
 package com.wearhouse.product.domain.service.seller;
 
-import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.common.global.error.ErrorException;
+import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.product.domain.dto.request.ProductCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductOptionCreateRequest;
+import com.wearhouse.product.domain.dto.request.ProductSeasonCreateRequest;
 import com.wearhouse.product.domain.entity.ProductEntity;
 import com.wearhouse.product.domain.entity.ProductOptionEntity;
+import com.wearhouse.product.domain.entity.ProductSeasonEntity;
 import com.wearhouse.product.domain.exception.ProductErrorCode;
 import com.wearhouse.product.domain.model.ProductImageType;
 import com.wearhouse.product.domain.model.ProductStatus;
-import com.wearhouse.product.infra.inventory.ProductInventoryClient;
 import com.wearhouse.product.domain.repository.ProductRepository;
+import com.wearhouse.product.domain.repository.ProductSeasonRepository;
+import com.wearhouse.product.infra.inventory.ProductInventoryClient;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -29,8 +32,15 @@ public class SellerProductCommandService {
     private static final String SELLER_USER_TYPE = "SELLER";
 
     private final ProductRepository productRepository;
+    private final ProductSeasonRepository productSeasonRepository;
     private final ProductInventoryClient productInventoryClient;
 
+    @WriteTx
+    public void createProductSeason(LoginUser currentUser, ProductSeasonCreateRequest request) {
+        Long sellerId = getSellerId(currentUser);
+        ProductSeasonEntity productSeason = ProductSeasonEntity.create(sellerId, request.name().trim());
+        productSeasonRepository.save(productSeason);
+    }
 
     @WriteTx
     public void createProduct(LoginUser currentUser, ProductCreateRequest request) {
@@ -139,10 +149,7 @@ public class SellerProductCommandService {
         }
     }
 
-    private void upsertInventoryStocks(
-            ProductEntity product,
-            String mainImageUrl
-    ) {
+    private void upsertInventoryStocks(ProductEntity product, String mainImageUrl) {
         if (product == null) {
             throw new ErrorException(ProductErrorCode.INVENTORY_STOCK_SYNC_FAILED);
         }

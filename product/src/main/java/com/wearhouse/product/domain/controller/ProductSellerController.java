@@ -1,11 +1,14 @@
 package com.wearhouse.product.domain.controller;
 
+import com.wearhouse.common.global.pagination.CursorPageResponse;
 import com.wearhouse.common.global.response.ApiResponse;
 import com.wearhouse.common.security.current.LoginSeller;
 import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.product.domain.dto.request.ProductCreateRequest;
+import com.wearhouse.product.domain.dto.request.ProductSeasonCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductStatusesUpdateRequest;
 import com.wearhouse.product.domain.dto.request.ProductStatusUpdateRequest;
+import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductResponse;
 import com.wearhouse.product.domain.model.ProductStatus;
@@ -13,8 +16,6 @@ import com.wearhouse.product.domain.response.ProductSuccessCode;
 import com.wearhouse.product.domain.service.seller.SellerProductCommandService;
 import com.wearhouse.product.domain.service.seller.SellerProductQueryService;
 import jakarta.validation.Valid;
-import java.util.List;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -36,6 +37,15 @@ public class ProductSellerController {
     private final SellerProductCommandService sellerProductCommandService;
     private final SellerProductQueryService sellerProductQueryService;
 
+    @PostMapping("/seasons")
+    public ApiResponse<Void> createProductSeason(
+            @LoginSeller LoginUser currentUser,
+            @Valid @RequestBody ProductSeasonCreateRequest request
+    ) {
+        sellerProductCommandService.createProductSeason(currentUser, request);
+        return ApiResponse.success(ProductSuccessCode.PRODUCT_SEASON_CREATED);
+    }
+
     @PostMapping
     public ApiResponse<Void> createProduct(
             @LoginSeller LoginUser currentUser,
@@ -45,14 +55,27 @@ public class ProductSellerController {
         return ApiResponse.success(ProductSuccessCode.PRODUCT_CREATED);
     }
 
+    @GetMapping("/seasons")
+    public ApiResponse<CursorPageResponse<ProductSeasonListResponse>> getSellerProductSeasons(
+            @LoginSeller LoginUser currentUser,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") Integer limit
+    ) {
+        CursorPageResponse<ProductSeasonListResponse> response =
+                sellerProductQueryService.getSellerSeasons(currentUser, cursor, limit);
+        return ApiResponse.success(ProductSuccessCode.SELLER_PRODUCT_SEASON_LIST_FETCHED, response);
+    }
+
     @GetMapping
-    public ApiResponse<List<SellerProductListResponse>> getSellerProducts(
+    public ApiResponse<CursorPageResponse<SellerProductListResponse>> getSellerProducts(
             @LoginSeller LoginUser currentUser,
             @RequestParam(required = false) ProductStatus status,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "50") int limit
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") Integer limit
     ) {
-        List<SellerProductListResponse> response = sellerProductQueryService.getSellerProducts(currentUser, status, keyword, limit);
+        CursorPageResponse<SellerProductListResponse> response =
+                sellerProductQueryService.getSellerProducts(currentUser, status, keyword, cursor, limit);
         return ApiResponse.success(ProductSuccessCode.SELLER_PRODUCT_LIST_FETCHED, response);
     }
 
