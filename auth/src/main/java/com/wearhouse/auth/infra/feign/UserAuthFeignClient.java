@@ -1,7 +1,7 @@
 package com.wearhouse.auth.infra.feign;
 
-import com.wearhouse.auth.infra.feign.dto.UserAuthByEmailRequest;
 import com.wearhouse.auth.infra.feign.dto.UserAuthByIdRequest;
+import com.wearhouse.auth.infra.feign.dto.UserAuthByLoginIdRequest;
 import com.wearhouse.auth.infra.feign.dto.UserAuthAccountResponse;
 import com.wearhouse.auth.infra.feign.dto.UserAuthSignupRequest;
 import com.wearhouse.common.global.response.ApiResponse;
@@ -19,10 +19,10 @@ public interface UserAuthFeignClient {
             @RequestBody UserAuthSignupRequest request
     );
 
-    @PostMapping("/by-email")
-    ApiResponse<UserAuthAccountResponse> findByEmail(
+    @PostMapping("/by-login-id")
+    ApiResponse<UserAuthAccountResponse> findByLoginId(
             @RequestHeader("X-Internal-Secret") String internalSecret,
-            @RequestBody UserAuthByEmailRequest request
+            @RequestBody UserAuthByLoginIdRequest request
     );
 
     @PostMapping("/by-id")

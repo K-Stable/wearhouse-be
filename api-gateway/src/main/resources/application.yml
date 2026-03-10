@@ -16,45 +16,51 @@ spring:
             - id: auth-service
               uri: lb://auth-service
               predicates:
-                - Path=/auth-service/**
-              filters:
-                - StripPrefix=1
+                - Path=/api/v1/auth/**
+            - id: auth-service-internal
+              uri: lb://auth-service
+              predicates:
+                - Path=/api/v1/internal/auth/**
             - id: user-service
               uri: lb://user-service
               predicates:
-                - Path=/user-service/**
-              filters:
-                - StripPrefix=1
-            - id: product-service
+                - Path=/api/v1/users/**
+            - id: user-service-internal
+              uri: lb://user-service
+              predicates:
+                - Path=/api/v1/internal/users/**
+            - id: product-service-buyer
               uri: lb://product-service
               predicates:
-                - Path=/product-service/**
-              filters:
-                - StripPrefix=1
+                - Path=/api/v1/buyer/products/**
+            - id: product-service-seller
+              uri: lb://product-service
+              predicates:
+                - Path=/api/v1/seller/products/**
             - id: order-service
               uri: lb://order-service
               predicates:
-                - Path=/order-service/**
-              filters:
-                - StripPrefix=1
+                - Path=/api/v1/orders/**
+            - id: order-service-internal
+              uri: lb://order-service
+              predicates:
+                - Path=/api/v1/internal/kafka/**
             - id: payment-service
               uri: lb://payment-service
               predicates:
-                - Path=/payment-service/**
-              filters:
-                - StripPrefix=1
-            - id: inventory-service
+                - Path=/api/v1/payments/**
+            - id: inventory-service-seller
               uri: lb://inventory-service
               predicates:
-                - Path=/inventory-service/**
-              filters:
-                - StripPrefix=1
+                - Path=/api/v1/seller/inventories/**
+            - id: inventory-service-internal
+              uri: lb://inventory-service
+              predicates:
+                - Path=/api/v1/internal/inventory/**
             - id: settlement-service
               uri: lb://settlement-service
               predicates:
-                - Path=/settlement-service/**
-              filters:
-                - StripPrefix=1
+                - Path=/api/v1/settlements/**
   data:
     redis:
       host: ${REDIS_HOST:localhost}

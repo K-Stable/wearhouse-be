@@ -9,8 +9,8 @@ import com.wearhouse.auth.domain.model.AuthAccount;
 import com.wearhouse.auth.domain.model.AuthUserType;
 import com.wearhouse.auth.infra.feign.UserAuthFeignClient;
 import com.wearhouse.auth.infra.feign.dto.UserAuthAccountResponse;
-import com.wearhouse.auth.infra.feign.dto.UserAuthByEmailRequest;
 import com.wearhouse.auth.infra.feign.dto.UserAuthByIdRequest;
+import com.wearhouse.auth.infra.feign.dto.UserAuthByLoginIdRequest;
 import com.wearhouse.auth.infra.feign.dto.UserAuthSignupRequest;
 import com.wearhouse.auth.infra.redis.RefreshTokenStore;
 import com.wearhouse.auth.support.event.AuthUserChangedPublisher;
@@ -74,7 +74,7 @@ public class AuthCommandService {
     }
 
     public AuthSession login(AuthUserType userType, LoginRequest request) {
-        AuthAccount account = getAccountByEmail(userType, request.email());
+        AuthAccount account = getAccountByLoginId(userType, request.loginId());
 
         if (!account.isActive()) {
             throw new ErrorException(AuthErrorCode.USER_NOT_ACTIVE);
@@ -150,7 +150,9 @@ public class AuthCommandService {
                 account.id(),
                 account.userType().name(),
                 account.email(),
-                issuedAccessToken.expiresAt()
+                issuedAccessToken.expiresAt(),
+                issuedAccessToken.accessToken(),
+                refreshToken
         );
 
         return new AuthSession(
@@ -160,11 +162,11 @@ public class AuthCommandService {
         );
     }
 
-    private AuthAccount getAccountByEmail(AuthUserType userType, String email) {
+    private AuthAccount getAccountByLoginId(AuthUserType userType, String loginId) {
         try {
-            ApiResponse<UserAuthAccountResponse> response = userAuthFeignClient.findByEmail(
+            ApiResponse<UserAuthAccountResponse> response = userAuthFeignClient.findByLoginId(
                     internalSharedSecret,
-                    new UserAuthByEmailRequest(userType.name(), email)
+                    new UserAuthByLoginIdRequest(userType.name(), loginId)
             );
             return toAuthAccount(unwrapData(response, AuthErrorCode.USER_SERVICE_INVALID_RESPONSE));
         } catch (FeignException.NotFound exception) {

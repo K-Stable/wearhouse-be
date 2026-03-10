@@ -24,6 +24,7 @@ import com.wearhouse.inventory.domain.dto.request.InventoryStockUpsertRequest;
 import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse;
 import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse.InventoryAvailabilityLineResponse;
 import com.wearhouse.inventory.domain.dto.response.InventoryStockResponse;
+import java.math.BigDecimal;
 import com.wearhouse.inventory.domain.service.command.InventoryStockService;
 import com.wearhouse.inventory.domain.service.query.InventoryAvailabilityService;
 import com.wearhouse.inventory.domain.service.query.InventoryStockReadService;
@@ -31,6 +32,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDocs;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -40,6 +42,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(InventoryController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @AutoConfigureRestDocs
 @Import({GlobalResponseBodyAdvice.class, GlobalExceptionHandler.class})
 class InventoryControllerDocsTest {
@@ -62,8 +65,32 @@ class InventoryControllerDocsTest {
     @Test
     @DisplayName("재고 upsert API 문서화")
     void upsertStock() throws Exception {
-        InventoryStockUpsertRequest request = new InventoryStockUpsertRequest(1001L, 50);
-        InventoryStockResponse response = new InventoryStockResponse(1001L, 50, 0, 1L);
+        InventoryStockUpsertRequest request = new InventoryStockUpsertRequest(
+                1001L,
+                50,
+                11L,
+                501L,
+                "Debug Product",
+                new BigDecimal("50000"),
+                "OUTER",
+                "S",
+                "Black",
+                "https://cdn.example.com/main.jpg"
+        );
+        InventoryStockResponse response = new InventoryStockResponse(
+                1001L,
+                11L,
+                501L,
+                "Debug Product",
+                new BigDecimal("50000"),
+                "OUTER",
+                "S",
+                "Black",
+                "https://cdn.example.com/main.jpg",
+                50,
+                0,
+                1L
+        );
         given(inventoryStockService.upsert(any(InventoryStockUpsertRequest.class))).willReturn(response);
 
         mockMvc.perform(post("/api/v1/internal/inventory/stocks")
@@ -75,13 +102,29 @@ class InventoryControllerDocsTest {
                         getDocumentResponse(),
                         requestFields(
                                 fieldWithPath("skuId").type(JsonFieldType.NUMBER).description("SKU ID"),
-                                fieldWithPath("availableQty").type(JsonFieldType.NUMBER).description("가용 재고 수량")
+                                fieldWithPath("availableQty").type(JsonFieldType.NUMBER).description("가용 재고 수량"),
+                                fieldWithPath("sellerId").type(JsonFieldType.NUMBER).description("판매자 ID"),
+                                fieldWithPath("productId").type(JsonFieldType.NUMBER).description("상품 ID"),
+                                fieldWithPath("productName").type(JsonFieldType.STRING).description("상품명"),
+                                fieldWithPath("productPrice").type(JsonFieldType.NUMBER).description("상품 가격"),
+                                fieldWithPath("category").type(JsonFieldType.STRING).description("카테고리"),
+                                fieldWithPath("size").type(JsonFieldType.STRING).description("옵션 사이즈"),
+                                fieldWithPath("color").type(JsonFieldType.STRING).description("옵션 색상"),
+                                fieldWithPath("mainImageUrl").type(JsonFieldType.STRING).description("대표 이미지 URL")
                         ),
                         responseFields(
                                 fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("성공 여부"),
                                 fieldWithPath("code").type(JsonFieldType.STRING).description("응답 코드"),
                                 fieldWithPath("message").type(JsonFieldType.STRING).description("응답 메시지"),
                                 fieldWithPath("data.skuId").type(JsonFieldType.NUMBER).description("SKU ID"),
+                                fieldWithPath("data.sellerId").type(JsonFieldType.NUMBER).description("판매자 ID"),
+                                fieldWithPath("data.productId").type(JsonFieldType.NUMBER).description("상품 ID"),
+                                fieldWithPath("data.productName").type(JsonFieldType.STRING).description("상품명"),
+                                fieldWithPath("data.productPrice").type(JsonFieldType.NUMBER).description("상품 가격"),
+                                fieldWithPath("data.category").type(JsonFieldType.STRING).description("카테고리"),
+                                fieldWithPath("data.size").type(JsonFieldType.STRING).description("옵션 사이즈"),
+                                fieldWithPath("data.color").type(JsonFieldType.STRING).description("옵션 색상"),
+                                fieldWithPath("data.mainImageUrl").type(JsonFieldType.STRING).description("대표 이미지 URL"),
                                 fieldWithPath("data.availableQty").type(JsonFieldType.NUMBER).description("가용 재고 수량"),
                                 fieldWithPath("data.reservedQty").type(JsonFieldType.NUMBER).description("예약 재고 수량"),
                                 fieldWithPath("data.version").type(JsonFieldType.NUMBER).description("낙관락 버전"),
@@ -93,7 +136,20 @@ class InventoryControllerDocsTest {
     @Test
     @DisplayName("재고 조회 API 문서화")
     void getStock() throws Exception {
-        InventoryStockResponse response = new InventoryStockResponse(1001L, 50, 3, 7L);
+        InventoryStockResponse response = new InventoryStockResponse(
+                1001L,
+                11L,
+                501L,
+                "Debug Product",
+                new BigDecimal("50000"),
+                "OUTER",
+                "S",
+                "Black",
+                "https://cdn.example.com/main.jpg",
+                50,
+                3,
+                7L
+        );
         given(inventoryStockReadService.getBySkuId(eq(1001L))).willReturn(response);
 
         mockMvc.perform(get("/api/v1/internal/inventory/stocks/{skuId}", 1001L))
@@ -109,6 +165,14 @@ class InventoryControllerDocsTest {
                                 fieldWithPath("code").type(JsonFieldType.STRING).description("응답 코드"),
                                 fieldWithPath("message").type(JsonFieldType.STRING).description("응답 메시지"),
                                 fieldWithPath("data.skuId").type(JsonFieldType.NUMBER).description("SKU ID"),
+                                fieldWithPath("data.sellerId").type(JsonFieldType.NUMBER).description("판매자 ID"),
+                                fieldWithPath("data.productId").type(JsonFieldType.NUMBER).description("상품 ID"),
+                                fieldWithPath("data.productName").type(JsonFieldType.STRING).description("상품명"),
+                                fieldWithPath("data.productPrice").type(JsonFieldType.NUMBER).description("상품 가격"),
+                                fieldWithPath("data.category").type(JsonFieldType.STRING).description("카테고리"),
+                                fieldWithPath("data.size").type(JsonFieldType.STRING).description("옵션 사이즈"),
+                                fieldWithPath("data.color").type(JsonFieldType.STRING).description("옵션 색상"),
+                                fieldWithPath("data.mainImageUrl").type(JsonFieldType.STRING).description("대표 이미지 URL"),
                                 fieldWithPath("data.availableQty").type(JsonFieldType.NUMBER).description("가용 재고 수량"),
                                 fieldWithPath("data.reservedQty").type(JsonFieldType.NUMBER).description("예약 재고 수량"),
                                 fieldWithPath("data.version").type(JsonFieldType.NUMBER).description("낙관락 버전"),

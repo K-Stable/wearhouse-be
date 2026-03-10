@@ -15,7 +15,7 @@ public record ProductOptionCreateRequest(
         @Size(max = 60)
         String color,
 
-        @NotNull @PositiveOrZero Integer stockQuantity,
-        @PositiveOrZero BigDecimal additionalPrice
+        @NotNull @PositiveOrZero
+        Integer stockQuantity
 ) {
 }

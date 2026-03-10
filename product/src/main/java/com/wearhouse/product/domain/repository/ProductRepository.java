@@ -3,6 +3,7 @@ package com.wearhouse.product.domain.repository;
 import com.wearhouse.product.domain.entity.ProductEntity;
 import com.wearhouse.product.domain.model.Category;
 import com.wearhouse.product.domain.model.ProductStatus;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -29,6 +30,9 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
 
     @EntityGraph(attributePaths = {"options", "images"})
     Optional<ProductEntity> findByIdAndSellerId(Long id, Long sellerId);
+
+    @EntityGraph(attributePaths = {"options", "images"})
+    List<ProductEntity> findAllByIdInAndSellerId(Collection<Long> ids, Long sellerId);
 
     @EntityGraph(attributePaths = {"options"})
     @Query("""

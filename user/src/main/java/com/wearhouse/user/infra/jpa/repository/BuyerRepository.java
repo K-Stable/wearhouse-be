@@ -10,6 +10,8 @@ public interface BuyerRepository extends JpaRepository<BuyerEntity, Long> {
 
     boolean existsByLoginIdOrEmail(String loginId, String email);
 
+    Optional<BuyerEntity> findByLoginId(String loginId);
+
     Optional<BuyerEntity> findByEmail(String email);
 
     boolean existsByEmail(String email);

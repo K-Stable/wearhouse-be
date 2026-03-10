@@ -7,7 +7,9 @@ import org.springframework.http.HttpStatus;
 
 
 public enum InventorySuccessCode implements SuccessCode {
-    INVENTORY_CREATED(HttpStatus.CREATED, "INVENTORY_201_001", "재고가 생성되었습니다.");
+    INVENTORY_CREATED(HttpStatus.CREATED, "INVENTORY_201_001", "재고가 생성되었습니다."),
+    INVENTORY_FETCHED(HttpStatus.OK, "INVENTORY_200_001", "재고를 조회했습니다."),
+    INVENTORY_LIST_FETCHED(HttpStatus.OK, "INVENTORY_200_002", "재고 목록을 조회했습니다.");
 
     private final HttpStatus status;
     private final String code;

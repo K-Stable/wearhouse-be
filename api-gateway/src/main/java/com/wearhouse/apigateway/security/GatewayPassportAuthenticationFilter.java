@@ -6,7 +6,6 @@ import com.wearhouse.common.security.passport.PassportHeaders;
 import com.wearhouse.common.security.passport.PassportSigner;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -25,46 +24,37 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String SELLER_PATH_SEGMENT = "/api/v1/seller/";
-    private static final String PRODUCT_BUYER_PATH_PREFIX = "/product-service/api/v1/buyer/products";
-    private static final String ORDER_CREATE_PATH = "/order-service/api/v1/orders";
+    private static final String BUYER_PATH_PREFIX = "/api/v1/buyer/";
+    private static final String BUYER_MYPAGE_PATH_PREFIX = "/api/v1/buyer/mypage";
     private static final String ROLE_SELLER = "ROLE_SELLER";
     private static final Set<String> SKIP_PREFIXES = Set.of(
-            "/auth-service/api/v1/auth/",
             "/actuator",
             "/error"
     );
+    private static final List<String> PUBLIC_AUTH_LOGIN_PATHS = List.of(
+            "/api/v1/auth/buyers/login",
+            "/api/v1/auth/sellers/login"
+    );
     private static final List<String> PUBLIC_USER_SIGNUP_PATHS = List.of(
-            "/user-service/api/v1/users/buyers/login-id/availability",
-            "/user-service/api/v1/users/buyers/email-code/send",
-            "/user-service/api/v1/users/buyers/email-code/verify",
-            "/user-service/api/v1/users/buyers/signup",
-            "/user-service/api/v1/users/sellers/login-id/availability",
-            "/user-service/api/v1/users/sellers/email-code/send",
-            "/user-service/api/v1/users/sellers/email-code/verify",
-            "/user-service/api/v1/users/sellers/signup"
+            "/api/v1/users/buyers/signup",
+            "/api/v1/users/sellers/signup"
     );
 
     private final GatewayPassportService gatewayPassportService;
     private final ObjectMapper objectMapper;
     private final PassportSigner passportSigner;
-    private final String buyerAccessCookieName;
-    private final String sellerAccessCookieName;
     private final Set<String> sellerOrigins;
 
     public GatewayPassportAuthenticationFilter(
             GatewayPassportService gatewayPassportService,
             ObjectMapper objectMapper,
             @Value("${wearhouse.gateway.passport.shared-secret}") String passportSharedSecret,
-            @Value("${wearhouse.gateway.cookie.buyer-access-name:buyer_access_token}") String buyerAccessCookieName,
-            @Value("${wearhouse.gateway.cookie.seller-access-name:seller_access_token}") String sellerAccessCookieName,
             @Value("${wearhouse.gateway.seller-origins:http://localhost:3002,http://127.0.0.1:3002}")
             String sellerOriginsRaw
     ) {
         this.gatewayPassportService = gatewayPassportService;
         this.objectMapper = objectMapper;
         this.passportSigner = new PassportSigner(passportSharedSecret);
-        this.buyerAccessCookieName = buyerAccessCookieName;
-        this.sellerAccessCookieName = sellerAccessCookieName;
         this.sellerOrigins = Arrays.stream(sellerOriginsRaw.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
@@ -78,6 +68,7 @@ public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
         }
         String path = request.getRequestURI();
         return SKIP_PREFIXES.stream().anyMatch(path::startsWith)
+                || PUBLIC_AUTH_LOGIN_PATHS.stream().anyMatch(path::equals)
                 || PUBLIC_USER_SIGNUP_PATHS.stream().anyMatch(path::equals);
     }
 
@@ -128,15 +119,17 @@ public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
 
     private boolean isPublicRequest(HttpServletRequest request) {
         String path = request.getRequestURI();
-        String method = request.getMethod();
         if (isSellerOriginRequest(request)) {
             return false;
         }
-        if ("GET".equalsIgnoreCase(method) && path != null && path.startsWith(PRODUCT_BUYER_PATH_PREFIX)) {
-            return true;
+        return isPublicBuyerRequest(path);
+    }
+
+    private boolean isPublicBuyerRequest(String path) {
+        if (path == null || !path.startsWith(BUYER_PATH_PREFIX)) {
+            return false;
         }
-        return "POST".equalsIgnoreCase(method)
-                && (ORDER_CREATE_PATH.equals(path) || (ORDER_CREATE_PATH + "/").equals(path));
+        return !path.startsWith(BUYER_MYPAGE_PATH_PREFIX);
     }
 
     private boolean isSellerOriginRequest(HttpServletRequest request) {
@@ -149,18 +142,14 @@ public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
 
     private String resolveAccessToken(HttpServletRequest request) {
         String authorization = request.getHeader("Authorization");
-        if (authorization != null && authorization.startsWith("Bearer ")) {
-            return authorization.substring("Bearer ".length()).trim();
-        }
-        if (request.getCookies() == null) {
+        if (authorization == null || authorization.isBlank()) {
             return null;
         }
-        for (Cookie cookie : request.getCookies()) {
-            if (buyerAccessCookieName.equals(cookie.getName()) || sellerAccessCookieName.equals(cookie.getName())) {
-                return cookie.getValue();
-            }
+        String trimmed = authorization.trim();
+        if (!trimmed.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return null;
         }
-        return null;
+        return trimmed.substring(7).trim();
     }
 
     private String encodePassport(PassportContext passportContext) {

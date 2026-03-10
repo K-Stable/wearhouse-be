@@ -4,13 +4,14 @@ import com.wearhouse.common.global.response.ApiResponse;
 import com.wearhouse.common.security.current.LoginSeller;
 import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.product.domain.dto.request.ProductCreateRequest;
+import com.wearhouse.product.domain.dto.request.ProductStatusesUpdateRequest;
 import com.wearhouse.product.domain.dto.request.ProductStatusUpdateRequest;
 import com.wearhouse.product.domain.dto.response.SellerProductListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductResponse;
 import com.wearhouse.product.domain.model.ProductStatus;
 import com.wearhouse.product.domain.response.ProductSuccessCode;
-import com.wearhouse.product.domain.service.ProductCommandService;
-import com.wearhouse.product.domain.service.ProductQueryService;
+import com.wearhouse.product.domain.service.seller.SellerProductCommandService;
+import com.wearhouse.product.domain.service.seller.SellerProductQueryService;
 import jakarta.validation.Valid;
 import java.util.List;
 
@@ -32,15 +33,15 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class ProductSellerController {
 
-    private final ProductCommandService productCommandService;
-    private final ProductQueryService productQueryService;
+    private final SellerProductCommandService sellerProductCommandService;
+    private final SellerProductQueryService sellerProductQueryService;
 
-    @PostMapping({"", "/", "/create"})
+    @PostMapping
     public ApiResponse<Void> createProduct(
             @LoginSeller LoginUser currentUser,
             @Valid @RequestBody ProductCreateRequest request
     ) {
-        productCommandService.createProduct(currentUser, request);
+        sellerProductCommandService.createProduct(currentUser, request);
         return ApiResponse.success(ProductSuccessCode.PRODUCT_CREATED);
     }
 
@@ -51,7 +52,7 @@ public class ProductSellerController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "50") int limit
     ) {
-        List<SellerProductListResponse> response = productQueryService.getSellerProducts(currentUser, status, keyword, limit);
+        List<SellerProductListResponse> response = sellerProductQueryService.getSellerProducts(currentUser, status, keyword, limit);
         return ApiResponse.success(ProductSuccessCode.SELLER_PRODUCT_LIST_FETCHED, response);
     }
 
@@ -60,7 +61,7 @@ public class ProductSellerController {
             @LoginSeller LoginUser currentUser,
             @PathVariable Long productId
     ) {
-        SellerProductResponse response = productQueryService.getSellerProduct(currentUser, productId);
+        SellerProductResponse response = sellerProductQueryService.getSellerProduct(currentUser, productId);
         return ApiResponse.success(ProductSuccessCode.SELLER_PRODUCT_FETCHED, response);
     }
 
@@ -70,7 +71,16 @@ public class ProductSellerController {
             @PathVariable Long productId,
             @Valid @RequestBody ProductStatusUpdateRequest request
     ) {
-        productCommandService.updateProductStatus(currentUser, productId, request.status());
+        sellerProductCommandService.updateProductStatus(currentUser, productId, request.status());
+        return ApiResponse.success(ProductSuccessCode.PRODUCT_STATUS_UPDATED);
+    }
+
+    @PatchMapping("/statuses")
+    public ApiResponse<Void> updateStatuses(
+            @LoginSeller LoginUser currentUser,
+            @Valid @RequestBody ProductStatusesUpdateRequest request
+    ) {
+        sellerProductCommandService.updateProductStatuses(currentUser, request.productIds(), request.status());
         return ApiResponse.success(ProductSuccessCode.PRODUCT_STATUS_UPDATED);
     }
 
@@ -79,7 +89,7 @@ public class ProductSellerController {
             @LoginSeller LoginUser currentUser,
             @PathVariable Long productId
     ) {
-        productCommandService.deleteProduct(currentUser, productId);
+        sellerProductCommandService.deleteProduct(currentUser, productId);
         return ApiResponse.success(ProductSuccessCode.PRODUCT_DELETED);
     }
 }

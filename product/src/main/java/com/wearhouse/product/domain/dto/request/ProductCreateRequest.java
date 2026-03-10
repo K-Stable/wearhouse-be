@@ -23,21 +23,24 @@ public record ProductCreateRequest(
         @NotNull
         Category category,
 
-        String description,
+        String details,
+
+        String sizeGuide,
+
+        String shipping,
+
+        @NotEmpty
+        List<@Valid ProductOptionCreateRequest> options,
 
         @NotBlank
         @URL
         String mainImageUrl,
 
-        List<@NotBlank @URL String>
-        previewImageUrls,
+        List<@NotBlank @URL String> previewImageUrls,
 
-        List<@NotBlank @URL String>
-        detailImageUrls,
+        List<@NotBlank @URL String> detailImageUrls,
 
-        ProductStatus status,
+        ProductStatus status
 
-        @NotEmpty
-        List<@Valid ProductOptionCreateRequest> options
 ) {
 }

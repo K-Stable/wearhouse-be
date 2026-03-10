@@ -48,23 +48,23 @@ public class AuthController {
             HttpServletResponse response
     ) {
         AuthSession session = authCommandService.login(AuthUserType.BUYER, request);
-        authCookieService.writeBuyerTokens(response, session.accessToken(), session.refreshToken());
-        return session.response();
+        authCookieService.writeBuyerRefreshToken(response, session.refreshToken());
+        return toClientResponse(session.response());
     }
 
     @PostMapping("/auth/buyers/refresh")
     public AuthTokenResponse refreshBuyer(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = authCookieService.resolveBuyerRefreshToken(request);
+        String refreshToken = requireRefreshToken(authCookieService.resolveBuyerRefreshToken(request));
         AuthSession session = authCommandService.refresh(AuthUserType.BUYER, refreshToken);
-        authCookieService.writeBuyerTokens(response, session.accessToken(), session.refreshToken());
-        return session.response();
+        authCookieService.writeBuyerRefreshToken(response, session.refreshToken());
+        return toClientResponse(session.response());
     }
 
     @PostMapping("/auth/buyers/logout")
     public void logoutBuyer(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = authCookieService.resolveBuyerRefreshToken(request);
         authCommandService.logout(AuthUserType.BUYER, refreshToken);
-        authCookieService.clearBuyerTokens(response);
+        authCookieService.clearBuyerRefreshToken(response);
     }
 
     @PostMapping("/auth/sellers/login")
@@ -73,23 +73,23 @@ public class AuthController {
             HttpServletResponse response
     ) {
         AuthSession session = authCommandService.login(AuthUserType.SELLER, request);
-        authCookieService.writeSellerTokens(response, session.accessToken(), session.refreshToken());
-        return session.response();
+        authCookieService.writeSellerRefreshToken(response, session.refreshToken());
+        return toClientResponse(session.response());
     }
 
     @PostMapping("/auth/sellers/refresh")
     public AuthTokenResponse refreshSeller(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = authCookieService.resolveSellerRefreshToken(request);
+        String refreshToken = requireRefreshToken(authCookieService.resolveSellerRefreshToken(request));
         AuthSession session = authCommandService.refresh(AuthUserType.SELLER, refreshToken);
-        authCookieService.writeSellerTokens(response, session.accessToken(), session.refreshToken());
-        return session.response();
+        authCookieService.writeSellerRefreshToken(response, session.refreshToken());
+        return toClientResponse(session.response());
     }
 
     @PostMapping("/auth/sellers/logout")
     public void logoutSeller(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = authCookieService.resolveSellerRefreshToken(request);
         authCommandService.logout(AuthUserType.SELLER, refreshToken);
-        authCookieService.clearSellerTokens(response);
+        authCookieService.clearSellerRefreshToken(response);
     }
 
     @PostMapping("/internal/auth/buyers/signup")
@@ -133,6 +133,24 @@ public class AuthController {
                 session.response().accessTokenExpiresAt(),
                 session.accessToken(),
                 session.refreshToken()
+        );
+    }
+
+    private String requireRefreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new ErrorException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+        }
+        return refreshToken;
+    }
+
+    private AuthTokenResponse toClientResponse(AuthTokenResponse response) {
+        return new AuthTokenResponse(
+                response.userId(),
+                response.userType(),
+                response.email(),
+                response.accessTokenExpiresAt(),
+                response.accessToken(),
+                null
         );
     }
 }

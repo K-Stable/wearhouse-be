@@ -17,6 +17,7 @@ public class AuthCookieService {
     private final boolean secure;
     private final String sameSite;
     private final String cookiePath;
+    private final long refreshMaxAgeSeconds;
 
     public AuthCookieService(
             @Value("${wearhouse.auth.cookie.buyer-access-name:buyer_access_token}") String buyerAccessName,
@@ -25,7 +26,8 @@ public class AuthCookieService {
             @Value("${wearhouse.auth.cookie.seller-refresh-name:seller_refresh_token}") String sellerRefreshName,
             @Value("${wearhouse.auth.cookie.secure:false}") boolean secure,
             @Value("${wearhouse.auth.cookie.same-site:Lax}") String sameSite,
-            @Value("${wearhouse.auth.cookie.path:/}") String cookiePath
+            @Value("${wearhouse.auth.cookie.path:/}") String cookiePath,
+            @Value("${wearhouse.auth.refresh.ttl-days:14}") long refreshTtlDays
     ) {
         this.buyerAccessName = buyerAccessName;
         this.sellerAccessName = sellerAccessName;
@@ -34,6 +36,7 @@ public class AuthCookieService {
         this.secure = secure;
         this.sameSite = sameSite;
         this.cookiePath = cookiePath;
+        this.refreshMaxAgeSeconds = refreshTtlDays * 24 * 60 * 60;
     }
 
     public void writeBuyerTokens(HttpServletResponse response, String accessToken, String refreshToken) {
@@ -46,6 +49,14 @@ public class AuthCookieService {
         write(response, sellerRefreshName, refreshToken, 60L * 60 * 24 * 14);
     }
 
+    public void writeBuyerRefreshToken(HttpServletResponse response, String refreshToken) {
+        write(response, buyerRefreshName, refreshToken, refreshMaxAgeSeconds);
+    }
+
+    public void writeSellerRefreshToken(HttpServletResponse response, String refreshToken) {
+        write(response, sellerRefreshName, refreshToken, refreshMaxAgeSeconds);
+    }
+
     public void clearBuyerTokens(HttpServletResponse response) {
         clear(response, buyerAccessName);
         clear(response, buyerRefreshName);
@@ -53,6 +64,14 @@ public class AuthCookieService {
 
     public void clearSellerTokens(HttpServletResponse response) {
         clear(response, sellerAccessName);
+        clear(response, sellerRefreshName);
+    }
+
+    public void clearBuyerRefreshToken(HttpServletResponse response) {
+        clear(response, buyerRefreshName);
+    }
+
+    public void clearSellerRefreshToken(HttpServletResponse response) {
         clear(response, sellerRefreshName);
     }
 

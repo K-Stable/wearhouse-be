@@ -1,5 +1,7 @@
-package com.wearhouse.apigateway.security;
+package com.wearhouse.apigateway.config;
 
+import com.wearhouse.apigateway.security.GatewayPassportAuthenticationFilter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -10,13 +12,17 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
-public class GatewaySecurityConfig {
+@RequiredArgsConstructor
+public class ApiGatewaySecurityConfig {
+
+    private static final String[] ALLOWED_URL_PATTERNS = {
+            "/",
+            "/api/v1/**",
+            "/actuator/**",
+            "/error"
+    };
 
     private final GatewayPassportAuthenticationFilter gatewayPassportAuthenticationFilter;
-
-    public GatewaySecurityConfig(GatewayPassportAuthenticationFilter gatewayPassportAuthenticationFilter) {
-        this.gatewayPassportAuthenticationFilter = gatewayPassportAuthenticationFilter;
-    }
 
     @Bean
     SecurityFilterChain gatewayFilterChain(HttpSecurity http) throws Exception {
@@ -24,7 +30,10 @@ public class GatewaySecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(ALLOWED_URL_PATTERNS).permitAll()
+                        .anyRequest().denyAll()
+                )
                 .addFilterBefore(gatewayPassportAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

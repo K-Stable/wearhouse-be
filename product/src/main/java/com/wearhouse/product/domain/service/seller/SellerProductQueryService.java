@@ -1,4 +1,4 @@
-package com.wearhouse.product.domain.service;
+package com.wearhouse.product.domain.service.seller;
 
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.security.current.LoginUser;
@@ -24,35 +24,26 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.wearhouse.common.global.transactional.ReadTx;
 
 @Service
-public class ProductQueryService {
+@RequiredArgsConstructor
+public class SellerProductQueryService {
 
     private final ProductRepository productRepository;
     private final ProductInventoryClient productInventoryClient;
 
-    public ProductQueryService(
-            ProductRepository productRepository,
-            ProductInventoryClient productInventoryClient
-    ) {
-        this.productRepository = productRepository;
-        this.productInventoryClient = productInventoryClient;
-    }
-
     @ReadTx
     public List<SellerProductListResponse> getSellerProducts(
             LoginUser currentUser,
-            ProductStatus status,
-            String keyword,
             int limit
     ) {
-        Long sellerId = requireSeller(currentUser);
-        String normalizedKeyword = normalizeKeyword(keyword);
         int normalizedLimit = normalizeLimit(limit, 100);
 
-        List<ProductEntity> products = productRepository.findSellerProducts(sellerId, status, normalizedKeyword);
+        List<ProductEntity> products = productRepository.findSellerProducts(sellerId);
         return products.stream()
                 .limit(normalizedLimit)
                 .map(this::toSellerListResponse)
@@ -84,7 +75,7 @@ public class ProductQueryService {
                         product.getName(),
                         product.getPrice(),
                         formatCategory(product.getCategory()),
-                        product.getMainImageUrl(),
+                        extractMainImageUrl(product),
                         false
                 ))
                 .toList();
@@ -104,7 +95,7 @@ public class ProductQueryService {
                 product.getPrice(),
                 formatCategory(product.getCategory()),
                 product.getDescription(),
-                product.getMainImageUrl(),
+                extractMainImageUrl(product),
                 extractImages(product, ProductImageType.PREVIEW),
                 extractImages(product, ProductImageType.DETAIL),
                 toOptionResponsesFromProduct(product.getOptions()),
@@ -113,7 +104,7 @@ public class ProductQueryService {
                         similar.getName(),
                         similar.getPrice(),
                         formatCategory(similar.getCategory()),
-                        similar.getMainImageUrl(),
+                        extractMainImageUrl(similar),
                         false
                 )).toList()
         );
@@ -136,7 +127,7 @@ public class ProductQueryService {
                 product.getPrice(),
                 formatCategory(product.getCategory()),
                 product.getStatus(),
-                product.getMainImageUrl(),
+                extractMainImageUrl(product),
                 List.copyOf(sizes),
                 List.copyOf(colors),
                 totalStock
@@ -153,11 +144,20 @@ public class ProductQueryService {
                 formatCategory(product.getCategory()),
                 product.getDescription(),
                 product.getStatus(),
-                product.getMainImageUrl(),
+                extractMainImageUrl(product),
                 extractImages(product, ProductImageType.PREVIEW),
                 extractImages(product, ProductImageType.DETAIL),
                 toOptionResponses(product.getOptions(), stockQuantities)
         );
+    }
+
+    private String extractMainImageUrl(ProductEntity product) {
+        return product.getImages().stream()
+                .filter(image -> image.getImageType() == ProductImageType.MAIN)
+                .sorted(Comparator.comparing(ProductImageEntity::getSortOrder).thenComparing(ProductImageEntity::getId))
+                .map(ProductImageEntity::getImageUrl)
+                .findFirst()
+                .orElse(null);
     }
 
     private List<String> extractImages(ProductEntity product, ProductImageType imageType) {

@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
+@RequiredArgsConstructor
 public class ProductPassportAuthenticationFilter extends OncePerRequestFilter {
 
     private final ObjectMapper objectMapper;

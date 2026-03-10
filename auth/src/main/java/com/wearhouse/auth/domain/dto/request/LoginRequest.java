@@ -1,10 +1,9 @@
 package com.wearhouse.auth.domain.dto.request;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public record LoginRequest(
-        @Email @NotBlank String email,
+        @NotBlank String loginId,
         @NotBlank String password
 ) {
 }

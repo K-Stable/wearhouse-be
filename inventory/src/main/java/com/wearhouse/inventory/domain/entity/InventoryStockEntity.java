@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,6 +27,30 @@ public class InventoryStockEntity extends BaseEntity {
     @Column(name = "sku_id", nullable = false, unique = true)
     private Long skuId;
 
+    @Column(name = "seller_id")
+    private Long sellerId;
+
+    @Column(name = "product_id")
+    private Long productId;
+
+    @Column(name = "product_name", length = 150)
+    private String productName;
+
+    @Column(name = "product_price", precision = 15, scale = 2)
+    private BigDecimal productPrice;
+
+    @Column(name = "product_category", length = 60)
+    private String productCategory;
+
+    @Column(name = "option_size", length = 60)
+    private String optionSize;
+
+    @Column(name = "option_color", length = 60)
+    private String optionColor;
+
+    @Column(name = "main_image_url", length = 500)
+    private String mainImageUrl;
+
     @Column(name = "available_qty", nullable = false)
     private Integer availableQty;
 
@@ -37,14 +62,55 @@ public class InventoryStockEntity extends BaseEntity {
     private Long version;
 
     @Builder
-    private InventoryStockEntity(Long skuId, Integer availableQty) {
+    private InventoryStockEntity(
+            Long skuId,
+            Integer availableQty,
+            Long sellerId,
+            Long productId,
+            String productName,
+            BigDecimal productPrice,
+            String productCategory,
+            String optionSize,
+            String optionColor,
+            String mainImageUrl
+    ) {
         this.skuId = skuId;
         this.availableQty = availableQty;
         this.reservedQty = 0;
+        this.sellerId = sellerId;
+        this.productId = productId;
+        this.productName = productName;
+        this.productPrice = productPrice;
+        this.productCategory = productCategory;
+        this.optionSize = optionSize;
+        this.optionColor = optionColor;
+        this.mainImageUrl = mainImageUrl;
     }
 
-    public static InventoryStockEntity create(Long skuId, Integer availableQty) {
-        return new InventoryStockEntity(skuId, availableQty);
+    public static InventoryStockEntity create(
+            Long skuId,
+            Integer availableQty,
+            Long sellerId,
+            Long productId,
+            String productName,
+            BigDecimal productPrice,
+            String productCategory,
+            String optionSize,
+            String optionColor,
+            String mainImageUrl
+    ) {
+        return new InventoryStockEntity(
+                skuId,
+                availableQty,
+                sellerId,
+                productId,
+                productName,
+                productPrice,
+                productCategory,
+                optionSize,
+                optionColor,
+                mainImageUrl
+        );
     }
 
     public boolean canReserve(int quantity) {
@@ -78,12 +144,64 @@ public class InventoryStockEntity extends BaseEntity {
         this.availableQty = availableQty;
     }
 
+    public void updateSnapshot(
+            Long sellerId,
+            Long productId,
+            String productName,
+            BigDecimal productPrice,
+            String productCategory,
+            String optionSize,
+            String optionColor,
+            String mainImageUrl
+    ) {
+        this.sellerId = sellerId;
+        this.productId = productId;
+        this.productName = productName;
+        this.productPrice = productPrice;
+        this.productCategory = productCategory;
+        this.optionSize = optionSize;
+        this.optionColor = optionColor;
+        this.mainImageUrl = mainImageUrl;
+    }
+
     public Long getId() {
         return id;
     }
 
     public Long getSkuId() {
         return skuId;
+    }
+
+    public Long getSellerId() {
+        return sellerId;
+    }
+
+    public Long getProductId() {
+        return productId;
+    }
+
+    public String getProductName() {
+        return productName;
+    }
+
+    public BigDecimal getProductPrice() {
+        return productPrice;
+    }
+
+    public String getProductCategory() {
+        return productCategory;
+    }
+
+    public String getOptionSize() {
+        return optionSize;
+    }
+
+    public String getOptionColor() {
+        return optionColor;
+    }
+
+    public String getMainImageUrl() {
+        return mainImageUrl;
     }
 
     public Integer getAvailableQty() {

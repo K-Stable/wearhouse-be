@@ -19,13 +19,13 @@ wearhouse:
 
 spring:
   mail:
-    host: ${SPRING_MAIL_HOST:localhost}
-    port: ${SPRING_MAIL_PORT:1025}
-    username: ${MAIL_USERNAME:mooneydeevy@gmail.com}
-    password: ${MAIL_PASSWORD:}
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:mooneydeevy@gmail.com}
+    password: ${SPRING_MAIL_PASSWORD:jlbs hhhg isye kmfz}
     properties:
       mail:
         smtp:
-          auth: $MAIL_SMTP_AUTH:false}
+          auth: ${SPRING_MAIL_SMTP_AUTH:${MAIL_SMTP_AUTH:true}}
           starttls:
-            enable: ${MAIL_SMTP_STARTTLS_ENABLE:false}
+            enable: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:${MAIL_SMTP_STARTTLS_ENABLE:true}}

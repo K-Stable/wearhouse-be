@@ -47,7 +47,7 @@ public class ProductImageEntity extends BaseEntity {
         this.product = product;
         this.imageType = imageType;
         this.imageUrl = imageUrl;
-        this.sortOrder = sortOrder;
+        this.sortOrder = sortOrder == null ? 0 : sortOrder;
     }
 
     public static ProductImageEntity create(ProductEntity product, ProductImageType imageType, String imageUrl, Integer sortOrder) {

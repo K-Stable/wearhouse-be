@@ -31,16 +31,13 @@ public class ProductOptionEntity extends BaseEntity {
     private ProductEntity product;
 
     @Column(name = "size_label", nullable = false, length = 60)
-    private String sizeLabel;
+    private String size;
 
     @Column(name = "color_label", nullable = false, length = 60)
-    private String colorLabel;
+    private String color;
 
     @Column(name = "stock_quantity", nullable = false)
     private Integer stockQuantity;
-
-    @Column(name = "additional_price", nullable = false, precision = 15, scale = 2)
-    private BigDecimal additionalPrice;
 
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder;
@@ -48,17 +45,15 @@ public class ProductOptionEntity extends BaseEntity {
     @Builder
     private ProductOptionEntity(
             ProductEntity product,
-            String sizeLabel,
-            String colorLabel,
+            String size,
+            String color,
             Integer stockQuantity,
-            BigDecimal additionalPrice,
             Integer sortOrder
     ) {
         this.product = product;
-        this.sizeLabel = sizeLabel;
-        this.colorLabel = colorLabel;
+        this.size=size;
+        this.color=color;
         this.stockQuantity = stockQuantity == null ? 0 : stockQuantity;
-        this.additionalPrice = additionalPrice;
         this.sortOrder = sortOrder == null ? 0 : sortOrder;
     }
 
@@ -67,16 +62,14 @@ public class ProductOptionEntity extends BaseEntity {
             String size,
             String color,
             Integer stockQuantity,
-            BigDecimal additionalPrice,
             Integer sortOrder
 
     ) {
         return ProductOptionEntity.builder()
                 .product(product)
-                .sizeLabel(size)
-                .colorLabel(color)
+                .size(size)
+                .color(color)
                 .stockQuantity(stockQuantity)
-                .additionalPrice(additionalPrice == null ? BigDecimal.ZERO : additionalPrice)
                 .sortOrder(sortOrder)
                 .build();
     }

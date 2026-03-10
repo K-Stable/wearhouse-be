@@ -1,7 +1,6 @@
 package com.wearhouse.inventory.domain.controller;
 
 import com.wearhouse.common.global.response.ApiResponse;
-import com.wearhouse.common.global.response.SuccessCode;
 import com.wearhouse.inventory.domain.dto.request.InventoryAvailabilityCheckRequest;
 import com.wearhouse.inventory.domain.dto.request.InventoryStockUpsertRequest;
 import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse;
@@ -12,7 +11,6 @@ import com.wearhouse.inventory.domain.service.query.InventoryAvailabilityService
 import com.wearhouse.inventory.domain.service.query.InventoryStockReadService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.apache.kafka.shaded.com.google.protobuf.Api;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,8 +35,9 @@ public class InventoryController {
     }
 
     @GetMapping("/stocks/{skuId}")
-    public InventoryStockResponse getStock(@PathVariable Long skuId) {
-        return stockReadService.getBySkuId(skuId);
+    public ApiResponse<InventoryStockResponse> getStock(@PathVariable Long skuId) {
+        InventoryStockResponse response = stockReadService.getBySkuId(skuId);
+        return ApiResponse.success(InventorySuccessCode.INVENTORY_FETCHED, response);
     }
 
     @PostMapping("/stocks/availability/check")

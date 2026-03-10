@@ -20,6 +20,7 @@ import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService;
 import com.wearhouse.inventory.infra.redis.InventoryRedisStockCacheService;
 import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
 import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -86,7 +87,18 @@ class InventoryCommandServiceConcurrencyTest {
         when(inventoryInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(true);
         when(inventoryStockJpaRepository.findBySkuId(eq(201L)))
-                .thenAnswer(invocation -> Optional.of(InventoryStockEntity.create(201L, 10)));
+                .thenAnswer(invocation -> Optional.of(InventoryStockEntity.create(
+                        201L,
+                        10,
+                        777L,
+                        9001L,
+                        "Debug Product",
+                        BigDecimal.valueOf(50000),
+                        "OUTER",
+                        "S",
+                        "Black",
+                        "https://cdn.example.com/main.jpg"
+                )));
         when(inventoryStockJpaRepository.saveAndFlush(any(InventoryStockEntity.class)))
                 .thenThrow(new ObjectOptimisticLockingFailureException(InventoryStockEntity.class, 201L));
 

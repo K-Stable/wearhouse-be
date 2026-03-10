@@ -3,19 +3,22 @@ package com.wearhouse.common.support.email;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class EmailVerificationService {
 
     private final StringRedisTemplate redisTemplate;
-    private final ObjectProvider<JavaMailSender> mailSenderProvider;
+    private final ObjectProvider<JavaMailSender> javaMailSenderProvider;
     @Value("${wearhouse.email-auth.code-ttl-seconds:180}")
     private long codeTtlSeconds;
     @Value("${wearhouse.email-auth.verified-ttl-seconds:900}")
@@ -24,7 +27,7 @@ public class EmailVerificationService {
     private String codeKeyPrefix;
     @Value("${wearhouse.email-auth.verified-key-prefix:wearhouse:email:verified:}")
     private String verifiedKeyPrefix;
-    @Value("${mail.username:}")
+    @Value("${spring.mail.username:}")
     private String fromAddress;
 
     public void sendCode(String email) {
@@ -39,13 +42,17 @@ public class EmailVerificationService {
         message.setSubject("[Wearhouse] 이메일 인증 코드");
         message.setText("인증 코드: " + authCode + "\n유효 시간: 3분");
 
-        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
-        if (mailSender == null) {
-            throw new IllegalStateException(
-                    "JavaMailSender bean이 없습니다. spring-boot-starter-mail 의존성과 spring.mail.host 설정을 확인하세요."
-            );
+        JavaMailSender javaMailSender = javaMailSenderProvider.getIfAvailable();
+        if (javaMailSender == null) {
+            throw new IllegalStateException("JavaMailSender bean is not configured.");
         }
-        mailSender.send(message);
+
+        try {
+            javaMailSender.send(message);
+        } catch (MailException exception) {
+            log.error("Failed to send verification email to {}", email, exception);
+            throw exception;
+        }
     }
 
     public boolean verifyCodeAndMarkVerified(String email, String inputCode) {

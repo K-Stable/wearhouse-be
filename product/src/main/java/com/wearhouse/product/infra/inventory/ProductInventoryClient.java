@@ -7,33 +7,56 @@ import com.wearhouse.product.infra.feign.dto.InventoryStockResponse;
 import com.wearhouse.product.infra.feign.dto.InventoryStockUpsertRequest;
 import feign.FeignException;
 import jakarta.servlet.http.HttpServletRequest;
+import java.math.BigDecimal;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Component
+@RequiredArgsConstructor
 public class ProductInventoryClient {
 
     private final InventoryStockFeignClient inventoryStockFeignClient;
 
-    public ProductInventoryClient(InventoryStockFeignClient inventoryStockFeignClient) {
-        this.inventoryStockFeignClient = inventoryStockFeignClient;
-    }
 
-    public void upsertStock(Long skuId, Integer availableQty) {
+    public void upsertStock(
+            Long skuId,
+            Integer availableQty,
+            Long sellerId,
+            Long productId,
+            String productName,
+            BigDecimal productPrice,
+            String category,
+            String size,
+            String color,
+            String mainImageUrl
+    ) {
         PassportHeaderBundle headers = resolvePassportHeaders();
         try {
             ApiResponse<InventoryStockResponse> response = inventoryStockFeignClient.upsertStock(
                     headers.encodedUser(),
                     headers.signature(),
                     headers.timestamp(),
-                    new InventoryStockUpsertRequest(skuId, availableQty)
+                    new InventoryStockUpsertRequest(
+                            skuId,
+                            availableQty,
+                            sellerId,
+                            productId,
+                            productName,
+                            productPrice,
+                            category,
+                            size,
+                            color,
+                            mainImageUrl
+                    )
             );
             if (response == null || !response.success()) {
-                throw new IllegalStateException("inventory stock upsert 응답이 유효하지 않습니다.");
+                throw new IllegalStateException("inventory upsert 응답이 유효하지 않습니다.");
             }
         } catch (FeignException exception) {
-            throw new IllegalStateException("inventory stock upsert 호출 실패: " + exception.status(), exception);
+            throw new IllegalStateException("inventory upsert 호출 실패: " + exception.status(), exception);
         }
     }
 

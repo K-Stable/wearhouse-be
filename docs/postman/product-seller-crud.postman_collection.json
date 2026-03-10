@@ -1,0 +1,135 @@
+{
+  "info": {
+    "name": "wearhouse - Product Seller CRUD",
+    "_postman_id": "ebeb8f40-46fe-4680-b3e2-1e1598b78b00",
+    "description": "Seller 상품 CRUD 확인용 컬렉션",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Seller Product",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"success=true\", function () { pm.expect(res.success).to.eql(true); });",
+              "pm.test(\"code=PRODUCT_201_001\", function () { pm.expect(res.code).to.eql(\"PRODUCT_201_001\"); });",
+              "pm.test(\"data is null\", function () { pm.expect(res.data).to.eql(null); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "seller_access_token={{seller_access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Gray vintage 3D computer\",\n  \"price\": 50000,\n  \"category\": \"Outer\",\n  \"description\": \"2026 spring collection\",\n  \"mainImageUrl\": \"https://cdn.example.com/products/main.jpg\",\n  \"previewImageUrls\": [\n    \"https://cdn.example.com/products/preview-1.jpg\",\n    \"https://cdn.example.com/products/preview-2.jpg\"\n  ],\n  \"detailImageUrls\": [\n    \"https://cdn.example.com/products/detail-1.jpg\"\n  ],\n  \"status\": \"PENDING\",\n  \"options\": [\n    {\n      \"size\": \"S\",\n      \"color\": \"Black\",\n      \"stockQuantity\": 10,\n      \"additionalPrice\": 0\n    },\n    {\n      \"size\": \"M\",\n      \"color\": \"Black\",\n      \"stockQuantity\": 3,\n      \"additionalPrice\": 0\n    },\n    {\n      \"size\": \"S\",\n      \"color\": \"Navy\",\n      \"stockQuantity\": 5,\n      \"additionalPrice\": 0\n    }\n  ]\n}"
+        },
+        "url": "{{gateway_base_url}}/product-service/api/v1/seller/products"
+      }
+    },
+    {
+      "name": "Get Seller Products",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"success=true\", function () { pm.expect(res.success).to.eql(true); });",
+              "const first = Array.isArray(res.data) && res.data.length > 0 ? res.data[0] : null;",
+              "if (first && first.productId) { pm.collectionVariables.set(\"product_id\", String(first.productId)); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "seller_access_token={{seller_access_token}}"
+          }
+        ],
+        "url": "{{gateway_base_url}}/product-service/api/v1/seller/products?limit=20"
+      }
+    },
+    {
+      "name": "Get Seller Product Detail",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "seller_access_token={{seller_access_token}}"
+          }
+        ],
+        "url": "{{gateway_base_url}}/product-service/api/v1/seller/products/{{product_id}}"
+      }
+    },
+    {
+      "name": "Update Product Status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "seller_access_token={{seller_access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"RELEASED\"\n}"
+        },
+        "url": "{{gateway_base_url}}/product-service/api/v1/seller/products/{{product_id}}/status"
+      }
+    },
+    {
+      "name": "Delete Product",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "seller_access_token={{seller_access_token}}"
+          }
+        ],
+        "url": "{{gateway_base_url}}/product-service/api/v1/seller/products/{{product_id}}"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "gateway_base_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "seller_access_token",
+      "value": ""
+    },
+    {
+      "key": "product_id",
+      "value": "1"
+    }
+  ]
+}

@@ -46,19 +46,20 @@ public class ProductEntity extends BaseEntity {
     @Column(name = "category", nullable = false, length = 60)
     private Category category;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
+    @Column(name = "details", length=500)
+    private String details;
 
-    @Column(name = "main_image_url", nullable = false, length = 500)
-    private String mainImageUrl;
+    @Column(name = "size_guide", length=500)
+    private String sizeGuide;
+
+    @Column(name = "shipping", length=500)
+    private String shipping;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private ProductStatus status;
 
-
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("id ASC")
     private List<ProductOptionEntity> options = new ArrayList<>();
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -71,16 +72,18 @@ public class ProductEntity extends BaseEntity {
             String name,
             BigDecimal price,
             Category category,
-            String description,
-            String mainImageUrl,
+            String details,
+            String sizeGuide,
+            String shipping,
             ProductStatus status
     ) {
         this.sellerId = sellerId;
         this.name = name;
         this.price = price;
         this.category = category;
-        this.description = description;
-        this.mainImageUrl = mainImageUrl;
+        this.details=details;
+        this.sizeGuide=sizeGuide;
+        this.shipping=shipping;
         this.status = status;
     }
 
@@ -89,8 +92,9 @@ public class ProductEntity extends BaseEntity {
             String name,
             BigDecimal price,
             Category category,
-            String description,
-            String mainImageUrl,
+            String details,
+            String sizeGuide,
+            String shipping,
             ProductStatus status
     ) {
         return ProductEntity.builder()
@@ -98,14 +102,15 @@ public class ProductEntity extends BaseEntity {
                 .name(name)
                 .price(price)
                 .category(category)
-                .description(description)
-                .mainImageUrl(mainImageUrl)
+                .details(details)
+                .sizeGuide(sizeGuide)
+                .shipping(shipping)
                 .status(status)
                 .build();
     }
 
-    public void addOption(String size, String color, Integer stockQuantity, BigDecimal additionalPrice, Integer sortOrder) {
-        ProductOptionEntity option = ProductOptionEntity.create(this, size, color, stockQuantity, additionalPrice, sortOrder);
+    public void addOption(String size, String color, Integer stockQuantity, Integer sortOrder) {
+        ProductOptionEntity option = ProductOptionEntity.create(this, size, color, stockQuantity, sortOrder);
         this.options.add(option);
     }
 

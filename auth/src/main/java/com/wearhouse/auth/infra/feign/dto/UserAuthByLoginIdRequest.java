@@ -1,7 +1,7 @@
 package com.wearhouse.auth.infra.feign.dto;
 
-public record UserAuthByEmailRequest(
+public record UserAuthByLoginIdRequest(
         String userType,
-        String email
+        String loginId
 ) {
 }
