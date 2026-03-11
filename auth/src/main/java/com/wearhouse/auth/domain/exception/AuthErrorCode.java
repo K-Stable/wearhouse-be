@@ -6,7 +6,7 @@ import org.springframework.http.HttpStatus;
 public enum AuthErrorCode implements ErrorCode {
 
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "AUTH_409_001", "이미 가입된 이메일입니다."),
-    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "AUTH_401_001", "이메일 또는 비밀번호가 올바르지 않습니다."),
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "AUTH_401_001", "로그인 아이디 또는 비밀번호가 올바르지 않습니다."),
     REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "AUTH_401_002", "유효하지 않은 refresh token 입니다."),
     USER_NOT_ACTIVE(HttpStatus.FORBIDDEN, "AUTH_403_001", "비활성화된 사용자입니다."),
     INTERNAL_SECRET_INVALID(HttpStatus.FORBIDDEN, "AUTH_403_002", "내부 인증 헤더가 유효하지 않습니다."),

@@ -26,8 +26,6 @@ wearhouse:
       ttl-days: ${AUTH_REFRESH_TOKEN_TTL_DAYS:14}
       key-prefix: ${AUTH_REFRESH_TOKEN_KEY_PREFIX:rt:}
     cookie:
-      buyer-access-name: ${AUTH_COOKIE_BUYER_ACCESS_NAME:buyer_access_token}
-      seller-access-name: ${AUTH_COOKIE_SELLER_ACCESS_NAME:seller_access_token}
       buyer-refresh-name: ${AUTH_COOKIE_BUYER_REFRESH_NAME:buyer_refresh_token}
       seller-refresh-name: ${AUTH_COOKIE_SELLER_REFRESH_NAME:seller_refresh_token}
       secure: ${AUTH_COOKIE_SECURE:false}

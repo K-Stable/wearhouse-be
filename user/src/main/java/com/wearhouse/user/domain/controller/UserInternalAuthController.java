@@ -1,15 +1,16 @@
 package com.wearhouse.user.domain.controller;
 
 import com.wearhouse.common.global.error.ErrorException;
-import com.wearhouse.user.domain.dto.request.InternalUserAuthByEmailRequest;
+import com.wearhouse.common.global.response.ApiResponse;
 import com.wearhouse.user.domain.dto.request.InternalUserAuthByIdRequest;
-import com.wearhouse.user.domain.dto.request.InternalUserAuthSignupRequest;
+import com.wearhouse.user.domain.dto.request.InternalUserAuthByLoginIdRequest;
 import com.wearhouse.user.domain.dto.response.InternalUserAuthAccountResponse;
 import com.wearhouse.user.domain.exception.UserErrorCode;
 import com.wearhouse.user.domain.model.UserAuthAccount;
 import com.wearhouse.user.domain.model.UserType;
-import com.wearhouse.user.domain.service.UserAuthService;
+import com.wearhouse.user.domain.service.UserInternalAuthQueryService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,61 +20,40 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/internal/users/auth")
+@RequiredArgsConstructor
 public class UserInternalAuthController {
 
     private static final String INTERNAL_SECRET_HEADER = "X-Internal-Secret";
 
-    private final UserAuthService userAuthService;
-    private final String internalSharedSecret;
+    private final UserInternalAuthQueryService userInternalAuthQueryService;
 
-    public UserInternalAuthController(
-            UserAuthService userAuthService,
-            @Value("${wearhouse.user.internal.shared-secret}") String internalSharedSecret
-    ) {
-        this.userAuthService = userAuthService;
-        this.internalSharedSecret = internalSharedSecret;
-    }
+    @Value("${wearhouse.user.internal.shared-secret}")
+    private String internalSharedSecret;
 
-    @PostMapping("/signup")
-    public InternalUserAuthAccountResponse signup(
+    @PostMapping("/by-login-id")
+    public ApiResponse<InternalUserAuthAccountResponse> findByLoginId(
             @RequestHeader(name = INTERNAL_SECRET_HEADER, required = false) String headerSecret,
-            @Valid @RequestBody InternalUserAuthSignupRequest request
+            @Valid @RequestBody InternalUserAuthByLoginIdRequest request
     ) {
         requireInternalSecret(headerSecret);
-        UserType userType = parseUserType(request.userType());
-        UserAuthAccount account = userAuthService.signup(
-                userType,
-                request.email(),
-                request.passwordHash(),
-                request.displayName()
-        );
-        return toResponse(account);
-    }
-
-    @PostMapping("/by-email")
-    public InternalUserAuthAccountResponse findByEmail(
-            @RequestHeader(name = INTERNAL_SECRET_HEADER, required = false) String headerSecret,
-            @Valid @RequestBody InternalUserAuthByEmailRequest request
-    ) {
-        requireInternalSecret(headerSecret);
-        UserAuthAccount account = userAuthService.findByEmail(
+        UserAuthAccount account = userInternalAuthQueryService.findByLoginId(
                 parseUserType(request.userType()),
-                request.email()
+                request.loginId()
         );
-        return toResponse(account);
+        return ApiResponse.success(toResponse(account));
     }
 
     @PostMapping("/by-id")
-    public InternalUserAuthAccountResponse findById(
+    public ApiResponse<InternalUserAuthAccountResponse> findById(
             @RequestHeader(name = INTERNAL_SECRET_HEADER, required = false) String headerSecret,
             @Valid @RequestBody InternalUserAuthByIdRequest request
     ) {
         requireInternalSecret(headerSecret);
-        UserAuthAccount account = userAuthService.findById(
+        UserAuthAccount account = userInternalAuthQueryService.findById(
                 parseUserType(request.userType()),
                 request.userId()
         );
-        return toResponse(account);
+        return ApiResponse.success(toResponse(account));
     }
 
     private void requireInternalSecret(String headerSecret) {

@@ -235,8 +235,41 @@ services:
       USER_AUTH_SELLER_SIGNUP_URL: ${USER_AUTH_SELLER_SIGNUP_URL:-http://auth-service:8101/api/v1/internal/auth/sellers/signup}
       USER_AUTH_INTERNAL_SHARED_SECRET: ${USER_AUTH_INTERNAL_SHARED_SECRET:-wearhouse-internal-shared-secret}
       PASSPORT_SHARED_SECRET: ${PASSPORT_SHARED_SECRET:-wearhouse-passport-shared-secret}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-smtp.gmail.com}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_MAIL_SMTP_AUTH: ${SPRING_MAIL_SMTP_AUTH:-true}
+      SPRING_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:-true}
     ports:
       - "${USER_SERVER_PORT:-8102}:8102"
+
+  product-service:
+    build:
+      context: .
+      dockerfile: docker/java-service.Dockerfile
+      args:
+        MODULE_NAME: product
+    container_name: wearhouse-product-service
+    depends_on:
+      - service-discovery
+      - config-server
+      - mysql
+      - redis
+    environment:
+      PRODUCT_SERVER_PORT: ${PRODUCT_SERVER_PORT:-8103}
+      EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
+      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI:-http://config-server:8888}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      PRODUCT_DB_NAME: ${PRODUCT_DB_NAME}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PASSPORT_SHARED_SECRET: ${PASSPORT_SHARED_SECRET:-wearhouse-passport-shared-secret}
+    ports:
+      - "${PRODUCT_SERVER_PORT:-8103}:8103"
 
   order-service:
     build:
@@ -338,11 +371,13 @@ services:
       - config-server
       - auth-service
       - user-service
+      - product-service
       - order-service
       - redis
     environment:
       API_GATEWAY_SERVER_PORT: ${API_GATEWAY_SERVER_PORT:-8000}
       API_GATEWAY_ALLOWED_ORIGINS: "${API_GATEWAY_ALLOWED_ORIGINS:-http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}"
+      API_GATEWAY_SELLER_ORIGINS: "${API_GATEWAY_SELLER_ORIGINS:-http://localhost:3002,http://127.0.0.1:3002}"
       EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
       SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI:-http://config-server:8888}
       GATEWAY_AUTH_VALIDATE_URL: ${GATEWAY_AUTH_VALIDATE_URL:-http://auth-service:8101/api/v1/internal/auth/validate}

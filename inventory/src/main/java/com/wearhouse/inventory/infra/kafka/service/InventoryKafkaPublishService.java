@@ -1,54 +1,60 @@
 package com.wearhouse.inventory.infra.kafka.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wearhouse.inventory.domain.event.InventoryDomainEvent;
+import com.wearhouse.inventory.domain.repository.InventoryOutboxRepository;
+import com.wearhouse.inventory.support.config.InventoryOutboxProperties;
 import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class InventoryKafkaPublishService {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+    private final InventoryOutboxRepository inventoryOutboxRepository;
     private final InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics;
-    private final long sendTimeoutMs;
+    private final InventoryOutboxProperties outboxProperties;
 
-    public InventoryKafkaPublishService(
-            KafkaTemplate<String, String> kafkaTemplate,
-            ObjectMapper objectMapper,
-            InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics,
-            @Value("${wearhouse.inventory.kafka.send-timeout-ms:3000}") long sendTimeoutMs
+    public void send(
+            String eventId,
+            String eventType,
+            String topic,
+            String partitionKey,
+            String payload,
+            int currentRetryCount,
+            String trigger
     ) {
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
-        this.inventoryKafkaFlowMetrics = inventoryKafkaFlowMetrics;
-        this.sendTimeoutMs = sendTimeoutMs;
-    }
-
-    public void send(InventoryDomainEvent event) {
-        String payload = serialize(event);
-        String key = event.getPartitionKey() == null || event.getPartitionKey().isBlank()
-                ? event.getEventId()
-                : event.getPartitionKey();
-        inventoryKafkaFlowMetrics.incrementPublishAttempt(event.getEventType(), event.getTopic());
+        String key = partitionKey == null || partitionKey.isBlank() ? eventId : partitionKey;
+        inventoryKafkaFlowMetrics.incrementPublishAttempt(eventType, topic, trigger);
         try {
-            kafkaTemplate.send(event.getTopic(), key, payload).get(sendTimeoutMs, TimeUnit.MILLISECONDS);
-            inventoryKafkaFlowMetrics.incrementPublishSuccess(event.getEventType(), event.getTopic());
+            kafkaTemplate.send(topic, key, payload).get(outboxProperties.sendTimeoutMs(), TimeUnit.MILLISECONDS);
+            inventoryOutboxRepository.markSuccess(eventId);
+            inventoryKafkaFlowMetrics.incrementPublishSuccess(eventType, topic, trigger);
         } catch (Exception exception) {
-            inventoryKafkaFlowMetrics.incrementPublishFailure(event.getEventType(), event.getTopic());
-            throw new IllegalStateException("Inventory 이벤트 Kafka 발행에 실패했습니다.", exception);
+            int nextRetryCount = currentRetryCount + 1;
+            if (nextRetryCount > outboxProperties.maxRetries()) {
+                inventoryOutboxRepository.markDead(eventId, nextRetryCount, "KAFKA_SEND_ERROR", exception.getMessage());
+                inventoryKafkaFlowMetrics.incrementPublishFailure(eventType, topic, trigger, "dead");
+                return;
+            }
+
+            LocalDateTime nextRetryAt = LocalDateTime.now().plusNanos(computeDelayMillis(nextRetryCount) * 1_000_000);
+            inventoryOutboxRepository.markFail(
+                    eventId,
+                    nextRetryCount,
+                    nextRetryAt,
+                    "KAFKA_SEND_ERROR",
+                    exception.getMessage()
+            );
+            inventoryKafkaFlowMetrics.incrementPublishFailure(eventType, topic, trigger, "retry");
         }
     }
 
-    private String serialize(InventoryDomainEvent event) {
-        try {
-            return objectMapper.writeValueAsString(event.toEnvelope());
-        } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Inventory 이벤트 직렬화에 실패했습니다.", exception);
-        }
+    private long computeDelayMillis(int retryCount) {
+        double delay = outboxProperties.initialDelayMs() * Math.pow(outboxProperties.delayMultiplier(), Math.max(0, retryCount - 1));
+        return (long) Math.min(delay, outboxProperties.maxDelayMs());
     }
 }

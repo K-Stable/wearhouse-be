@@ -1,49 +1,54 @@
 package com.wearhouse.auth.infra.redis;
 
-import com.wearhouse.auth.domain.model.AuthUserType;
+import com.wearhouse.auth.support.config.AuthRefreshTokenProperties;
 import java.time.Duration;
 import java.util.Optional;
-import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class RefreshTokenStore {
 
     private final StringRedisTemplate redisTemplate;
-    private final Duration refreshTtl;
-    private final String keyPrefix;
+    private final AuthRefreshTokenProperties refreshTokenProperties;
 
-    public RefreshTokenStore(
-            StringRedisTemplate redisTemplate,
-            @Value("${wearhouse.auth.refresh.ttl-days:14}") long refreshTtlDays,
-            @Value("${wearhouse.auth.refresh.key-prefix:rt:}") String keyPrefix
-    ) {
-        this.redisTemplate = redisTemplate;
-        this.refreshTtl = Duration.ofDays(refreshTtlDays);
-        this.keyPrefix = keyPrefix;
+    public void save(String userType, String refreshToken, Long userId) {
+        Duration refreshTtl = Duration.ofDays(refreshTokenProperties.ttlDays());
+        redisTemplate.opsForValue().set(refreshKey(userType, refreshToken), String.valueOf(userId), refreshTtl);
     }
 
-    public String issue(AuthUserType userType, Long userId) {
-        String token = UUID.randomUUID().toString().replace("-", "");
-        redisTemplate.opsForValue().set(key(userType, token), String.valueOf(userId), refreshTtl);
-        return token;
-    }
-
-    public Optional<Long> resolve(AuthUserType userType, String token) {
-        String value = redisTemplate.opsForValue().get(key(userType, token));
+    public Optional<Long> findUserId(String userType, String refreshToken) {
+        String value = redisTemplate.opsForValue().get(refreshKey(userType, refreshToken));
         if (value == null || value.isBlank()) {
             return Optional.empty();
         }
-        return Optional.of(Long.parseLong(value));
+        try {
+            return Optional.of(Long.parseLong(value));
+        } catch (NumberFormatException exception) {
+            return Optional.empty();
+        }
     }
 
-    public void revoke(AuthUserType userType, String token) {
-        redisTemplate.delete(key(userType, token));
+    public Optional<Long> consumeUserId(String userType, String refreshToken) {
+        String value = redisTemplate.opsForValue().getAndDelete(refreshKey(userType, refreshToken));
+        if (value == null || value.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Long.parseLong(value));
+        } catch (NumberFormatException exception) {
+            return Optional.empty();
+        }
     }
 
-    private String key(AuthUserType userType, String token) {
-        return keyPrefix + userType.key() + ":" + token;
+    public void delete(String userType, String refreshToken) {
+        redisTemplate.delete(refreshKey(userType, refreshToken));
+    }
+
+    private String refreshKey(String userType, String refreshToken) {
+        String keyUserType = userType == null ? "" : userType.toLowerCase();
+        return refreshTokenProperties.keyPrefix() + keyUserType + ":" + refreshToken;
     }
 }

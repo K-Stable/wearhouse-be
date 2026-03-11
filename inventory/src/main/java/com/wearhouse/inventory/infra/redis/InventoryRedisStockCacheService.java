@@ -1,7 +1,7 @@
 package com.wearhouse.inventory.infra.redis;
 
 import com.wearhouse.inventory.domain.entity.InventoryStockEntity;
-import com.wearhouse.inventory.infra.jpa.repository.InventoryStockJpaRepository;
+import com.wearhouse.inventory.domain.repository.InventoryStockRepository;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,32 +10,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class InventoryRedisStockCacheService {
 
     private static final DefaultRedisScript<Long> AVAILABILITY_CHECK_SCRIPT = availabilityCheckScript();
 
     private final StringRedisTemplate stringRedisTemplate;
-    private final InventoryStockJpaRepository inventoryStockJpaRepository;
-    private final Duration stockCacheTtl;
-    private final String stockKeyPrefix;
-
-    public InventoryRedisStockCacheService(
-            StringRedisTemplate stringRedisTemplate,
-            InventoryStockJpaRepository inventoryStockJpaRepository,
-            @Value("${wearhouse.inventory.cache.stock-ttl-seconds:30}") long stockCacheTtlSeconds,
-            @Value("${wearhouse.inventory.cache.stock-key-prefix:inventory:stock:available:}") String stockKeyPrefix
-    ) {
-        this.stringRedisTemplate = stringRedisTemplate;
-        this.inventoryStockJpaRepository = inventoryStockJpaRepository;
-        this.stockCacheTtl = Duration.ofSeconds(stockCacheTtlSeconds);
-        this.stockKeyPrefix = stockKeyPrefix;
-    }
+    private final InventoryStockRepository inventoryStockRepository;
+    @Value("${wearhouse.inventory.cache.stock-ttl-seconds:30}")
+    private long stockCacheTtlSeconds;
+    @Value("${wearhouse.inventory.cache.stock-key-prefix:inventory:stock:available:}")
+    private String stockKeyPrefix;
 
     public AtomicAvailabilityCheckResult checkAvailabilityAtomically(Map<Long, Integer> requestedBySku) {
         if (requestedBySku == null || requestedBySku.isEmpty()) {
@@ -64,7 +56,32 @@ public class InventoryRedisStockCacheService {
         if (skuId == null || availableQty == null) {
             return;
         }
-        stringRedisTemplate.opsForValue().set(stockKey(skuId), String.valueOf(Math.max(availableQty, 0)), stockCacheTtl);
+        stringRedisTemplate.opsForValue().set(
+                stockKey(skuId),
+                String.valueOf(Math.max(availableQty, 0)),
+                Duration.ofSeconds(stockCacheTtlSeconds)
+        );
+    }
+
+    public void evictAvailableQty(Long skuId) {
+        if (skuId == null) {
+            return;
+        }
+        stringRedisTemplate.delete(stockKey(skuId));
+    }
+
+    public void evictAvailableQtyBySkuIds(Collection<Long> skuIds) {
+        if (skuIds == null || skuIds.isEmpty()) {
+            return;
+        }
+        List<String> keys = skuIds.stream()
+                .filter(skuId -> skuId != null)
+                .map(this::stockKey)
+                .toList();
+        if (keys.isEmpty()) {
+            return;
+        }
+        stringRedisTemplate.delete(keys);
     }
 
     private void warmCacheIfMissing(List<Long> skuIds) {
@@ -79,7 +96,7 @@ public class InventoryRedisStockCacheService {
             return;
         }
 
-        Map<Long, Integer> availableBySku = inventoryStockJpaRepository.findAllBySkuIdIn(missingSkuIds).stream()
+        Map<Long, Integer> availableBySku = inventoryStockRepository.findAllBySkuIdIn(missingSkuIds).stream()
                 .collect(Collectors.toMap(InventoryStockEntity::getSkuId, InventoryStockEntity::getAvailableQty));
 
         for (Long skuId : missingSkuIds) {

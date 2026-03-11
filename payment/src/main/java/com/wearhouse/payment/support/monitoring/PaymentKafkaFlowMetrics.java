@@ -22,24 +22,47 @@ public class PaymentKafkaFlowMetrics {
                 .increment();
     }
 
-    public void incrementPublishAttempt(String eventType, String topic) {
-        counter("wearhouse_payment_event_publish_attempt_total",
+    public void incrementOutboxRecorded(String eventType, String topic) {
+        counter("wearhouse_payment_outbox_record_total",
                 "event_type", sanitize(eventType),
                 "topic", sanitize(topic))
+                .increment();
+    }
+
+    public void incrementPublishAttempt(String eventType, String topic) {
+        incrementPublishAttempt(eventType, topic, "unknown");
+    }
+
+    public void incrementPublishAttempt(String eventType, String topic, String trigger) {
+        counter("wearhouse_payment_event_publish_attempt_total",
+                "event_type", sanitize(eventType),
+                "topic", sanitize(topic),
+                "trigger", sanitize(trigger))
                 .increment();
     }
 
     public void incrementPublishSuccess(String eventType, String topic) {
+        incrementPublishSuccess(eventType, topic, "unknown");
+    }
+
+    public void incrementPublishSuccess(String eventType, String topic, String trigger) {
         counter("wearhouse_payment_event_publish_success_total",
                 "event_type", sanitize(eventType),
-                "topic", sanitize(topic))
+                "topic", sanitize(topic),
+                "trigger", sanitize(trigger))
                 .increment();
     }
 
     public void incrementPublishFailure(String eventType, String topic) {
+        incrementPublishFailure(eventType, topic, "unknown", "unknown");
+    }
+
+    public void incrementPublishFailure(String eventType, String topic, String trigger, String result) {
         counter("wearhouse_payment_event_publish_failure_total",
                 "event_type", sanitize(eventType),
-                "topic", sanitize(topic))
+                "topic", sanitize(topic),
+                "trigger", sanitize(trigger),
+                "result", sanitize(result))
                 .increment();
     }
 

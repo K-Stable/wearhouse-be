@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.wearhouse.common.global.transactional.ReadTx;
 
 @Service
 public class OrderQueryService {
@@ -24,7 +24,7 @@ public class OrderQueryService {
         this.orderRepository = orderRepository;
     }
 
-    @Transactional(readOnly = true)
+    @ReadTx
     public OrderDetailResponse getOrderDetail(String orderNo) {
         OrderEntity order = orderRepository.findDetailByOrderNo(orderNo)
                 .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
@@ -52,7 +52,7 @@ public class OrderQueryService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @ReadTx
     public List<OrderSummaryResponse> getBuyerOrders(Long buyerId, int limit) {
         List<OrderEntity> orders = orderRepository.findByBuyerIdOrderByIdDesc(buyerId, PageRequest.of(0, limit));
         List<OrderSummaryResponse> responses = new ArrayList<>();

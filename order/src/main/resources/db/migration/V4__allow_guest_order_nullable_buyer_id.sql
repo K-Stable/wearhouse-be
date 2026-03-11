@@ -1,0 +1,2 @@
+ALTER TABLE orders
+    MODIFY COLUMN buyer_id BIGINT NULL;

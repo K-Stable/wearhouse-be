@@ -14,7 +14,15 @@ public record ApiResponse<T>(
 ) {
 
     public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(true, "SUCCESS", "요청이 성공적으로 처리되었습니다.", data, LocalDateTime.now());
+        return success(CommonSuccessCode.SUCCESS, data);
+    }
+
+    public static ApiResponse<Void> success(SuccessCode successCode) {
+        return new ApiResponse<>(true, successCode.code(), successCode.message(), null, LocalDateTime.now());
+    }
+
+    public static <T> ApiResponse<T> success(SuccessCode successCode, T data) {
+        return new ApiResponse<>(true, successCode.code(), successCode.message(), data, LocalDateTime.now());
     }
 
     public static <T> ApiResponse<T> success(String code, String message, T data) {
