@@ -16,6 +16,15 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+// id,
+//message_id
+// aggregate_type,
+// aggregate_id,
+// event_type,
+// payload,
+// status,
+// timestamp
+
 @Entity
 @Getter
 @Table(name = "inventory_outbox_event")

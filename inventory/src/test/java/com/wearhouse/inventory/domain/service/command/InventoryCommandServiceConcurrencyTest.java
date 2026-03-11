@@ -85,7 +85,7 @@ class InventoryCommandServiceConcurrencyTest {
 
     @Test
     void 낙관락_재시도_소진시_예약실패_이벤트를_발행한다() {
-        InventoryCommandService service = newService("", 3);
+        InventoryCommandService service = newService("999", 3);
         Map<String, Object> payload = reservePayload(2L, "ORDER-2", 201L, 1);
 
         when(inventoryInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
@@ -124,6 +124,37 @@ class InventoryCommandServiceConcurrencyTest {
         verify(inventoryRedisStockCacheService, never()).cacheAvailableQty(anyLong(), any());
         verify(inventoryInboxRepository).markProcessed("evt-optimistic-fail", "inventory-command-consumer");
         verify(inventoryInboxRepository, never()).markFailed(anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void 핫SKU_미설정이면_모든SKU에_락을_획득한다() {
+        InventoryCommandService service = newService("", 3);
+        Map<String, Object> payload = reservePayload(3L, "ORDER-3", 301L, 1);
+        InventoryStockEntity stock = InventoryStockEntity.create(
+                301L,
+                10,
+                777L,
+                9002L,
+                "Lock Target Product",
+                BigDecimal.valueOf(42000),
+                "TOP",
+                "M",
+                "Blue",
+                "https://cdn.example.com/main-blue.jpg"
+        );
+
+        when(inventoryInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(true);
+        when(inventoryHotSkuLockService.acquire(eq(301L), anyString()))
+                .thenReturn(new InventoryHotSkuLockService.SkuLockHandle("inventory:lock:sku:301", "owner", null));
+        when(inventoryStockRepository.findBySkuId(301L)).thenReturn(Optional.of(stock));
+        when(inventoryStockRepository.saveAndFlush(any(InventoryStockEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.onReserveRequested("evt-lock-all", "inventory-command", "3", "{}", payload);
+
+        verify(inventoryHotSkuLockService).acquire(eq(301L), anyString());
+        verify(inventoryInboxRepository).markProcessed("evt-lock-all", "inventory-command-consumer");
     }
 
     private InventoryCommandService newService(String hotSkuRaw, int optimisticRetryCount) {
