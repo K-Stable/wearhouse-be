@@ -22,6 +22,7 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
               AND (:status IS NULL OR p.status = :status)
               AND (:keyword IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
               AND (:cursor IS NULL OR p.id < :cursor)
+              AND (:seasonId IS NULL OR p.productSeason.id = :seasonId)
             ORDER BY p.id DESC
             """)
     List<ProductEntity> findSellerProducts(
@@ -29,6 +30,7 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
             @Param("status") ProductStatus status,
             @Param("keyword") String keyword,
             @Param("cursor") Long cursor,
+            @Param("seasonId") Long seasonId,
             Pageable pageable
     );
 
@@ -37,6 +39,8 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
 
     @EntityGraph(attributePaths = {"options", "images"})
     List<ProductEntity> findAllByIdInAndSellerId(Collection<Long> ids, Long sellerId);
+
+    boolean existsByProductSeason_IdAndSellerId(Long seasonId, Long sellerId);
 
     @EntityGraph(attributePaths = {"options"})
     @Query("""

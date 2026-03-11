@@ -6,6 +6,7 @@ import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.product.domain.dto.request.ProductCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductOptionCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductSeasonCreateRequest;
+import com.wearhouse.product.domain.dto.request.ProductSeasonUpdateRequest;
 import com.wearhouse.product.domain.entity.ProductEntity;
 import com.wearhouse.product.domain.entity.ProductOptionEntity;
 import com.wearhouse.product.domain.entity.ProductSeasonEntity;
@@ -38,15 +39,35 @@ public class SellerProductCommandService {
     @WriteTx
     public void createProductSeason(LoginUser currentUser, ProductSeasonCreateRequest request) {
         Long sellerId = getSellerId(currentUser);
-        ProductSeasonEntity productSeason = ProductSeasonEntity.create(sellerId, request.name().trim());
+        ProductSeasonEntity productSeason = ProductSeasonEntity.create(sellerId, normalizeSeasonName(request.name()));
         productSeasonRepository.save(productSeason);
     }
 
     @WriteTx
-    public void createProduct(LoginUser currentUser, ProductCreateRequest request) {
+    public void updateProductSeason(LoginUser currentUser, Long seasonId, ProductSeasonUpdateRequest request) {
+        Long sellerId = getSellerId(currentUser);
+        ProductSeasonEntity season = productSeasonRepository.findByIdAndSellerId(seasonId, sellerId)
+                .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_SEASON_NOT_FOUND));
+        season.updateName(normalizeSeasonName(request.name()));
+    }
+
+    @WriteTx
+    public void deleteProductSeason(LoginUser currentUser, Long seasonId) {
+        Long sellerId = getSellerId(currentUser);
+        ProductSeasonEntity season = productSeasonRepository.findByIdAndSellerId(seasonId, sellerId)
+                .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_SEASON_NOT_FOUND));
+        if (productRepository.existsByProductSeason_IdAndSellerId(seasonId, sellerId)) {
+            throw new ErrorException(ProductErrorCode.PRODUCT_SEASON_IN_USE);
+        }
+        productSeasonRepository.delete(season);
+    }
+
+    @WriteTx
+    public void createProduct(LoginUser currentUser, Long seasonId, ProductCreateRequest request) {
         Long sellerId = getSellerId(currentUser);
         String mainImageUrl = normalizeImageUrl(request.mainImageUrl());
-        ProductEntity product = buildProduct(request, sellerId, mainImageUrl);
+        ProductSeasonEntity season = resolveSeason(sellerId, seasonId);
+        ProductEntity product = buildProduct(request, sellerId, mainImageUrl, season);
 
         ProductEntity saved = productRepository.saveAndFlush(product);
         upsertInventoryStocks(saved, mainImageUrl);
@@ -98,7 +119,12 @@ public class SellerProductCommandService {
         return currentUser.userId();
     }
 
-    private ProductEntity buildProduct(ProductCreateRequest request, Long sellerId, String mainImageUrl) {
+    private ProductEntity buildProduct(
+            ProductCreateRequest request,
+            Long sellerId,
+            String mainImageUrl,
+            ProductSeasonEntity season
+    ) {
         ProductEntity product = ProductEntity.create(
                 sellerId,
                 request.name(),
@@ -107,7 +133,8 @@ public class SellerProductCommandService {
                 request.details(),
                 request.sizeGuide(),
                 request.shipping(),
-                resolveStatus(request.status())
+                resolveStatus(request.status()),
+                season
         );
         addOptions(product, request.options());
         product.addImage(ProductImageType.MAIN, mainImageUrl, 0);
@@ -118,6 +145,15 @@ public class SellerProductCommandService {
 
     private ProductStatus resolveStatus(ProductStatus requestedStatus) {
         return requestedStatus == null ? ProductStatus.PENDING : requestedStatus;
+    }
+
+    private ProductSeasonEntity resolveSeason(Long sellerId, Long seasonId) {
+        return productSeasonRepository.findByIdAndSellerId(seasonId, sellerId)
+                .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_SEASON_NOT_FOUND));
+    }
+
+    private String normalizeSeasonName(String name) {
+        return name == null ? null : name.trim();
     }
 
     private String normalizeImageUrl(String imageUrl) {

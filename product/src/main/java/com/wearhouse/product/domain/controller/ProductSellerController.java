@@ -6,6 +6,7 @@ import com.wearhouse.common.security.current.LoginSeller;
 import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.product.domain.dto.request.ProductCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductSeasonCreateRequest;
+import com.wearhouse.product.domain.dto.request.ProductSeasonUpdateRequest;
 import com.wearhouse.product.domain.dto.request.ProductStatusesUpdateRequest;
 import com.wearhouse.product.domain.dto.request.ProductStatusUpdateRequest;
 import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
@@ -46,12 +47,13 @@ public class ProductSellerController {
         return ApiResponse.success(ProductSuccessCode.PRODUCT_SEASON_CREATED);
     }
 
-    @PostMapping
+    @PostMapping("/seasons/{seasonId}")
     public ApiResponse<Void> createProduct(
             @LoginSeller LoginUser currentUser,
+            @PathVariable Long seasonId,
             @Valid @RequestBody ProductCreateRequest request
     ) {
-        sellerProductCommandService.createProduct(currentUser, request);
+        sellerProductCommandService.createProduct(currentUser, seasonId, request);
         return ApiResponse.success(ProductSuccessCode.PRODUCT_CREATED);
     }
 
@@ -66,16 +68,45 @@ public class ProductSellerController {
         return ApiResponse.success(ProductSuccessCode.SELLER_PRODUCT_SEASON_LIST_FETCHED, response);
     }
 
+    @GetMapping("/seasons/{seasonId}")
+    public ApiResponse<ProductSeasonListResponse> getSellerProductSeason(
+            @LoginSeller LoginUser currentUser,
+            @PathVariable Long seasonId
+    ) {
+        ProductSeasonListResponse response = sellerProductQueryService.getSellerSeason(currentUser, seasonId);
+        return ApiResponse.success(ProductSuccessCode.SELLER_PRODUCT_SEASON_FETCHED, response);
+    }
+
+    @PatchMapping("/seasons/{seasonId}")
+    public ApiResponse<Void> updateProductSeason(
+            @LoginSeller LoginUser currentUser,
+            @PathVariable Long seasonId,
+            @Valid @RequestBody ProductSeasonUpdateRequest request
+    ) {
+        sellerProductCommandService.updateProductSeason(currentUser, seasonId, request);
+        return ApiResponse.success(ProductSuccessCode.PRODUCT_SEASON_UPDATED);
+    }
+
+    @DeleteMapping("/seasons/{seasonId}")
+    public ApiResponse<Void> deleteProductSeason(
+            @LoginSeller LoginUser currentUser,
+            @PathVariable Long seasonId
+    ) {
+        sellerProductCommandService.deleteProductSeason(currentUser, seasonId);
+        return ApiResponse.success(ProductSuccessCode.PRODUCT_SEASON_DELETED);
+    }
+
     @GetMapping
     public ApiResponse<CursorPageResponse<SellerProductListResponse>> getSellerProducts(
             @LoginSeller LoginUser currentUser,
             @RequestParam(required = false) ProductStatus status,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long seasonId,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "20") Integer limit
     ) {
         CursorPageResponse<SellerProductListResponse> response =
-                sellerProductQueryService.getSellerProducts(currentUser, status, keyword, cursor, limit);
+                sellerProductQueryService.getSellerProducts(currentUser, status, keyword, cursor, limit, seasonId);
         return ApiResponse.success(ProductSuccessCode.SELLER_PRODUCT_LIST_FETCHED, response);
     }
 

@@ -49,15 +49,18 @@ public class SellerProductQueryService {
             ProductStatus status,
             String keyword,
             Long cursor,
-            Integer limit
+            Integer limit,
+            Long seasonId
     ) {
         Long sellerId = requireSeller(currentUser);
+        validateSeasonOwnership(sellerId, seasonId);
         int normalizedLimit = CursorPaginationSupport.normalizeLimit(limit);
         List<ProductEntity> products = productRepository.findSellerProducts(
                 sellerId,
                 status,
                 normalizeKeyword(keyword),
                 cursor,
+                seasonId,
                 PageRequest.of(0, normalizedLimit + 1)
         );
         return CursorPaginationSupport.toCursorPage(products, normalizedLimit, ProductEntity::getId, this::toSellerListResponse);
@@ -100,6 +103,14 @@ public class SellerProductQueryService {
                 ProductSeasonEntity::getId,
                 this::toSeasonListResponse
         );
+    }
+
+    @ReadTx
+    public ProductSeasonListResponse getSellerSeason(LoginUser currentUser, Long seasonId) {
+        Long sellerId = requireSeller(currentUser);
+        ProductSeasonEntity season = productSeasonRepository.findByIdAndSellerId(seasonId, sellerId)
+                .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_SEASON_NOT_FOUND));
+        return toSeasonListResponse(season);
     }
 
     @ReadTx
@@ -254,6 +265,14 @@ public class SellerProductQueryService {
             throw new ErrorException(ProductErrorCode.FORBIDDEN_PRODUCT_ACCESS);
         }
         return currentUser.userId();
+    }
+
+    private void validateSeasonOwnership(Long sellerId, Long seasonId) {
+        if (seasonId == null) {
+            return;
+        }
+        productSeasonRepository.findByIdAndSellerId(seasonId, sellerId)
+                .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_SEASON_NOT_FOUND));
     }
 
     private String normalizeKeyword(String keyword) {

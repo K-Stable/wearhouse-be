@@ -58,4 +58,8 @@ public class ProductSeasonEntity extends BaseEntity {
         }
         product.assignSeason(this);
     }
+
+    public void updateName(String name) {
+        this.name = name;
+    }
 }
