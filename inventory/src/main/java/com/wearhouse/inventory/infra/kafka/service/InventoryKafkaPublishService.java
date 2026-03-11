@@ -1,6 +1,6 @@
 package com.wearhouse.inventory.infra.kafka.service;
 
-import com.wearhouse.inventory.infra.jpa.repository.InventoryOutboxRepository;
+import com.wearhouse.inventory.domain.repository.InventoryOutboxRepository;
 import com.wearhouse.inventory.support.config.InventoryOutboxProperties;
 import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
 import java.time.LocalDateTime;

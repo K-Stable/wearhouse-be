@@ -4,6 +4,7 @@ import com.wearhouse.common.global.response.ApiResponse;
 import com.wearhouse.common.infra.feign.inventory.dto.InventoryStockResponse;
 import com.wearhouse.common.infra.feign.inventory.dto.InventoryStockUpsertRequest;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,5 +28,13 @@ public interface InventoryStockFeignClient {
             @RequestHeader("X-Passport-Sig") String signature,
             @RequestHeader("X-Passport-Ts") String timestamp,
             @PathVariable("skuId") Long skuId
+    );
+
+    @DeleteMapping("/stocks/products/{productId}")
+    ApiResponse<Void> deleteStocksByProductId(
+            @RequestHeader("X-Passport-User") String encodedUser,
+            @RequestHeader("X-Passport-Sig") String signature,
+            @RequestHeader("X-Passport-Ts") String timestamp,
+            @PathVariable("productId") Long productId
     );
 }

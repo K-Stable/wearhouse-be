@@ -2,7 +2,7 @@ package com.wearhouse.inventory.domain.event;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wearhouse.inventory.infra.jpa.repository.InventoryOutboxRepository;
+import com.wearhouse.inventory.domain.repository.InventoryOutboxRepository;
 import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

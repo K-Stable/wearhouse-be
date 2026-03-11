@@ -1,8 +1,8 @@
 package com.wearhouse.inventory.domain.service.command;
 
 import com.wearhouse.common.global.transactional.WriteTx;
-import com.wearhouse.inventory.infra.jpa.repository.InventoryOutboxRepository;
-import com.wearhouse.inventory.infra.jpa.repository.InventoryOutboxRepository.OutboxCandidate;
+import com.wearhouse.inventory.domain.repository.InventoryOutboxRepository;
+import com.wearhouse.inventory.domain.repository.InventoryOutboxRepository.OutboxCandidate;
 import com.wearhouse.inventory.infra.kafka.service.InventoryKafkaPublishService;
 import com.wearhouse.inventory.support.config.InventoryOutboxProperties;
 import java.time.LocalDateTime;

@@ -1,10 +1,10 @@
-package com.wearhouse.inventory.infra.jpa.repository;
+package com.wearhouse.inventory.domain.repository;
 
 import com.wearhouse.inventory.domain.entity.InventoryInboxEventEntity;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface InventoryInboxEventJpaRepository extends JpaRepository<InventoryInboxEventEntity, Long> {
+public interface InventoryInboxEventRepository extends JpaRepository<InventoryInboxEventEntity, Long> {
 
     boolean existsByEventIdAndConsumerName(String eventId, String consumerName);
 

@@ -1,4 +1,4 @@
-package com.wearhouse.inventory.infra.jpa.repository;
+package com.wearhouse.inventory.domain.repository;
 
 import com.wearhouse.inventory.domain.entity.InventoryOutboxEventEntity;
 import com.wearhouse.inventory.domain.model.InventoryOutboxStatus;
@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface InventoryOutboxEventJpaRepository extends JpaRepository<InventoryOutboxEventEntity, Long> {
+public interface InventoryOutboxEventRepository extends JpaRepository<InventoryOutboxEventEntity, Long> {
 
     Optional<InventoryOutboxEventEntity> findByEventId(String eventId);
 

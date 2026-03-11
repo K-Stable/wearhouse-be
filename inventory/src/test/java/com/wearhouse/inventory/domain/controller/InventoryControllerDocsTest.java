@@ -24,10 +24,9 @@ import com.wearhouse.inventory.domain.dto.request.InventoryStockUpsertRequest;
 import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse;
 import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse.InventoryAvailabilityLineResponse;
 import com.wearhouse.inventory.domain.dto.response.InventoryStockResponse;
+import com.wearhouse.inventory.domain.service.InventoryQueryService;
+import com.wearhouse.inventory.domain.service.command.InventoryCommandService;
 import java.math.BigDecimal;
-import com.wearhouse.inventory.domain.service.command.InventoryStockService;
-import com.wearhouse.inventory.domain.service.query.InventoryAvailabilityService;
-import com.wearhouse.inventory.domain.service.query.InventoryStockReadService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,13 +53,10 @@ class InventoryControllerDocsTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private InventoryStockService inventoryStockService;
+    private InventoryQueryService inventoryQueryService;
 
     @MockitoBean
-    private InventoryStockReadService inventoryStockReadService;
-
-    @MockitoBean
-    private InventoryAvailabilityService inventoryAvailabilityService;
+    private InventoryCommandService inventoryCommandService;
 
     @Test
     @DisplayName("재고 upsert API 문서화")
@@ -75,7 +71,8 @@ class InventoryControllerDocsTest {
                 "OUTER",
                 "S",
                 "Black",
-                "https://cdn.example.com/main.jpg"
+                "https://cdn.example.com/main.jpg",
+                1
         );
         InventoryStockResponse response = new InventoryStockResponse(
                 1001L,
@@ -88,10 +85,11 @@ class InventoryControllerDocsTest {
                 "Black",
                 "https://cdn.example.com/main.jpg",
                 50,
+                1,
                 0,
                 1L
         );
-        given(inventoryStockService.upsert(any(InventoryStockUpsertRequest.class))).willReturn(response);
+        given(inventoryCommandService.upsertStock(any(InventoryStockUpsertRequest.class))).willReturn(response);
 
         mockMvc.perform(post("/api/v1/internal/inventory/stocks")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -110,7 +108,8 @@ class InventoryControllerDocsTest {
                                 fieldWithPath("category").type(JsonFieldType.STRING).description("카테고리"),
                                 fieldWithPath("size").type(JsonFieldType.STRING).description("옵션 사이즈"),
                                 fieldWithPath("color").type(JsonFieldType.STRING).description("옵션 색상"),
-                                fieldWithPath("mainImageUrl").type(JsonFieldType.STRING).description("대표 이미지 URL")
+                                fieldWithPath("mainImageUrl").type(JsonFieldType.STRING).description("대표 이미지 URL"),
+                                fieldWithPath("status").type(JsonFieldType.NUMBER).description("재고 상태(1:판매중, 0:품절)")
                         ),
                         responseFields(
                                 fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("성공 여부"),
@@ -126,6 +125,7 @@ class InventoryControllerDocsTest {
                                 fieldWithPath("data.color").type(JsonFieldType.STRING).description("옵션 색상"),
                                 fieldWithPath("data.mainImageUrl").type(JsonFieldType.STRING).description("대표 이미지 URL"),
                                 fieldWithPath("data.availableQty").type(JsonFieldType.NUMBER).description("가용 재고 수량"),
+                                fieldWithPath("data.status").type(JsonFieldType.NUMBER).description("재고 상태(1:판매중, 0:품절)"),
                                 fieldWithPath("data.reservedQty").type(JsonFieldType.NUMBER).description("예약 재고 수량"),
                                 fieldWithPath("data.version").type(JsonFieldType.NUMBER).description("낙관락 버전"),
                                 fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
@@ -147,10 +147,11 @@ class InventoryControllerDocsTest {
                 "Black",
                 "https://cdn.example.com/main.jpg",
                 50,
+                1,
                 3,
                 7L
         );
-        given(inventoryStockReadService.getBySkuId(eq(1001L))).willReturn(response);
+        given(inventoryQueryService.findStockBySkuId(eq(1001L))).willReturn(response);
 
         mockMvc.perform(get("/api/v1/internal/inventory/stocks/{skuId}", 1001L))
                 .andExpect(status().isOk())
@@ -174,6 +175,7 @@ class InventoryControllerDocsTest {
                                 fieldWithPath("data.color").type(JsonFieldType.STRING).description("옵션 색상"),
                                 fieldWithPath("data.mainImageUrl").type(JsonFieldType.STRING).description("대표 이미지 URL"),
                                 fieldWithPath("data.availableQty").type(JsonFieldType.NUMBER).description("가용 재고 수량"),
+                                fieldWithPath("data.status").type(JsonFieldType.NUMBER).description("재고 상태(1:판매중, 0:품절)"),
                                 fieldWithPath("data.reservedQty").type(JsonFieldType.NUMBER).description("예약 재고 수량"),
                                 fieldWithPath("data.version").type(JsonFieldType.NUMBER).description("낙관락 버전"),
                                 fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
@@ -196,7 +198,7 @@ class InventoryControllerDocsTest {
                         new InventoryAvailabilityLineResponse(5002L, 7002L, 7002L, 1, 3, true)
                 )
         );
-        given(inventoryAvailabilityService.check(any(InventoryAvailabilityCheckRequest.class))).willReturn(response);
+        given(inventoryQueryService.checkAvailability(any(InventoryAvailabilityCheckRequest.class))).willReturn(response);
 
         mockMvc.perform(post("/api/v1/internal/inventory/stocks/availability/check")
                         .contentType(MediaType.APPLICATION_JSON)

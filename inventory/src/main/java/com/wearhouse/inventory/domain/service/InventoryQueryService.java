@@ -1,31 +1,47 @@
-package com.wearhouse.inventory.domain.service.query;
+package com.wearhouse.inventory.domain.service;
 
+import com.wearhouse.common.global.error.CommonErrorCode;
 import com.wearhouse.common.global.error.ErrorException;
+import com.wearhouse.common.global.transactional.ReadTx;
+import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.inventory.domain.dto.request.InventoryAvailabilityCheckRequest;
 import com.wearhouse.inventory.domain.dto.request.InventoryAvailabilityCheckRequest.InventoryAvailabilityLineRequest;
 import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse;
 import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse.InventoryAvailabilityLineResponse;
+import com.wearhouse.inventory.domain.dto.response.InventoryStockResponse;
+import com.wearhouse.inventory.domain.dto.response.SellerInventoryItemResponse;
+import com.wearhouse.inventory.domain.entity.InventoryStockEntity;
 import com.wearhouse.inventory.domain.exception.InventoryErrorCode;
+import com.wearhouse.inventory.domain.repository.InventoryStockRepository;
 import com.wearhouse.inventory.infra.redis.InventoryRedisStockCacheService;
 import com.wearhouse.inventory.infra.redis.InventoryRedisStockCacheService.AtomicAvailabilityCheckResult;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import com.wearhouse.common.global.transactional.ReadTx;
 
 @Service
-public class InventoryAvailabilityService {
+@RequiredArgsConstructor
+public class InventoryQueryService {
 
+    private static final int DEFAULT_SELLER_LIMIT = 50;
+    private static final int MAX_SELLER_LIMIT = 200;
+
+    private final InventoryStockRepository inventoryStockRepository;
     private final InventoryRedisStockCacheService inventoryRedisStockCacheService;
 
-    public InventoryAvailabilityService(InventoryRedisStockCacheService inventoryRedisStockCacheService) {
-        this.inventoryRedisStockCacheService = inventoryRedisStockCacheService;
+    @ReadTx
+    public InventoryStockResponse findStockBySkuId(Long skuId) {
+        InventoryStockEntity stock = inventoryStockRepository.findBySkuId(skuId)
+                .orElseThrow(() -> new ErrorException(InventoryErrorCode.STOCK_NOT_FOUND));
+        return InventoryStockResponse.from(stock);
     }
 
     @ReadTx
-    public InventoryAvailabilityCheckResponse check(InventoryAvailabilityCheckRequest request) {
+    public InventoryAvailabilityCheckResponse checkAvailability(InventoryAvailabilityCheckRequest request) {
         Map<Long, Integer> requestedBySku = aggregateRequestedBySku(request.items());
         AtomicAvailabilityCheckResult availabilityCheckResult =
                 inventoryRedisStockCacheService.checkAvailabilityAtomically(requestedBySku);
@@ -44,9 +60,19 @@ public class InventoryAvailabilityService {
             ));
         }
 
-        return new InventoryAvailabilityCheckResponse(
-                availabilityCheckResult.available(),
-                lines
+        return new InventoryAvailabilityCheckResponse(availabilityCheckResult.available(), lines);
+    }
+
+    @ReadTx
+    public List<SellerInventoryItemResponse> findSellerInventoryItems(LoginUser currentUser, String keyword, int limit) {
+        Long sellerId = requireSeller(currentUser);
+        String normalizedKeyword = normalizeKeyword(keyword);
+        int normalizedLimit = normalizeLimit(limit);
+
+        return inventoryStockRepository.findSellerInventoryItems(
+                sellerId,
+                normalizedKeyword,
+                PageRequest.of(0, normalizedLimit)
         );
     }
 
@@ -66,4 +92,26 @@ public class InventoryAvailabilityService {
         }
         return skuId;
     }
+
+    private Long requireSeller(LoginUser currentUser) {
+        if (currentUser == null || currentUser.userId() == null || !currentUser.isSeller()) {
+            throw new ErrorException(CommonErrorCode.FORBIDDEN);
+        }
+        return currentUser.userId();
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return keyword.trim();
+    }
+
+    private int normalizeLimit(int limit) {
+        if (limit <= 0) {
+            return DEFAULT_SELLER_LIMIT;
+        }
+        return Math.min(limit, MAX_SELLER_LIMIT);
+    }
+
 }

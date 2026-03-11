@@ -109,7 +109,25 @@ public class SellerProductCommandService {
         Long sellerId = getSellerId(currentUser);
         ProductEntity product = productRepository.findByIdAndSellerId(productId, sellerId)
                 .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_NOT_FOUND));
+        productInventoryClient.deleteProductStocks(productId);
         productRepository.delete(product);
+    }
+
+    @WriteTx
+    public void markProductsSoldOut(List<Long> productIds) {
+        Set<Long> targetIds = productIds == null
+                ? Set.of()
+                : productIds.stream()
+                .filter(id -> id != null && id > 0)
+                .collect(Collectors.toSet());
+        if (targetIds.isEmpty()) {
+            return;
+        }
+
+        List<ProductEntity> products = productRepository.findAllById(targetIds);
+        for (ProductEntity product : products) {
+            product.updateStatus(ProductStatus.SOLD_OUT);
+        }
     }
 
     private Long getSellerId(LoginUser currentUser) {
@@ -145,6 +163,13 @@ public class SellerProductCommandService {
 
     private ProductStatus resolveStatus(ProductStatus requestedStatus) {
         return requestedStatus == null ? ProductStatus.PENDING : requestedStatus;
+    }
+
+    private int resolveInventoryStatus(ProductStatus productStatus, int stockQuantity) {
+        if (productStatus == ProductStatus.SOLD_OUT || stockQuantity <= 0) {
+            return 0;
+        }
+        return 1;
     }
 
     private ProductSeasonEntity resolveSeason(Long sellerId, Long seasonId) {
@@ -206,6 +231,7 @@ public class SellerProductCommandService {
                 productInventoryClient.upsertStock(
                         optionId,
                         stockQuantity,
+                        resolveInventoryStatus(product.getStatus(), stockQuantity),
                         product.getSellerId(),
                         product.getId(),
                         product.getName(),

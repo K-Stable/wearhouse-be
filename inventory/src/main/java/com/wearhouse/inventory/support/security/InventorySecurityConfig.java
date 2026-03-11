@@ -26,8 +26,10 @@ public class InventorySecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/seller/inventories/**").hasRole("SELLER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/seller/inventories/**").hasRole("SELLER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/internal/inventory/stocks").hasRole("SELLER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/internal/inventory/stocks/**").hasRole("SELLER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/internal/inventory/stocks/products/**").hasRole("SELLER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/internal/inventory/stocks/availability/check")
                         .hasAnyRole("BUYER", "SELLER")
                         .anyRequest().denyAll()

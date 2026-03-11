@@ -1,4 +1,4 @@
-package com.wearhouse.inventory.infra.jpa.repository;
+package com.wearhouse.inventory.domain.repository;
 
 import com.wearhouse.inventory.domain.entity.InventoryReservationEntity;
 import com.wearhouse.inventory.domain.model.InventoryReservationStatus;
@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface InventoryReservationJpaRepository extends JpaRepository<InventoryReservationEntity, Long> {
+public interface InventoryReservationRepository extends JpaRepository<InventoryReservationEntity, Long> {
 
     List<InventoryReservationEntity> findByOrderIdAndStatus(Long orderId, InventoryReservationStatus status);
 

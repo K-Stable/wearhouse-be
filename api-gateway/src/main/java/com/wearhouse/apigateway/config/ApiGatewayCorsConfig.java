@@ -1,5 +1,6 @@
 package com.wearhouse.apigateway.config;
 
+import com.wearhouse.common.security.passport.PassportHeaders;
 import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -27,7 +28,7 @@ public class ApiGatewayCorsConfig implements WebMvcConfigurer {
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
-                .exposedHeaders(HttpHeaders.AUTHORIZATION)
+                .exposedHeaders(HttpHeaders.AUTHORIZATION, PassportHeaders.VERIFIED)
                 .allowCredentials(true)
                 .maxAge(3600);
     }

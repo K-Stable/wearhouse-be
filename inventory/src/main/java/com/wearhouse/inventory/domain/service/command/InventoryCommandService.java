@@ -1,22 +1,30 @@
 package com.wearhouse.inventory.domain.service.command;
 
+import com.wearhouse.common.global.error.CommonErrorCode;
 import com.wearhouse.common.global.error.ErrorException;
+import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.inventory.domain.entity.InventoryReservationEntity;
 import com.wearhouse.inventory.domain.entity.InventoryStockEntity;
 import com.wearhouse.inventory.domain.event.InventoryDomainEvent;
 import com.wearhouse.inventory.domain.event.InventoryDomainEventPublisher;
+import com.wearhouse.inventory.domain.dto.request.InventoryStockUpdateRequest;
+import com.wearhouse.inventory.domain.dto.request.InventoryStockUpsertRequest;
+import com.wearhouse.inventory.domain.dto.response.InventoryStockResponse;
 import com.wearhouse.inventory.domain.exception.InventoryErrorCode;
 import com.wearhouse.inventory.domain.model.InventoryReservationStatus;
-import com.wearhouse.inventory.infra.jpa.repository.InventoryInboxRepository;
-import com.wearhouse.inventory.infra.jpa.repository.InventoryReservationJpaRepository;
-import com.wearhouse.inventory.infra.jpa.repository.InventoryStockJpaRepository;
+import com.wearhouse.inventory.domain.repository.InventoryInboxRepository;
+import com.wearhouse.inventory.domain.repository.InventoryReservationRepository;
+import com.wearhouse.inventory.domain.repository.InventoryStockRepository;
+import com.wearhouse.inventory.infra.product.InventoryProductStatusClient;
 import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService;
 import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService.SkuLockHandle;
 import com.wearhouse.inventory.infra.redis.InventoryRedisStockCacheService;
 import com.wearhouse.inventory.support.InventoryIdGenerator;
 import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
+import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.OptimisticLockException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,6 +33,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -32,53 +41,120 @@ import org.springframework.stereotype.Service;
 import com.wearhouse.common.global.transactional.WriteTx;
 
 @Service
+@RequiredArgsConstructor
 public class InventoryCommandService {
 
     private static final String INVENTORY_COMMAND_CONSUMER = "inventory-command-consumer";
     private static final String INVENTORY_ORDER_CONSUMER = "inventory-order-consumer";
 
-    private final InventoryStockJpaRepository inventoryStockJpaRepository;
-    private final InventoryReservationJpaRepository inventoryReservationJpaRepository;
+    private final InventoryStockRepository inventoryStockRepository;
+    private final InventoryReservationRepository inventoryReservationRepository;
     private final InventoryInboxRepository inventoryInboxRepository;
     private final InventoryDomainEventPublisher inventoryDomainEventPublisher;
     private final InventoryHotSkuLockService inventoryHotSkuLockService;
     private final InventoryRedisStockCacheService inventoryRedisStockCacheService;
+    private final InventoryProductStatusClient inventoryProductStatusClient;
     private final InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics;
     private final EntityManager entityManager;
-    private final String inventoryEventTopic;
-    private final int reservationHoldMinutes;
-    private final int optimisticRetryCount;
-    private final int reservationExpireBatchSize;
-    private final Set<Long> hotSkuIds;
+    @Value("${wearhouse.kafka.inventory-event-topic:wearhouse.inventory.event.v1}")
+    private String inventoryEventTopic;
+    @Value("${wearhouse.inventory.reservation-hold-minutes:15}")
+    private int reservationHoldMinutes;
+    @Value("${wearhouse.inventory.optimistic-retry-count:3}")
+    private int optimisticRetryCount;
+    @Value("${wearhouse.inventory.reservation-expire-batch-size:200}")
+    private int reservationExpireBatchSize;
+    @Value("${wearhouse.inventory.hot-skus:}")
+    private String hotSkuRaw;
+    private Set<Long> hotSkuIds = Set.of();
 
-    public InventoryCommandService(
-            InventoryStockJpaRepository inventoryStockJpaRepository,
-            InventoryReservationJpaRepository inventoryReservationJpaRepository,
-            InventoryInboxRepository inventoryInboxRepository,
-            InventoryDomainEventPublisher inventoryDomainEventPublisher,
-            InventoryHotSkuLockService inventoryHotSkuLockService,
-            InventoryRedisStockCacheService inventoryRedisStockCacheService,
-            InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics,
-            EntityManager entityManager,
-            @Value("${wearhouse.kafka.inventory-event-topic:wearhouse.inventory.event.v1}") String inventoryEventTopic,
-            @Value("${wearhouse.inventory.reservation-hold-minutes:15}") int reservationHoldMinutes,
-            @Value("${wearhouse.inventory.optimistic-retry-count:3}") int optimisticRetryCount,
-            @Value("${wearhouse.inventory.reservation-expire-batch-size:200}") int reservationExpireBatchSize,
-            @Value("${wearhouse.inventory.hot-skus:}") String hotSkuRaw
-    ) {
-        this.inventoryStockJpaRepository = inventoryStockJpaRepository;
-        this.inventoryReservationJpaRepository = inventoryReservationJpaRepository;
-        this.inventoryInboxRepository = inventoryInboxRepository;
-        this.inventoryDomainEventPublisher = inventoryDomainEventPublisher;
-        this.inventoryHotSkuLockService = inventoryHotSkuLockService;
-        this.inventoryRedisStockCacheService = inventoryRedisStockCacheService;
-        this.inventoryKafkaFlowMetrics = inventoryKafkaFlowMetrics;
-        this.entityManager = entityManager;
-        this.inventoryEventTopic = inventoryEventTopic;
-        this.reservationHoldMinutes = reservationHoldMinutes;
-        this.optimisticRetryCount = optimisticRetryCount;
-        this.reservationExpireBatchSize = reservationExpireBatchSize;
-        this.hotSkuIds = parseHotSkuIds(hotSkuRaw);
+    @PostConstruct
+    void initializeHotSkuIds() {
+        hotSkuIds = parseHotSkuIds(hotSkuRaw);
+    }
+
+    @WriteTx
+    public InventoryStockResponse upsertStock(InventoryStockUpsertRequest request) {
+        validateUpsertRequest(request);
+
+        InventoryStockEntity stock = inventoryStockRepository.findBySkuId(request.skuId())
+                .orElseGet(() -> InventoryStockEntity.create(
+                        request.skuId(),
+                        request.availableQty(),
+                        request.sellerId(),
+                        request.productId(),
+                        request.productName(),
+                        request.productPrice(),
+                        request.category(),
+                        request.size(),
+                        request.color(),
+                        request.mainImageUrl()
+                ));
+
+        stock.setAvailableQty(request.availableQty());
+        stock.setStatus(request.status());
+        stock.updateSnapshot(
+                request.sellerId(),
+                request.productId(),
+                request.productName(),
+                request.productPrice(),
+                request.category(),
+                request.size(),
+                request.color(),
+                request.mainImageUrl()
+        );
+        InventoryStockEntity saved = inventoryStockRepository.save(stock);
+        inventoryRedisStockCacheService.cacheAvailableQty(saved.getSkuId(), saved.getAvailableQty());
+        return InventoryStockResponse.from(saved);
+    }
+
+    @WriteTx
+    public InventoryStockResponse updateSellerInventory(LoginUser currentUser, Long skuId, InventoryStockUpdateRequest request) {
+        Long sellerId = requireSeller(currentUser);
+        if (request == null || (request.availableQty() == null && request.status() == null)) {
+            throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
+        }
+        if (request.availableQty() != null && request.availableQty() < 0) {
+            throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
+        }
+        if (request.status() != null && !isValidStatus(request.status())) {
+            throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
+        }
+
+        InventoryStockEntity stock = inventoryStockRepository.findBySkuId(skuId)
+                .orElseThrow(() -> new ErrorException(InventoryErrorCode.STOCK_NOT_FOUND));
+        if (!sellerId.equals(stock.getSellerId())) {
+            throw new ErrorException(CommonErrorCode.FORBIDDEN);
+        }
+
+        if (request.availableQty() != null) {
+            stock.setAvailableQty(request.availableQty());
+        }
+        if (request.status() != null) {
+            stock.setStatus(request.status());
+        }
+
+        InventoryStockEntity saved = inventoryStockRepository.save(stock);
+        inventoryRedisStockCacheService.cacheAvailableQty(saved.getSkuId(), saved.getAvailableQty());
+        return InventoryStockResponse.from(saved);
+    }
+
+    @WriteTx
+    public void deleteStocksByProductId(LoginUser currentUser, Long productId) {
+        if (productId == null) {
+            throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
+        }
+        Long sellerId = requireSeller(currentUser);
+        List<InventoryStockEntity> stocks = inventoryStockRepository.findAllByProductIdAndSellerId(productId, sellerId);
+        if (stocks.isEmpty()) {
+            return;
+        }
+
+        List<Long> skuIds = stocks.stream()
+                .map(InventoryStockEntity::getSkuId)
+                .toList();
+        inventoryStockRepository.deleteAllInBatch(stocks);
+        inventoryRedisStockCacheService.evictAvailableQtyBySkuIds(skuIds);
     }
 
     @WriteTx
@@ -202,7 +278,7 @@ public class InventoryCommandService {
     @WriteTx
     public int releaseExpiredReservations() {
         LocalDateTime now = LocalDateTime.now();
-        List<InventoryReservationEntity> expiredReservations = inventoryReservationJpaRepository
+        List<InventoryReservationEntity> expiredReservations = inventoryReservationRepository
                 .findByStatusAndExpiresAtLessThanEqualOrderByIdAsc(
                         InventoryReservationStatus.RESERVED,
                         now,
@@ -236,7 +312,7 @@ public class InventoryCommandService {
                 reserveStockWithRetry(skuId, quantity);
 
                 String reservationId = InventoryIdGenerator.newReservationId();
-                inventoryReservationJpaRepository.save(InventoryReservationEntity.reserved(
+                inventoryReservationRepository.save(InventoryReservationEntity.reserved(
                         reservationId,
                         sourceEventId,
                         command.orderId(),
@@ -254,7 +330,7 @@ public class InventoryCommandService {
     }
 
     private int release(InventoryReleaseCommand command) {
-        List<InventoryReservationEntity> reservations = inventoryReservationJpaRepository.findByOrderIdAndStatus(
+        List<InventoryReservationEntity> reservations = inventoryReservationRepository.findByOrderIdAndStatus(
                 command.orderId(),
                 InventoryReservationStatus.RESERVED
         );
@@ -272,29 +348,34 @@ public class InventoryCommandService {
     }
 
     private int confirm(InventoryOrderConfirmCommand command) {
-        List<InventoryReservationEntity> reservations = inventoryReservationJpaRepository.findByOrderIdAndStatus(
+        List<InventoryReservationEntity> reservations = inventoryReservationRepository.findByOrderIdAndStatus(
                 command.orderId(),
                 InventoryReservationStatus.RESERVED
         );
 
         LocalDateTime confirmedAt = LocalDateTime.now();
         int confirmedCount = 0;
+        Set<Long> soldOutCandidateProductIds = new LinkedHashSet<>();
         for (InventoryReservationEntity reservation : reservations) {
             if (!markReservationConfirmedIfReserved(reservation.getId(), confirmedAt)) {
                 continue;
             }
-            confirmStockWithRetry(reservation.getSkuId(), reservation.getQuantity());
+            InventoryStockEntity confirmedStock = confirmStockWithRetry(reservation.getSkuId(), reservation.getQuantity());
+            if (confirmedStock.getProductId() != null && confirmedStock.getAvailableQty() <= 0) {
+                soldOutCandidateProductIds.add(confirmedStock.getProductId());
+            }
             confirmedCount++;
         }
+        syncSoldOutProducts(soldOutCandidateProductIds);
         return confirmedCount;
     }
 
     private boolean markReservationReleasedIfReserved(Long reservationId, LocalDateTime releasedAt) {
-        return inventoryReservationJpaRepository.markReleasedIfReserved(reservationId, releasedAt) > 0;
+        return inventoryReservationRepository.markReleasedIfReserved(reservationId, releasedAt) > 0;
     }
 
     private boolean markReservationConfirmedIfReserved(Long reservationId, LocalDateTime confirmedAt) {
-        return inventoryReservationJpaRepository.markConfirmedIfReserved(reservationId, confirmedAt) > 0;
+        return inventoryReservationRepository.markConfirmedIfReserved(reservationId, confirmedAt) > 0;
     }
 
     private List<SkuLockHandle> acquireHotSkuLocks(Set<Long> skuIds, String sourceEventId) {
@@ -340,7 +421,7 @@ public class InventoryCommandService {
 
     private void reserveStockWithRetry(Long skuId, Integer quantity) {
         for (int attempt = 1; attempt <= optimisticRetryCount; attempt++) {
-            InventoryStockEntity stock = inventoryStockJpaRepository.findBySkuId(skuId)
+            InventoryStockEntity stock = inventoryStockRepository.findBySkuId(skuId)
                     .orElseThrow(() -> new ErrorException(InventoryErrorCode.STOCK_NOT_FOUND));
             if (!stock.canReserve(quantity)) {
                 throw new ErrorException(InventoryErrorCode.OUT_OF_STOCK);
@@ -348,7 +429,7 @@ public class InventoryCommandService {
 
             stock.reserve(quantity);
             try {
-                inventoryStockJpaRepository.saveAndFlush(stock);
+                inventoryStockRepository.saveAndFlush(stock);
                 inventoryRedisStockCacheService.cacheAvailableQty(stock.getSkuId(), stock.getAvailableQty());
                 return;
             } catch (ObjectOptimisticLockingFailureException | OptimisticLockException exception) {
@@ -363,11 +444,11 @@ public class InventoryCommandService {
 
     private void releaseStockWithRetry(Long skuId, Integer quantity) {
         for (int attempt = 1; attempt <= optimisticRetryCount; attempt++) {
-            InventoryStockEntity stock = inventoryStockJpaRepository.findBySkuId(skuId)
+            InventoryStockEntity stock = inventoryStockRepository.findBySkuId(skuId)
                     .orElseThrow(() -> new ErrorException(InventoryErrorCode.STOCK_NOT_FOUND));
             stock.release(quantity);
             try {
-                inventoryStockJpaRepository.saveAndFlush(stock);
+                inventoryStockRepository.saveAndFlush(stock);
                 inventoryRedisStockCacheService.cacheAvailableQty(stock.getSkuId(), stock.getAvailableQty());
                 return;
             } catch (ObjectOptimisticLockingFailureException | OptimisticLockException exception) {
@@ -380,15 +461,15 @@ public class InventoryCommandService {
         }
     }
 
-    private void confirmStockWithRetry(Long skuId, Integer quantity) {
+    private InventoryStockEntity confirmStockWithRetry(Long skuId, Integer quantity) {
         for (int attempt = 1; attempt <= optimisticRetryCount; attempt++) {
-            InventoryStockEntity stock = inventoryStockJpaRepository.findBySkuId(skuId)
+            InventoryStockEntity stock = inventoryStockRepository.findBySkuId(skuId)
                     .orElseThrow(() -> new ErrorException(InventoryErrorCode.STOCK_NOT_FOUND));
             stock.confirm(quantity);
             try {
-                inventoryStockJpaRepository.saveAndFlush(stock);
+                inventoryStockRepository.saveAndFlush(stock);
                 inventoryRedisStockCacheService.cacheAvailableQty(stock.getSkuId(), stock.getAvailableQty());
-                return;
+                return stock;
             } catch (ObjectOptimisticLockingFailureException | OptimisticLockException exception) {
                 if (attempt == optimisticRetryCount) {
                     inventoryKafkaFlowMetrics.incrementConcurrencyGuard("optimistic_lock", "conflict");
@@ -397,6 +478,22 @@ public class InventoryCommandService {
                 entityManager.clear();
             }
         }
+        throw new ErrorException(InventoryErrorCode.OPTIMISTIC_CONFLICT);
+    }
+
+    private void syncSoldOutProducts(Set<Long> soldOutCandidateProductIds) {
+        if (soldOutCandidateProductIds == null || soldOutCandidateProductIds.isEmpty()) {
+            return;
+        }
+
+        List<Long> soldOutProductIds = soldOutCandidateProductIds.stream()
+                .filter(this::isProductSoldOut)
+                .toList();
+        inventoryProductStatusClient.markProductsSoldOut(soldOutProductIds);
+    }
+
+    private boolean isProductSoldOut(Long productId) {
+        return !inventoryStockRepository.existsByProductIdAndAvailableQtyGreaterThan(productId, 0);
     }
 
     private void publishStockReserved(InventoryReserveCommand command, List<ReservationLineResult> results) {
@@ -583,6 +680,41 @@ public class InventoryCommandService {
 
     private String asString(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private void validateUpsertRequest(InventoryStockUpsertRequest request) {
+        if (request == null
+                || request.skuId() == null
+                || request.availableQty() == null
+                || request.availableQty() < 0
+                || request.sellerId() == null
+                || request.productId() == null
+                || isBlank(request.productName())
+                || request.productPrice() == null
+                || request.productPrice().compareTo(BigDecimal.ZERO) < 0
+                || isBlank(request.category())
+                || isBlank(request.size())
+                || isBlank(request.color())
+                || isBlank(request.mainImageUrl())
+                || request.status() == null
+                || !isValidStatus(request.status())) {
+            throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
+        }
+    }
+
+    private Long requireSeller(LoginUser currentUser) {
+        if (currentUser == null || currentUser.userId() == null || !currentUser.isSeller()) {
+            throw new ErrorException(CommonErrorCode.FORBIDDEN);
+        }
+        return currentUser.userId();
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private boolean isValidStatus(Integer status) {
+        return status == InventoryStockEntity.STATUS_SOLD_OUT || status == InventoryStockEntity.STATUS_ON_SALE;
     }
 
     private record InventoryReserveCommand(Long orderId, String orderNo, List<ReserveLine> lines) {

@@ -1,35 +1,27 @@
 package com.wearhouse.inventory.infra.redis;
 
 import java.time.Duration;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class InventoryHotSkuLockService {
 
     private static final DefaultRedisScript<Long> UNLOCK_SCRIPT = unlockScript();
 
     private final StringRedisTemplate stringRedisTemplate;
-    private final long waitTimeMs;
-    private final long leaseTimeMs;
-    private final long retryIntervalMs;
-    private final String lockKeyPrefix;
-
-    public InventoryHotSkuLockService(
-            StringRedisTemplate stringRedisTemplate,
-            @Value("${wearhouse.inventory.lock.wait-time-ms:1200}") long waitTimeMs,
-            @Value("${wearhouse.inventory.lock.lease-time-ms:3000}") long leaseTimeMs,
-            @Value("${wearhouse.inventory.lock.retry-interval-ms:40}") long retryIntervalMs,
-            @Value("${wearhouse.inventory.lock.key-prefix:inventory:lock:sku:}") String lockKeyPrefix
-    ) {
-        this.stringRedisTemplate = stringRedisTemplate;
-        this.waitTimeMs = waitTimeMs;
-        this.leaseTimeMs = leaseTimeMs;
-        this.retryIntervalMs = retryIntervalMs;
-        this.lockKeyPrefix = lockKeyPrefix;
-    }
+    @Value("${wearhouse.inventory.lock.wait-time-ms:1200}")
+    private long waitTimeMs;
+    @Value("${wearhouse.inventory.lock.lease-time-ms:3000}")
+    private long leaseTimeMs;
+    @Value("${wearhouse.inventory.lock.retry-interval-ms:40}")
+    private long retryIntervalMs;
+    @Value("${wearhouse.inventory.lock.key-prefix:inventory:lock:sku:}")
+    private String lockKeyPrefix;
 
     public SkuLockHandle acquire(Long skuId, String ownerToken) {
         String key = lockKey(skuId);

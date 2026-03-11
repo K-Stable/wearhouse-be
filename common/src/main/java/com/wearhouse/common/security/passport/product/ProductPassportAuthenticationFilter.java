@@ -25,6 +25,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @ConditionalOnProperty(name = "spring.application.name", havingValue = "product-service")
 public class ProductPassportAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final String SELLER_SEASON_LIST_PATH = "/api/v1/seller/products/seasons";
+
     private final ObjectMapper objectMapper;
     private final PassportSigner passportSigner;
 
@@ -93,8 +95,15 @@ public class ProductPassportAuthenticationFilter extends OncePerRequestFilter {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(new UsernamePasswordAuthenticationToken(principal, null, authorities));
         SecurityContextHolder.setContext(context);
+        if (isSellerSeasonListRequest(request)) {
+            response.setHeader(PassportHeaders.VERIFIED, "true");
+        }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isSellerSeasonListRequest(HttpServletRequest request) {
+        return "GET".equalsIgnoreCase(request.getMethod()) && SELLER_SEASON_LIST_PATH.equals(request.getRequestURI());
     }
 
     private void writeUnauthorized(HttpServletResponse response, String code, String message) throws IOException {

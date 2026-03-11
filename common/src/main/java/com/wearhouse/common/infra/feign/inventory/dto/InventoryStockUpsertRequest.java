@@ -12,6 +12,7 @@ public record InventoryStockUpsertRequest(
         String category,
         String size,
         String color,
-        String mainImageUrl
+        String mainImageUrl,
+        Integer status
 ) {
 }

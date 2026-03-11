@@ -86,6 +86,7 @@ class SellerProductCommandServiceTest {
         verify(productInventoryClient).upsertStock(
                 eq(1001L),
                 eq(10),
+                eq(1),
                 eq(11L),
                 eq(501L),
                 eq("Debug Product"),
@@ -98,6 +99,7 @@ class SellerProductCommandServiceTest {
         verify(productInventoryClient).upsertStock(
                 eq(1002L),
                 eq(3),
+                eq(1),
                 eq(11L),
                 eq(501L),
                 eq("Debug Product"),
@@ -175,5 +177,31 @@ class SellerProductCommandServiceTest {
         );
 
         assertEquals(ProductErrorCode.PRODUCT_SEASON_IN_USE, exception.errorCode());
+    }
+
+    @Test
+    void deleteProductShouldDeleteInventoryStocksFirst() {
+        SellerProductCommandService service = new SellerProductCommandService(
+                productRepository,
+                productSeasonRepository,
+                productInventoryClient
+        );
+        LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
+        ProductEntity product = ProductEntity.create(
+                11L,
+                "Debug Product",
+                new BigDecimal("50000"),
+                Category.OUTER,
+                "desc",
+                "size-guide",
+                "shipping",
+                ProductStatus.RELEASED
+        );
+        when(productRepository.findByIdAndSellerId(501L, 11L)).thenReturn(Optional.of(product));
+
+        service.deleteProduct(seller, 501L);
+
+        verify(productInventoryClient).deleteProductStocks(501L);
+        verify(productRepository).delete(product);
     }
 }

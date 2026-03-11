@@ -20,6 +20,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InventoryStockEntity extends BaseEntity {
 
+    public static final int STATUS_SOLD_OUT = 0;
+    public static final int STATUS_ON_SALE = 1;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -54,6 +57,9 @@ public class InventoryStockEntity extends BaseEntity {
     @Column(name = "available_qty", nullable = false)
     private Integer availableQty;
 
+    @Column(name = "status", nullable = false)
+    private Integer status;
+
     @Column(name = "reserved_qty", nullable = false)
     private Integer reservedQty;
 
@@ -75,7 +81,8 @@ public class InventoryStockEntity extends BaseEntity {
             String mainImageUrl
     ) {
         this.skuId = skuId;
-        this.availableQty = availableQty;
+        this.availableQty = Math.max(availableQty == null ? 0 : availableQty, 0);
+        this.status = resolveStatus(this.availableQty);
         this.reservedQty = 0;
         this.sellerId = sellerId;
         this.productId = productId;
@@ -123,6 +130,7 @@ public class InventoryStockEntity extends BaseEntity {
         }
         this.availableQty = this.availableQty - quantity;
         this.reservedQty = this.reservedQty + quantity;
+        this.status = resolveStatus(this.availableQty);
     }
 
     public void release(int quantity) {
@@ -131,6 +139,7 @@ public class InventoryStockEntity extends BaseEntity {
         }
         this.availableQty = this.availableQty + quantity;
         this.reservedQty = Math.max(0, this.reservedQty - quantity);
+        this.status = resolveStatus(this.availableQty);
     }
 
     public void confirm(int quantity) {
@@ -138,10 +147,19 @@ public class InventoryStockEntity extends BaseEntity {
             return;
         }
         this.reservedQty = Math.max(0, this.reservedQty - quantity);
+        this.status = resolveStatus(this.availableQty);
     }
 
     public void setAvailableQty(int availableQty) {
-        this.availableQty = availableQty;
+        this.availableQty = Math.max(availableQty, 0);
+        this.status = resolveStatus(this.availableQty);
+    }
+
+    public void setStatus(int status) {
+        if (status != STATUS_SOLD_OUT && status != STATUS_ON_SALE) {
+            throw new IllegalArgumentException("재고 상태 값이 올바르지 않습니다.");
+        }
+        this.status = status;
     }
 
     public void updateSnapshot(
@@ -164,55 +182,7 @@ public class InventoryStockEntity extends BaseEntity {
         this.mainImageUrl = mainImageUrl;
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public Long getSkuId() {
-        return skuId;
-    }
-
-    public Long getSellerId() {
-        return sellerId;
-    }
-
-    public Long getProductId() {
-        return productId;
-    }
-
-    public String getProductName() {
-        return productName;
-    }
-
-    public BigDecimal getProductPrice() {
-        return productPrice;
-    }
-
-    public String getProductCategory() {
-        return productCategory;
-    }
-
-    public String getOptionSize() {
-        return optionSize;
-    }
-
-    public String getOptionColor() {
-        return optionColor;
-    }
-
-    public String getMainImageUrl() {
-        return mainImageUrl;
-    }
-
-    public Integer getAvailableQty() {
-        return availableQty;
-    }
-
-    public Integer getReservedQty() {
-        return reservedQty;
-    }
-
-    public Long getVersion() {
-        return version;
+    private int resolveStatus(int availableQty) {
+        return availableQty <= 0 ? STATUS_SOLD_OUT : STATUS_ON_SALE;
     }
 }

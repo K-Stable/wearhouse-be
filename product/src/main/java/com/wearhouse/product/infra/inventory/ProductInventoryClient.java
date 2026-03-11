@@ -24,6 +24,7 @@ public class ProductInventoryClient {
     public void upsertStock(
             Long skuId,
             Integer availableQty,
+            Integer status,
             Long sellerId,
             Long productId,
             String productName,
@@ -49,7 +50,8 @@ public class ProductInventoryClient {
                             category,
                             size,
                             color,
-                            mainImageUrl
+                            mainImageUrl,
+                            status
                     )
             );
             if (response == null || !response.success()) {
@@ -75,6 +77,23 @@ public class ProductInventoryClient {
             return response.data().availableQty();
         } catch (FeignException exception) {
             throw new IllegalStateException("inventory stock 조회 호출 실패: " + exception.status(), exception);
+        }
+    }
+
+    public void deleteProductStocks(Long productId) {
+        PassportHeaderBundle headers = resolvePassportHeaders();
+        try {
+            ApiResponse<Void> response = inventoryStockFeignClient.deleteStocksByProductId(
+                    headers.encodedUser(),
+                    headers.signature(),
+                    headers.timestamp(),
+                    productId
+            );
+            if (response == null || !response.success()) {
+                throw new IllegalStateException("inventory product stock delete 응답이 유효하지 않습니다.");
+            }
+        } catch (FeignException exception) {
+            throw new IllegalStateException("inventory product stock delete 호출 실패: " + exception.status(), exception);
         }
     }
 

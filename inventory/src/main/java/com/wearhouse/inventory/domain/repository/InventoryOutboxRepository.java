@@ -1,4 +1,4 @@
-package com.wearhouse.inventory.infra.jpa.repository;
+package com.wearhouse.inventory.domain.repository;
 
 import com.wearhouse.inventory.domain.entity.InventoryOutboxEventEntity;
 import com.wearhouse.inventory.domain.model.InventoryOutboxStatus;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class InventoryOutboxRepository {
 
-    private final InventoryOutboxEventJpaRepository inventoryOutboxEventJpaRepository;
+    private final InventoryOutboxEventRepository inventoryOutboxEventRepository;
 
     public void saveReady(
             String eventId,
@@ -32,14 +32,14 @@ public class InventoryOutboxRepository {
                 partitionKey,
                 payload
         );
-        inventoryOutboxEventJpaRepository.save(entity);
+        inventoryOutboxEventRepository.save(entity);
     }
 
     public void markSuccess(String eventId) {
-        inventoryOutboxEventJpaRepository.findByEventId(eventId)
+        inventoryOutboxEventRepository.findByEventId(eventId)
                 .ifPresent(entity -> {
                     entity.markSuccess();
-                    inventoryOutboxEventJpaRepository.save(entity);
+                    inventoryOutboxEventRepository.save(entity);
                 });
     }
 
@@ -50,23 +50,23 @@ public class InventoryOutboxRepository {
             String errorCode,
             String errorMessage
     ) {
-        inventoryOutboxEventJpaRepository.findByEventId(eventId)
+        inventoryOutboxEventRepository.findByEventId(eventId)
                 .ifPresent(entity -> {
                     entity.markFailed(retryCount, nextRetryAt, errorCode, errorMessage);
-                    inventoryOutboxEventJpaRepository.save(entity);
+                    inventoryOutboxEventRepository.save(entity);
                 });
     }
 
     public void markDead(String eventId, int retryCount, String errorCode, String errorMessage) {
-        inventoryOutboxEventJpaRepository.findByEventId(eventId)
+        inventoryOutboxEventRepository.findByEventId(eventId)
                 .ifPresent(entity -> {
                     entity.markDead(retryCount, errorCode, errorMessage);
-                    inventoryOutboxEventJpaRepository.save(entity);
+                    inventoryOutboxEventRepository.save(entity);
                 });
     }
 
     public List<OutboxCandidate> lockRepublishCandidates(LocalDateTime cutoffAt, int limit) {
-        List<InventoryOutboxEventEntity> entities = inventoryOutboxEventJpaRepository.lockRepublishCandidates(cutoffAt, limit);
+        List<InventoryOutboxEventEntity> entities = inventoryOutboxEventRepository.lockRepublishCandidates(cutoffAt, limit);
         List<OutboxCandidate> candidates = new ArrayList<>();
         for (InventoryOutboxEventEntity entity : entities) {
             if (entity.getStatus() == InventoryOutboxStatus.READY || entity.getStatus() == InventoryOutboxStatus.SEND_FAIL) {
