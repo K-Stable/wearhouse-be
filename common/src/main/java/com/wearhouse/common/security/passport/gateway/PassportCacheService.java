@@ -10,10 +10,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(name = "spring.application.name", havingValue = "api-gateway")
 public class PassportCacheService {
 
     private final StringRedisTemplate redisTemplate;

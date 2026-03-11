@@ -1,54 +1,60 @@
 package com.wearhouse.payment.infra.kafka.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
+import com.wearhouse.payment.infra.jpa.repository.PaymentOutboxRepository;
+import com.wearhouse.payment.support.config.PaymentOutboxProperties;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class PaymentKafkaPublishService {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+    private final PaymentOutboxRepository paymentOutboxRepository;
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
-    private final long sendTimeoutMs;
+    private final PaymentOutboxProperties outboxProperties;
 
-    public PaymentKafkaPublishService(
-            KafkaTemplate<String, String> kafkaTemplate,
-            ObjectMapper objectMapper,
-            PaymentKafkaFlowMetrics paymentKafkaFlowMetrics,
-            @Value("${wearhouse.payment.kafka.send-timeout-ms:3000}") long sendTimeoutMs
+    public void send(
+            String eventId,
+            String eventType,
+            String topic,
+            String partitionKey,
+            String payload,
+            int currentRetryCount,
+            String trigger
     ) {
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
-        this.paymentKafkaFlowMetrics = paymentKafkaFlowMetrics;
-        this.sendTimeoutMs = sendTimeoutMs;
-    }
-
-    public void send(PaymentDomainEvent event) {
-        String payload = serialize(event);
-        String key = event.getPartitionKey() == null || event.getPartitionKey().isBlank()
-                ? event.getEventId()
-                : event.getPartitionKey();
-        paymentKafkaFlowMetrics.incrementPublishAttempt(event.getEventType(), event.getTopic());
+        String key = partitionKey == null || partitionKey.isBlank() ? eventId : partitionKey;
+        paymentKafkaFlowMetrics.incrementPublishAttempt(eventType, topic, trigger);
         try {
-            kafkaTemplate.send(event.getTopic(), key, payload).get(sendTimeoutMs, TimeUnit.MILLISECONDS);
-            paymentKafkaFlowMetrics.incrementPublishSuccess(event.getEventType(), event.getTopic());
+            kafkaTemplate.send(topic, key, payload).get(outboxProperties.sendTimeoutMs(), TimeUnit.MILLISECONDS);
+            paymentOutboxRepository.markSuccess(eventId);
+            paymentKafkaFlowMetrics.incrementPublishSuccess(eventType, topic, trigger);
         } catch (Exception exception) {
-            paymentKafkaFlowMetrics.incrementPublishFailure(event.getEventType(), event.getTopic());
-            throw new IllegalStateException("Payment 이벤트 Kafka 발행에 실패했습니다.", exception);
+            int nextRetryCount = currentRetryCount + 1;
+            if (nextRetryCount > outboxProperties.maxRetries()) {
+                paymentOutboxRepository.markDead(eventId, nextRetryCount, "KAFKA_SEND_ERROR", exception.getMessage());
+                paymentKafkaFlowMetrics.incrementPublishFailure(eventType, topic, trigger, "dead");
+                return;
+            }
+
+            LocalDateTime nextRetryAt = LocalDateTime.now().plusNanos(computeDelayMillis(nextRetryCount) * 1_000_000);
+            paymentOutboxRepository.markFail(
+                    eventId,
+                    nextRetryCount,
+                    nextRetryAt,
+                    "KAFKA_SEND_ERROR",
+                    exception.getMessage()
+            );
+            paymentKafkaFlowMetrics.incrementPublishFailure(eventType, topic, trigger, "retry");
         }
     }
 
-    private String serialize(PaymentDomainEvent event) {
-        try {
-            return objectMapper.writeValueAsString(event.toEnvelope());
-        } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Payment 이벤트 직렬화에 실패했습니다.", exception);
-        }
+    private long computeDelayMillis(int retryCount) {
+        double delay = outboxProperties.initialDelayMs() * Math.pow(outboxProperties.delayMultiplier(), Math.max(0, retryCount - 1));
+        return (long) Math.min(delay, outboxProperties.maxDelayMs());
     }
 }

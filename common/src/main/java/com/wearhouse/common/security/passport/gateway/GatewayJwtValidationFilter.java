@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,6 +20,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "spring.application.name", havingValue = "api-gateway")
 public class GatewayJwtValidationFilter extends OncePerRequestFilter {
 
     public static final String PASSPORT_CONTEXT_ATTRIBUTE = "wearhouse.gateway.passport-context";

@@ -13,10 +13,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
+@ConditionalOnProperty(name = "spring.application.name", havingValue = "api-gateway")
 public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
 
     private final ObjectMapper objectMapper;
@@ -36,7 +38,14 @@ public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
             return true;
         }
         String path = request.getRequestURI();
-        return GatewayRequestPolicy.isFrameworkPath(path) || GatewayRequestPolicy.isAuthOrSignupPublicPath(path);
+        if (GatewayRequestPolicy.isFrameworkPath(path) || GatewayRequestPolicy.isAuthOrSignupPublicPath(path)) {
+            return true;
+        }
+        if (GatewayRequestPolicy.isPublicBuyerPath(path)) {
+            return true;
+        }
+        Object context = request.getAttribute(GatewayJwtValidationFilter.PASSPORT_CONTEXT_ATTRIBUTE);
+        return !(context instanceof PassportContext);
     }
 
     @Override
@@ -49,12 +58,6 @@ public class GatewayPassportAuthenticationFilter extends OncePerRequestFilter {
         wrapped.removeHeader(PassportHeaders.USER);
         wrapped.removeHeader(PassportHeaders.SIGNATURE);
         wrapped.removeHeader(PassportHeaders.TIMESTAMP);
-
-        String path = request.getRequestURI();
-        if (GatewayRequestPolicy.isPublicBuyerPath(path)) {
-            filterChain.doFilter(wrapped, response);
-            return;
-        }
 
         Object contextAttribute = request.getAttribute(GatewayJwtValidationFilter.PASSPORT_CONTEXT_ATTRIBUTE);
         if (!(contextAttribute instanceof PassportContext passportContext)) {

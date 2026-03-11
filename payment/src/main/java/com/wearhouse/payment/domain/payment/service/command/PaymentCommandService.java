@@ -2,9 +2,9 @@ package com.wearhouse.payment.domain.payment.service.command;
 
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
-import com.wearhouse.payment.infra.jdbc.repository.PaymentInboxRepository;
-import com.wearhouse.payment.infra.jdbc.repository.PaymentTransactionRecord;
-import com.wearhouse.payment.infra.jdbc.repository.PaymentTransactionRepository;
+import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
+import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
+import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import com.wearhouse.payment.support.PaymentIdGenerator;
 import java.math.BigDecimal;
@@ -97,18 +97,18 @@ public class PaymentCommandService {
     public int failExpiredPendingPayments() {
         int failedCount = 0;
         LocalDateTime now = LocalDateTime.now();
-        for (PaymentTransactionRecord candidate : paymentTransactionRepository.findTimeoutCandidates(now, timeoutBatchSize)) {
+        for (PaymentTransactionEntity candidate : paymentTransactionRepository.findTimeoutCandidates(now, timeoutBatchSize)) {
             int updated = paymentTransactionRepository.markFailedIfPending(
-                    candidate.orderId(),
+                    candidate.getOrderId(),
                     TIMEOUT_REASON_CODE,
                     now
             );
             if (updated > 0) {
                 failedCount++;
                 publishPaymentFailed(
-                        candidate.orderId(),
-                        candidate.orderNo(),
-                        candidate.paymentId(),
+                        candidate.getOrderId(),
+                        candidate.getOrderNo(),
+                        candidate.getPaymentId(),
                         TIMEOUT_REASON_CODE,
                         "결제 대기 시간이 만료되었습니다.",
                         now
@@ -120,7 +120,7 @@ public class PaymentCommandService {
     }
 
     private void processPrepareCommand(PaymentPrepareCommand command) {
-        Optional<PaymentTransactionRecord> existing = paymentTransactionRepository.findByOrderId(command.orderId());
+        Optional<PaymentTransactionEntity> existing = paymentTransactionRepository.findByOrderId(command.orderId());
         if (existing.isPresent()) {
             return;
         }

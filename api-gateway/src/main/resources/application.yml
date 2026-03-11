@@ -17,6 +17,12 @@ spring:
               uri: lb://auth-service
               predicates:
                 - Path=/api/v1/auth/**
+            - id: auth-service-compat
+              uri: lb://auth-service
+              predicates:
+                - Path=/auth-service/api/v1/auth/**
+              filters:
+                - StripPrefix=1
             - id: auth-service-internal
               uri: lb://auth-service
               predicates:
@@ -25,6 +31,12 @@ spring:
               uri: lb://user-service
               predicates:
                 - Path=/api/v1/users/**
+            - id: user-service-compat
+              uri: lb://user-service
+              predicates:
+                - Path=/user-service/api/v1/users/**
+              filters:
+                - StripPrefix=1
             - id: user-service-internal
               uri: lb://user-service
               predicates:

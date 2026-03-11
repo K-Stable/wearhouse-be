@@ -42,6 +42,14 @@ public class InventoryDomainEvent {
         return eventType;
     }
 
+    public String getAggregateType() {
+        return aggregateType;
+    }
+
+    public String getAggregateId() {
+        return aggregateId;
+    }
+
     public String getTopic() {
         return topic;
     }

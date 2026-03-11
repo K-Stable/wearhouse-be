@@ -5,11 +5,13 @@ import com.wearhouse.common.security.passport.gateway.dto.UserChangedEvent;
 import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(name = "spring.application.name", havingValue = "api-gateway")
 public class PassportCacheInvalidationSubscriber implements MessageListener {
 
     private static final Logger log = LoggerFactory.getLogger(PassportCacheInvalidationSubscriber.class);

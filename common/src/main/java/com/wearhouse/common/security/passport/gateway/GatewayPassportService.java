@@ -4,9 +4,11 @@ import com.wearhouse.common.security.jwt.JwtProvider;
 import com.wearhouse.common.security.jwt.JwtProvider.DecodedAccessToken;
 import com.wearhouse.common.security.passport.gateway.dto.PassportContext;
 import java.util.Optional;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 @Service
+@ConditionalOnProperty(name = "spring.application.name", havingValue = "api-gateway")
 public class GatewayPassportService {
 
     private final PassportCacheService passportCacheService;
