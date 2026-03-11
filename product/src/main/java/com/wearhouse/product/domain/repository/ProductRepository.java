@@ -14,7 +14,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
 
-    @EntityGraph(attributePaths = {"options", "images"})
+    @EntityGraph(attributePaths = {"options"})
     @Query("""
             SELECT DISTINCT p
             FROM ProductEntity p
@@ -34,10 +34,10 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
             Pageable pageable
     );
 
-    @EntityGraph(attributePaths = {"options", "images"})
+    @EntityGraph(attributePaths = {"options"})
     Optional<ProductEntity> findByIdAndSellerId(Long id, Long sellerId);
 
-    @EntityGraph(attributePaths = {"options", "images"})
+    @EntityGraph(attributePaths = {"options"})
     List<ProductEntity> findAllByIdInAndSellerId(Collection<Long> ids, Long sellerId);
 
     boolean existsByProductSeason_IdAndSellerId(Long seasonId, Long sellerId);
@@ -59,7 +59,7 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
             Pageable pageable
     );
 
-    @EntityGraph(attributePaths = {"options", "images"})
+    @EntityGraph(attributePaths = {"options"})
     Optional<ProductEntity> findByIdAndStatus(Long id, ProductStatus status);
 
     @EntityGraph(attributePaths = {"options"})

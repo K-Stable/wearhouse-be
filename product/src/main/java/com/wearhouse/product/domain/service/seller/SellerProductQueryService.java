@@ -32,6 +32,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +45,7 @@ public class SellerProductQueryService {
     private final ProductInventoryClient productInventoryClient;
 
     @ReadTx
+    @Transactional(readOnly = true)
     public CursorPageResponse<SellerProductListResponse> getSellerProducts(
             LoginUser currentUser,
             ProductStatus status,
@@ -67,6 +69,7 @@ public class SellerProductQueryService {
     }
 
     @ReadTx
+    @Transactional(readOnly = true)
     public CursorPageResponse<BuyerProductListResponse> getBuyerProducts(
             String category,
             String keyword,
@@ -85,6 +88,7 @@ public class SellerProductQueryService {
     }
 
     @ReadTx
+    @Transactional(readOnly = true)
     public CursorPageResponse<ProductSeasonListResponse> getSellerSeasons(
             LoginUser currentUser,
             Long cursor,
@@ -106,6 +110,7 @@ public class SellerProductQueryService {
     }
 
     @ReadTx
+    @Transactional(readOnly = true)
     public ProductSeasonListResponse getSellerSeason(LoginUser currentUser, Long seasonId) {
         Long sellerId = requireSeller(currentUser);
         ProductSeasonEntity season = productSeasonRepository.findByIdAndSellerId(seasonId, sellerId)
@@ -114,6 +119,7 @@ public class SellerProductQueryService {
     }
 
     @ReadTx
+    @Transactional(readOnly = true)
     public CursorPageResponse<ProductSeasonListResponse> getBuyerSeasons(Long cursor, Integer limit) {
         int normalizedLimit = CursorPaginationSupport.normalizeLimit(limit);
         List<ProductSeasonEntity> seasons = productSeasonRepository.findBuyerSeasons(
@@ -129,6 +135,7 @@ public class SellerProductQueryService {
     }
 
     @ReadTx
+    @Transactional(readOnly = true)
     public SellerProductResponse getSellerProduct(LoginUser currentUser, Long productId) {
         Long sellerId = requireSeller(currentUser);
         ProductEntity product = productRepository.findByIdAndSellerId(productId, sellerId)
@@ -137,6 +144,7 @@ public class SellerProductQueryService {
     }
 
     @ReadTx
+    @Transactional(readOnly = true)
     public BuyerProductDetailResponse getBuyerProductDetail(Long productId) {
         ProductEntity product = productRepository.findByIdAndStatus(productId, ProductStatus.RELEASED)
                 .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_NOT_FOUND));

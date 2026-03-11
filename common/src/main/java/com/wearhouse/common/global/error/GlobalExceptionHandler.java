@@ -6,6 +6,7 @@ import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice(basePackages = "com.wearhouse")
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ErrorException.class)
@@ -123,6 +125,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception exception) {
+        log.error("Unhandled exception", exception);
         return ResponseEntity.status(CommonErrorCode.INTERNAL_SERVER_ERROR.status())
                 .body(ApiResponse.failure(CommonErrorCode.INTERNAL_SERVER_ERROR));
     }
