@@ -1,7 +1,7 @@
 package com.wearhouse.order.support.monitoring;
 
 import com.wearhouse.order.domain.model.OrderOutboxStatus;
-import com.wearhouse.order.infra.jpa.repository.OrderOutboxEventJpaRepository;
+import com.wearhouse.order.infra.jpa.repository.OrderOutboxEventRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -12,7 +12,7 @@ public class OrderKafkaFlowMetrics {
 
     private final MeterRegistry meterRegistry;
 
-    public OrderKafkaFlowMetrics(MeterRegistry meterRegistry, OrderOutboxEventJpaRepository outboxEventJpaRepository) {
+    public OrderKafkaFlowMetrics(MeterRegistry meterRegistry, OrderOutboxEventRepository outboxEventJpaRepository) {
         this.meterRegistry = meterRegistry;
         registerOutboxGauge(outboxEventJpaRepository, OrderOutboxStatus.READY, "ready");
         registerOutboxGauge(outboxEventJpaRepository, OrderOutboxStatus.SEND_FAIL, "send_fail");
@@ -62,7 +62,7 @@ public class OrderKafkaFlowMetrics {
     }
 
     private void registerOutboxGauge(
-            OrderOutboxEventJpaRepository outboxEventJpaRepository,
+            OrderOutboxEventRepository outboxEventJpaRepository,
             OrderOutboxStatus status,
             String statusLabel
     ) {
@@ -76,7 +76,7 @@ public class OrderKafkaFlowMetrics {
                 .register(meterRegistry);
     }
 
-    private double countByStatusSafely(OrderOutboxEventJpaRepository repository, OrderOutboxStatus status) {
+    private double countByStatusSafely(OrderOutboxEventRepository repository, OrderOutboxStatus status) {
         try {
             return repository.countByStatus(status);
         } catch (Exception ignored) {

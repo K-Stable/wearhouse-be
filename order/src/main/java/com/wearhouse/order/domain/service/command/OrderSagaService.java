@@ -13,13 +13,17 @@ import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.support.OrderIdGenerator;
+import com.wearhouse.common.support.lock.DistributedLock;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.wearhouse.common.global.transactional.WriteTx;
 
+@RequiredArgsConstructor
 @Service
 public class OrderSagaService {
 
@@ -31,31 +35,16 @@ public class OrderSagaService {
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderInboxRepository orderInboxRepository;
     private final OrderDomainEventPublisher orderDomainEventPublisher;
-    private final String paymentPrepareTopic;
-    private final String inventoryCommandTopic;
-    private final String orderEventTopic;
+    private final @Value("${wearhouse.kafka.payment-prepare-topic:wearhouse.payment.command.v1}")String paymentPrepareTopic;
+    private final @Value("${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}")String inventoryCommandTopic;
+    private final @Value("${wearhouse.kafka.order-event-topic:wearhouse.order.event.v1}") String orderEventTopic;
 
-    public OrderSagaService(
-            OrderRepository orderRepository,
-            OrderSagaRepository orderSagaRepository,
-            OrderStatusHistoryRepository orderStatusHistoryRepository,
-            OrderInboxRepository orderInboxRepository,
-            OrderDomainEventPublisher orderDomainEventPublisher,
-            @Value("${wearhouse.kafka.payment-prepare-topic:wearhouse.payment.command.v1}") String paymentPrepareTopic,
-            @Value("${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}") String inventoryCommandTopic,
-            @Value("${wearhouse.kafka.order-event-topic:wearhouse.order.event.v1}") String orderEventTopic
-    ) {
-        this.orderRepository = orderRepository;
-        this.orderSagaRepository = orderSagaRepository;
-        this.orderStatusHistoryRepository = orderStatusHistoryRepository;
-        this.orderInboxRepository = orderInboxRepository;
-        this.orderDomainEventPublisher = orderDomainEventPublisher;
-        this.paymentPrepareTopic = paymentPrepareTopic;
-        this.inventoryCommandTopic = inventoryCommandTopic;
-        this.orderEventTopic = orderEventTopic;
-    }
 
     @WriteTx
+    @DistributedLock(
+            key = "#p5['orderId']",
+            prefix = "order:lock:saga:"
+    )
     public void onInventoryEvent(
             String eventId,
             String eventType,
@@ -88,6 +77,10 @@ public class OrderSagaService {
     }
 
     @WriteTx
+    @DistributedLock(
+            key = "#p5['orderId']",
+            prefix = "order:lock:saga:"
+    )
     public void onPaymentEvent(
             String eventId,
             String eventType,

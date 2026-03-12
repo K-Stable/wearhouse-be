@@ -7,10 +7,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class OrderInboxRepository {
 
-    private final OrderInboxEventJpaRepository orderInboxEventJpaRepository;
+    private final OrderInboxEventRepository orderInboxEventRepository;
 
-    public OrderInboxRepository(OrderInboxEventJpaRepository orderInboxEventJpaRepository) {
-        this.orderInboxEventJpaRepository = orderInboxEventJpaRepository;
+    public OrderInboxRepository(OrderInboxEventRepository orderInboxEventRepository) {
+        this.orderInboxEventRepository = orderInboxEventRepository;
     }
 
     public boolean tryReceive(
@@ -30,7 +30,7 @@ public class OrderInboxRepository {
                 payload
         );
         try {
-            orderInboxEventJpaRepository.saveAndFlush(entity);
+            orderInboxEventRepository.saveAndFlush(entity);
             return true;
         } catch (DataIntegrityViolationException exception) {
             return false;
@@ -38,12 +38,12 @@ public class OrderInboxRepository {
     }
 
     public void markProcessed(String eventId, String consumerName) {
-        orderInboxEventJpaRepository.findByEventIdAndConsumerName(eventId, consumerName)
+        orderInboxEventRepository.findByEventIdAndConsumerName(eventId, consumerName)
                 .ifPresent(OrderInboxEventEntity::markProcessed);
     }
 
     public void markFailed(String eventId, String consumerName, String reasonCode, String reasonMessage) {
-        orderInboxEventJpaRepository.findByEventIdAndConsumerName(eventId, consumerName)
+        orderInboxEventRepository.findByEventIdAndConsumerName(eventId, consumerName)
                 .ifPresent(entity -> entity.markFailed(reasonCode, reasonMessage));
     }
 }

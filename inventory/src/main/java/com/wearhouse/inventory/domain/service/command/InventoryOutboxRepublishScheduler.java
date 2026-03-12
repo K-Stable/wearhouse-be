@@ -1,10 +1,10 @@
 package com.wearhouse.inventory.domain.service.command;
 
 import com.wearhouse.common.global.transactional.WriteTx;
+import com.wearhouse.common.support.config.OutboxProperties;
 import com.wearhouse.inventory.domain.repository.InventoryOutboxRepository;
 import com.wearhouse.inventory.domain.repository.InventoryOutboxRepository.OutboxCandidate;
-import com.wearhouse.inventory.infra.kafka.service.InventoryKafkaPublishService;
-import com.wearhouse.inventory.support.config.InventoryOutboxProperties;
+import com.wearhouse.inventory.infra.kafka.producer.InventoryKafkaProducer;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -16,8 +16,8 @@ import org.springframework.stereotype.Component;
 public class InventoryOutboxRepublishScheduler {
 
     private final InventoryOutboxRepository inventoryOutboxRepository;
-    private final InventoryKafkaPublishService inventoryKafkaPublishService;
-    private final InventoryOutboxProperties outboxProperties;
+    private final InventoryKafkaProducer inventoryKafkaProducer;
+    private final OutboxProperties outboxProperties;
 
     @WriteTx
     @Scheduled(fixedDelayString = "${wearhouse.outbox.republish-interval-ms:60000}")
@@ -28,7 +28,7 @@ public class InventoryOutboxRepublishScheduler {
                 outboxProperties.republishBatchSize()
         );
         for (OutboxCandidate candidate : candidates) {
-            inventoryKafkaPublishService.send(
+            inventoryKafkaProducer.send(
                     candidate.getEventId(),
                     candidate.getEventType(),
                     candidate.getTopic(),

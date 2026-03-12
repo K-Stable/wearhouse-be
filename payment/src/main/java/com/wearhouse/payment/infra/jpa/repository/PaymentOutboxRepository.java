@@ -69,7 +69,7 @@ public class PaymentOutboxRepository {
         List<PaymentOutboxEventEntity> entities = paymentOutboxEventJpaRepository.lockRepublishCandidates(cutoffAt, limit);
         List<OutboxCandidate> candidates = new ArrayList<>();
         for (PaymentOutboxEventEntity entity : entities) {
-            if (entity.getStatus() == PaymentOutboxStatus.READY || entity.getStatus() == PaymentOutboxStatus.SEND_FAIL) {
+            if (entity.getStatus() != PaymentOutboxStatus.SEND_SUCCESS) {
                 candidates.add(new OutboxCandidate(
                         entity.getEventId(),
                         entity.getEventType(),

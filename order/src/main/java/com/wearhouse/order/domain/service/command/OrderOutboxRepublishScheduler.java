@@ -1,42 +1,34 @@
 package com.wearhouse.order.domain.service.command;
 
-import com.wearhouse.order.infra.kafka.service.OrderOutboxKafkaPublishService;
+import com.wearhouse.common.support.config.OutboxProperties;
+import com.wearhouse.order.infra.kafka.producer.OrderKafkaProducer;
 import com.wearhouse.order.infra.jpa.repository.OrderOutboxRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderOutboxRepository.OutboxCandidate;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import com.wearhouse.common.global.transactional.WriteTx;
 
 @Component
+@RequiredArgsConstructor
 public class OrderOutboxRepublishScheduler {
 
     private final OrderOutboxRepository orderOutboxRepository;
-    private final OrderOutboxKafkaPublishService orderOutboxKafkaPublishService;
-    private final int staleMinutes;
-    private final int batchSize;
-
-    public OrderOutboxRepublishScheduler(
-            OrderOutboxRepository orderOutboxRepository,
-            OrderOutboxKafkaPublishService orderOutboxKafkaPublishService,
-            @Value("${wearhouse.outbox.stale-minutes:10}") int staleMinutes,
-            @Value("${wearhouse.outbox.republish-batch-size:100}") int batchSize
-    ) {
-        this.orderOutboxRepository = orderOutboxRepository;
-        this.orderOutboxKafkaPublishService = orderOutboxKafkaPublishService;
-        this.staleMinutes = staleMinutes;
-        this.batchSize = batchSize;
-    }
+    private final OrderKafkaProducer orderKafkaProducer;
+    private final OutboxProperties outboxProperties;
 
     @WriteTx
     @Scheduled(fixedDelayString = "${wearhouse.outbox.republish-interval-ms:60000}")
     public void republish() {
-        LocalDateTime cutoffAt = LocalDateTime.now().minusMinutes(staleMinutes);
-        List<OutboxCandidate> candidates = orderOutboxRepository.lockRepublishCandidates(cutoffAt, batchSize);
+        LocalDateTime cutoffAt = LocalDateTime.now().minusMinutes(outboxProperties.staleMinutes());
+        List<OutboxCandidate> candidates = orderOutboxRepository.lockRepublishCandidates(
+                cutoffAt,
+                outboxProperties.republishBatchSize()
+        );
         for (OutboxCandidate candidate : candidates) {
-            orderOutboxKafkaPublishService.send(
+            orderKafkaProducer.send(
                     candidate.getEventId(),
                     candidate.getEventType(),
                     candidate.getTopic(),

@@ -26,11 +26,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.wearhouse.common.global.transactional.WriteTx;
 
 @Service
+@RequiredArgsConstructor
 public class OrderCommandService {
 
     private static final Set<OrderStatus> CANCELLABLE_STATUSES = Set.of(
@@ -57,27 +60,10 @@ public class OrderCommandService {
     private final OrderSagaRepository orderSagaRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderDomainEventPublisher orderDomainEventPublisher;
-    private final String inventoryReserveTopic;
-    private final String inventoryCommandTopic;
-    private final int paymentResultTimeoutMinutes;
+    private final @Value("${wearhouse.kafka.inventory-reserve-topic:wearhouse.inventory.command.v1}") String inventoryReserveTopic;
+    private final @Value("${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}") String inventoryCommandTopic;
+    private final @Value("${wearhouse.order.payment-result-timeout-minutes:30}")int paymentResultTimeoutMinutes;
 
-    public OrderCommandService(
-            OrderRepository orderRepository,
-            OrderSagaRepository orderSagaRepository,
-            OrderStatusHistoryRepository orderStatusHistoryRepository,
-            OrderDomainEventPublisher orderDomainEventPublisher,
-            @Value("${wearhouse.kafka.inventory-reserve-topic:wearhouse.inventory.command.v1}") String inventoryReserveTopic,
-            @Value("${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}") String inventoryCommandTopic,
-            @Value("${wearhouse.order.payment-result-timeout-minutes:30}") int paymentResultTimeoutMinutes
-    ) {
-        this.orderRepository = orderRepository;
-        this.orderSagaRepository = orderSagaRepository;
-        this.orderStatusHistoryRepository = orderStatusHistoryRepository;
-        this.orderDomainEventPublisher = orderDomainEventPublisher;
-        this.inventoryReserveTopic = inventoryReserveTopic;
-        this.inventoryCommandTopic = inventoryCommandTopic;
-        this.paymentResultTimeoutMinutes = paymentResultTimeoutMinutes;
-    }
 
     @WriteTx
     public OrderCreateResponse createOrder(OrderCreateRequest request) {

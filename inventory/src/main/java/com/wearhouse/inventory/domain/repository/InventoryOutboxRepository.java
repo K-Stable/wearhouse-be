@@ -69,7 +69,7 @@ public class InventoryOutboxRepository {
         List<InventoryOutboxEventEntity> entities = inventoryOutboxEventRepository.lockRepublishCandidates(cutoffAt, limit);
         List<OutboxCandidate> candidates = new ArrayList<>();
         for (InventoryOutboxEventEntity entity : entities) {
-            if (entity.getStatus() == InventoryOutboxStatus.READY || entity.getStatus() == InventoryOutboxStatus.SEND_FAIL) {
+            if (entity.getStatus() != InventoryOutboxStatus.SEND_SUCCESS) {
                 candidates.add(new OutboxCandidate(
                         entity.getEventId(),
                         entity.getEventType(),
