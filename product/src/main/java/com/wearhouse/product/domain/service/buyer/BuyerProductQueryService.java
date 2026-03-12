@@ -156,7 +156,7 @@ public class BuyerProductQueryService {
             try {
                 availableQty = productInventoryClient.getAvailableQty(option.getId());
             } catch (RuntimeException exception) {
-                throw new ErrorException(ProductErrorCode.INVENTORY_STOCK_SYNC_FAILED);
+                availableQty = option.getStockQuantity();
             }
             stockByOptionId.put(option.getId(), availableQty);
         }

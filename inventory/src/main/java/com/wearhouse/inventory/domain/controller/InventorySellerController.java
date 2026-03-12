@@ -32,7 +32,7 @@ public class InventorySellerController {
     public ApiResponse<List<SellerInventoryItemResponse>> getSellerInventories(
             @LoginSeller LoginUser currentUser,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "50") int limit
     ) {
         List<SellerInventoryItemResponse> response =

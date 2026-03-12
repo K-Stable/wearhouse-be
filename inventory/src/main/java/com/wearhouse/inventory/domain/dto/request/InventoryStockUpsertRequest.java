@@ -16,6 +16,7 @@ public record InventoryStockUpsertRequest(
         @NotBlank String productName,
         @NotNull @PositiveOrZero BigDecimal productPrice,
         @NotBlank String category,
+        @NotBlank String productStatus,
         @NotBlank String size,
         @NotBlank String color,
         @NotBlank @URL String mainImageUrl,

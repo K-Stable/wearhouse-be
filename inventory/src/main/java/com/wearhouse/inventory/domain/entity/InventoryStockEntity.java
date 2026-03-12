@@ -45,6 +45,9 @@ public class InventoryStockEntity extends BaseEntity {
     @Column(name = "product_category", length = 60)
     private String productCategory;
 
+    @Column(name = "product_status", nullable = false, length = 20)
+    private String productStatus;
+
     @Column(name = "option_size", length = 60)
     private String optionSize;
 
@@ -76,6 +79,7 @@ public class InventoryStockEntity extends BaseEntity {
             String productName,
             BigDecimal productPrice,
             String productCategory,
+            String productStatus,
             String optionSize,
             String optionColor,
             String mainImageUrl
@@ -89,6 +93,7 @@ public class InventoryStockEntity extends BaseEntity {
         this.productName = productName;
         this.productPrice = productPrice;
         this.productCategory = productCategory;
+        this.productStatus = productStatus;
         this.optionSize = optionSize;
         this.optionColor = optionColor;
         this.mainImageUrl = mainImageUrl;
@@ -102,6 +107,7 @@ public class InventoryStockEntity extends BaseEntity {
             String productName,
             BigDecimal productPrice,
             String productCategory,
+            String productStatus,
             String optionSize,
             String optionColor,
             String mainImageUrl
@@ -114,6 +120,7 @@ public class InventoryStockEntity extends BaseEntity {
                 productName,
                 productPrice,
                 productCategory,
+                productStatus,
                 optionSize,
                 optionColor,
                 mainImageUrl
@@ -162,12 +169,17 @@ public class InventoryStockEntity extends BaseEntity {
         this.status = status;
     }
 
+    public void setProductStatus(String productStatus) {
+        this.productStatus = productStatus;
+    }
+
     public void updateSnapshot(
             Long sellerId,
             Long productId,
             String productName,
             BigDecimal productPrice,
             String productCategory,
+            String productStatus,
             String optionSize,
             String optionColor,
             String mainImageUrl
@@ -177,6 +189,7 @@ public class InventoryStockEntity extends BaseEntity {
         this.productName = productName;
         this.productPrice = productPrice;
         this.productCategory = productCategory;
+        this.productStatus = productStatus;
         this.optionSize = optionSize;
         this.optionColor = optionColor;
         this.mainImageUrl = mainImageUrl;

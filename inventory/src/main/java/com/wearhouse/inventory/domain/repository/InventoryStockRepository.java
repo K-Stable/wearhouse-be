@@ -28,18 +28,18 @@ public interface InventoryStockRepository extends JpaRepository<InventoryStockEn
                 stock.optionSize,
                 stock.optionColor,
                 stock.availableQty,
-                stock.status
+                stock.productStatus
             )
             FROM InventoryStockEntity stock
             WHERE stock.sellerId = :sellerId
               AND (:keyword IS NULL OR LOWER(stock.productName) LIKE LOWER(CONCAT('%', :keyword, '%')))
-              AND (:status IS NULL OR stock.status = :status)
+              AND (:status IS NULL OR stock.productStatus = :status)
             ORDER BY stock.updatedAt DESC, stock.id DESC
             """)
     List<SellerInventoryItemResponse> findSellerInventoryItems(
             @Param("sellerId") Long sellerId,
             @Param("keyword") String keyword,
-            @Param("status") Integer status,
+            @Param("status") String status,
             Pageable pageable
     );
 

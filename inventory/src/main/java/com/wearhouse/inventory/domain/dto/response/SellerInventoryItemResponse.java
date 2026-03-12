@@ -11,6 +11,6 @@ public record SellerInventoryItemResponse(
         String size,
         String color,
         Integer stockQuantity,
-        Integer status
+        String status
 ) {
 }

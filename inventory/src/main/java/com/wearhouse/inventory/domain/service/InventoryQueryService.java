@@ -12,6 +12,7 @@ import com.wearhouse.inventory.domain.dto.response.InventoryStockResponse;
 import com.wearhouse.inventory.domain.dto.response.SellerInventoryItemResponse;
 import com.wearhouse.inventory.domain.entity.InventoryStockEntity;
 import com.wearhouse.inventory.domain.exception.InventoryErrorCode;
+import com.wearhouse.inventory.domain.model.InventoryProductStatus;
 import com.wearhouse.inventory.domain.repository.InventoryStockRepository;
 import com.wearhouse.inventory.infra.redis.InventoryRedisStockCacheService;
 import com.wearhouse.inventory.infra.redis.InventoryRedisStockCacheService.AtomicAvailabilityCheckResult;
@@ -67,12 +68,12 @@ public class InventoryQueryService {
     public List<SellerInventoryItemResponse> findSellerInventoryItems(
             LoginUser currentUser,
             String keyword,
-            Integer status,
+            String status,
             int limit
     ) {
         Long sellerId = requireSeller(currentUser);
         String normalizedKeyword = normalizeKeyword(keyword);
-        Integer normalizedStatus = normalizeStatus(status);
+        String normalizedStatus = normalizeStatus(status);
         int normalizedLimit = normalizeLimit(limit);
 
         return inventoryStockRepository.findSellerInventoryItems(
@@ -121,14 +122,18 @@ public class InventoryQueryService {
         return Math.min(limit, MAX_SELLER_LIMIT);
     }
 
-    private Integer normalizeStatus(Integer status) {
-        if (status == null) {
+    private String normalizeStatus(String status) {
+        if (status == null || status.isBlank()) {
             return null;
         }
-        if (status != InventoryStockEntity.STATUS_SOLD_OUT && status != InventoryStockEntity.STATUS_ON_SALE) {
+        if (InventoryProductStatus.isAll(status)) {
+            return null;
+        }
+        String normalized = InventoryProductStatus.normalizeForFilter(status);
+        if (normalized == null) {
             throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
         }
-        return status;
+        return normalized;
     }
 
 }

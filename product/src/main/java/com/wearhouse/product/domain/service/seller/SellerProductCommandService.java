@@ -8,6 +8,7 @@ import com.wearhouse.product.domain.dto.request.ProductOptionCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductSeasonCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductSeasonUpdateRequest;
 import com.wearhouse.product.domain.entity.ProductEntity;
+import com.wearhouse.product.domain.entity.ProductImageEntity;
 import com.wearhouse.product.domain.entity.ProductOptionEntity;
 import com.wearhouse.product.domain.entity.ProductSeasonEntity;
 import com.wearhouse.product.domain.exception.ProductErrorCode;
@@ -79,6 +80,7 @@ public class SellerProductCommandService {
         ProductEntity product = productRepository.findByIdAndSellerId(productId, sellerId)
                 .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_NOT_FOUND));
         product.updateStatus(status);
+        upsertInventoryStocks(product, resolveMainImageUrl(product));
     }
 
     @WriteTx
@@ -101,6 +103,7 @@ public class SellerProductCommandService {
 
         for (ProductEntity product : products) {
             product.updateStatus(status);
+            upsertInventoryStocks(product, resolveMainImageUrl(product));
         }
     }
 
@@ -127,6 +130,7 @@ public class SellerProductCommandService {
         List<ProductEntity> products = productRepository.findAllById(targetIds);
         for (ProductEntity product : products) {
             product.updateStatus(ProductStatus.SOLD_OUT);
+            upsertInventoryStocks(product, resolveMainImageUrl(product));
         }
     }
 
@@ -232,6 +236,7 @@ public class SellerProductCommandService {
                         optionId,
                         stockQuantity,
                         resolveInventoryStatus(product.getStatus(), stockQuantity),
+                        product.getStatus().name(),
                         product.getSellerId(),
                         product.getId(),
                         product.getName(),
@@ -247,5 +252,14 @@ public class SellerProductCommandService {
                 throw new ErrorException(ProductErrorCode.INVENTORY_STOCK_SYNC_FAILED);
             }
         }
+    }
+
+    private String resolveMainImageUrl(ProductEntity product) {
+        return product.getImages().stream()
+                .filter(image -> image.getImageType() == ProductImageType.MAIN)
+                .sorted(Comparator.comparing(ProductImageEntity::getSortOrder).thenComparing(ProductImageEntity::getId))
+                .map(ProductImageEntity::getImageUrl)
+                .findFirst()
+                .orElseThrow(() -> new ErrorException(ProductErrorCode.INVENTORY_STOCK_SYNC_FAILED));
     }
 }
