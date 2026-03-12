@@ -1,7 +1,19 @@
 server:
   port: ${ORDER_SERVER_PORT:8104}
+  shutdown: graceful
 
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: ${SPRING_SHUTDOWN_TIMEOUT:30s}
+  task:
+    execution:
+      shutdown:
+        await-termination: true
+        await-termination-period: ${SPRING_TASK_AWAIT_TERMINATION:10s}
+    scheduling:
+      shutdown:
+        await-termination: true
+        await-termination-period: ${SPRING_SCHEDULING_AWAIT_TERMINATION:10s}
   config:
     import: optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
   application:
@@ -41,6 +53,7 @@ spring:
 
 wearhouse:
   kafka:
+    common-config-enabled: true
     test-topic: ${KAFKA_TEST_TOPIC:wearhouse.test.topic}
     inventory-reserve-topic: ${INVENTORY_RESERVE_TOPIC:wearhouse.inventory.command.v1}
     inventory-command-topic: ${INVENTORY_COMMAND_TOPIC:wearhouse.inventory.command.v1}
@@ -51,18 +64,10 @@ wearhouse:
   order:
     passport:
       shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
-    payment-result-timeout-minutes: ${ORDER_PAYMENT_RESULT_TIMEOUT_MINUTES:30}
   outbox:
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:3000}
     stale-minutes: ${OUTBOX_STALE_MINUTES:10}
-    republish-interval-ms: ${OUTBOX_REPUBLISH_INTERVAL_MS:60000}
     republish-batch-size: ${OUTBOX_REPUBLISH_BATCH_SIZE:100}
-    retry:
-      max-retries: ${OUTBOX_MAX_RETRIES:3}
-      exponential:
-        initial-delay-ms: ${OUTBOX_RETRY_INITIAL_DELAY_MS:2000}
-        max-delay-ms: ${OUTBOX_RETRY_MAX_DELAY_MS:60000}
-        multiplier: ${OUTBOX_RETRY_MULTIPLIER:2.0}
 
 eureka:
   client:

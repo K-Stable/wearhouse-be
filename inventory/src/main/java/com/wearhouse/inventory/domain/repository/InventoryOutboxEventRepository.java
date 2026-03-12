@@ -18,9 +18,8 @@ public interface InventoryOutboxEventRepository extends JpaRepository<InventoryO
     @Query(value = """
             SELECT *
             FROM inventory_outbox_event
-            WHERE status IN ('READY', 'SEND_FAIL')
+            WHERE status = 'FAIL'
               AND created_at <= :cutoffAt
-              AND (next_retry_at IS NULL OR next_retry_at <= NOW())
             ORDER BY id
             LIMIT :limit
             FOR UPDATE SKIP LOCKED
@@ -30,4 +29,3 @@ public interface InventoryOutboxEventRepository extends JpaRepository<InventoryO
             @Param("limit") int limit
     );
 }
-

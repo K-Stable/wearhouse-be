@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface OrderOutboxEventJpaRepository extends JpaRepository<OrderOutboxEventEntity, Long> {
+public interface OrderOutboxEventRepository extends JpaRepository<OrderOutboxEventEntity, Long> {
 
     Optional<OrderOutboxEventEntity> findByEventId(String eventId);
     long countByStatus(OrderOutboxStatus status);
@@ -17,9 +17,8 @@ public interface OrderOutboxEventJpaRepository extends JpaRepository<OrderOutbox
     @Query(value = """
             SELECT *
             FROM order_outbox_event
-            WHERE status IN ('READY', 'SEND_FAIL')
+            WHERE status = 'FAIL'
               AND created_at <= :cutoffAt
-              AND (next_retry_at IS NULL OR next_retry_at <= NOW())
             ORDER BY id
             LIMIT :limit
             FOR UPDATE SKIP LOCKED

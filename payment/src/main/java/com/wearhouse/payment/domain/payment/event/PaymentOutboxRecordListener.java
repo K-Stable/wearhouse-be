@@ -18,7 +18,7 @@ public class PaymentOutboxRecordListener {
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
 
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
-    public void record(PaymentDomainEvent event) {
+    public void recordMessageHandler(PaymentDomainEvent event) {
         try {
             String payload = objectMapper.writeValueAsString(event.toEnvelope());
             paymentOutboxRepository.saveReady(
@@ -36,4 +36,3 @@ public class PaymentOutboxRecordListener {
         }
     }
 }
-

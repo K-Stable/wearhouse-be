@@ -195,6 +195,12 @@ public class OrderEntity extends BaseEntity {
         }
     }
 
+    public void markItemsPendingReserve() {
+        for (OrderItemEntity item : items) {
+            item.updateStatus(OrderItemStatus.PENDING_RESERVE);
+        }
+    }
+
     public Long getId() {
         return id;
     }

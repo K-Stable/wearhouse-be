@@ -13,7 +13,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -43,15 +42,6 @@ public class OrderSagaEntity extends BaseEntity {
     @Column(name = "last_event_id", length = 26)
     private String lastEventId;
 
-    @Column(name = "last_event_type", length = 100)
-    private String lastEventType;
-
-    @Column(name = "timeout_at")
-    private LocalDateTime timeoutAt;
-
-    @Column(name = "retry_count", nullable = false)
-    private Integer retryCount;
-
     @Column(name = "fail_reason_code", length = 50)
     private String failReasonCode;
 
@@ -60,34 +50,26 @@ public class OrderSagaEntity extends BaseEntity {
             OrderEntity order,
             String sagaId,
             OrderSagaState state,
-            String lastEventId,
-            String lastEventType,
-            LocalDateTime timeoutAt
+            String lastEventId
     ) {
         this.order = order;
         this.sagaId = sagaId;
         this.state = state;
         this.lastEventId = lastEventId;
-        this.lastEventType = lastEventType;
-        this.timeoutAt = timeoutAt;
-        this.retryCount = 0;
     }
 
     public static OrderSagaEntity create(
             OrderEntity order,
             String sagaId,
             OrderSagaState state,
-            String lastEventId,
-            String lastEventType,
-            LocalDateTime timeoutAt
+            String lastEventId
     ) {
-        return new OrderSagaEntity(order, sagaId, state, lastEventId, lastEventType, timeoutAt);
+        return new OrderSagaEntity(order, sagaId, state, lastEventId);
     }
 
-    public void transition(OrderSagaState nextState, String lastEventId, String lastEventType, String failReasonCode) {
+    public void transition(OrderSagaState nextState, String lastEventId, String failReasonCode) {
         this.state = nextState;
         this.lastEventId = lastEventId;
-        this.lastEventType = lastEventType;
         this.failReasonCode = failReasonCode;
     }
 
@@ -109,18 +91,6 @@ public class OrderSagaEntity extends BaseEntity {
 
     public String getLastEventId() {
         return lastEventId;
-    }
-
-    public String getLastEventType() {
-        return lastEventType;
-    }
-
-    public LocalDateTime getTimeoutAt() {
-        return timeoutAt;
-    }
-
-    public Integer getRetryCount() {
-        return retryCount;
     }
 
     public String getFailReasonCode() {

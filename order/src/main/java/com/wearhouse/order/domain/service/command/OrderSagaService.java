@@ -13,13 +13,17 @@ import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.support.OrderIdGenerator;
+import com.wearhouse.common.support.lock.DistributedLock;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.wearhouse.common.global.transactional.WriteTx;
 
+@RequiredArgsConstructor
 @Service
 public class OrderSagaService {
 
@@ -31,31 +35,16 @@ public class OrderSagaService {
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderInboxRepository orderInboxRepository;
     private final OrderDomainEventPublisher orderDomainEventPublisher;
-    private final String paymentPrepareTopic;
-    private final String inventoryCommandTopic;
-    private final String orderEventTopic;
+    private final @Value("${wearhouse.kafka.payment-prepare-topic:wearhouse.payment.command.v1}")String paymentPrepareTopic;
+    private final @Value("${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}")String inventoryCommandTopic;
+    private final @Value("${wearhouse.kafka.order-event-topic:wearhouse.order.event.v1}") String orderEventTopic;
 
-    public OrderSagaService(
-            OrderRepository orderRepository,
-            OrderSagaRepository orderSagaRepository,
-            OrderStatusHistoryRepository orderStatusHistoryRepository,
-            OrderInboxRepository orderInboxRepository,
-            OrderDomainEventPublisher orderDomainEventPublisher,
-            @Value("${wearhouse.kafka.payment-prepare-topic:wearhouse.payment.command.v1}") String paymentPrepareTopic,
-            @Value("${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}") String inventoryCommandTopic,
-            @Value("${wearhouse.kafka.order-event-topic:wearhouse.order.event.v1}") String orderEventTopic
-    ) {
-        this.orderRepository = orderRepository;
-        this.orderSagaRepository = orderSagaRepository;
-        this.orderStatusHistoryRepository = orderStatusHistoryRepository;
-        this.orderInboxRepository = orderInboxRepository;
-        this.orderDomainEventPublisher = orderDomainEventPublisher;
-        this.paymentPrepareTopic = paymentPrepareTopic;
-        this.inventoryCommandTopic = inventoryCommandTopic;
-        this.orderEventTopic = orderEventTopic;
-    }
 
     @WriteTx
+    @DistributedLock(
+            key = "#p5['orderId']",
+            prefix = "order:lock:saga:"
+    )
     public void onInventoryEvent(
             String eventId,
             String eventType,
@@ -88,6 +77,10 @@ public class OrderSagaService {
     }
 
     @WriteTx
+    @DistributedLock(
+            key = "#p5['orderId']",
+            prefix = "order:lock:saga:"
+    )
     public void onPaymentEvent(
             String eventId,
             String eventType,
@@ -132,7 +125,7 @@ public class OrderSagaService {
         order.updateStatus(OrderStatus.RESERVED, null, null, null);
         order.markItemsReserved();
         saveStatusHistory(order, currentStatus, OrderStatus.RESERVED, eventId, "STOCK_RESERVED");
-        transitionSaga(order.getId(), OrderSagaState.WAITING_PAYMENT_PREPARE, eventId, "StockReserved", null);
+        transitionSaga(order.getId(), OrderSagaState.WAITING_PAYMENT_PREPARE, eventId, null);
         publishPaymentPrepareRequested(order);
     }
 
@@ -149,7 +142,7 @@ public class OrderSagaService {
         String reasonCode = asString(payload.get("reasonCode"), "STOCK_RESERVE_FAILED");
         order.updateStatus(OrderStatus.RESERVE_FAILED, reasonCode, null, null);
         saveStatusHistory(order, currentStatus, OrderStatus.RESERVE_FAILED, eventId, reasonCode);
-        transitionSaga(order.getId(), OrderSagaState.RESERVE_FAILED, eventId, "StockReserveFailed", reasonCode);
+        transitionSaga(order.getId(), OrderSagaState.RESERVE_FAILED, eventId, reasonCode);
     }
 
     private void handleInventoryReleased(OrderEntity order, OrderStatus currentStatus, String eventId) {
@@ -157,11 +150,8 @@ public class OrderSagaService {
             return;
         }
 
-        order.updateStatus(OrderStatus.CANCELLED, "PAYMENT_FAILED", null, LocalDateTime.now());
-        order.markItemsCancelled();
-        saveStatusHistory(order, currentStatus, OrderStatus.CANCELLED, eventId, "INVENTORY_RELEASED");
-        transitionSaga(order.getId(), OrderSagaState.CANCELLED, eventId, "InventoryReleased", null);
-        publishOrderCancelled(order);
+        order.markItemsPendingReserve();
+        transitionSaga(order.getId(), OrderSagaState.FAILED, eventId, order.getFailReasonCode());
     }
 
     private void handlePaymentAuthorized(OrderEntity order, OrderStatus currentStatus, String eventId) {
@@ -175,7 +165,7 @@ public class OrderSagaService {
         order.updateStatus(OrderStatus.CONFIRMED, null, LocalDateTime.now(), null);
         order.markItemsConfirmed();
         saveStatusHistory(order, OrderStatus.PAID, OrderStatus.CONFIRMED, eventId, "ORDER_CONFIRMED");
-        transitionSaga(order.getId(), OrderSagaState.CONFIRMED, eventId, "PaymentAuthorized", null);
+        transitionSaga(order.getId(), OrderSagaState.CONFIRMED, eventId, null);
         publishOrderConfirmed(order);
     }
 
@@ -192,7 +182,7 @@ public class OrderSagaService {
         String reasonCode = asString(payload.get("reasonCode"), "PAYMENT_FAILED");
         order.updateStatus(OrderStatus.PAYMENT_FAILED, reasonCode, null, null);
         saveStatusHistory(order, currentStatus, OrderStatus.PAYMENT_FAILED, eventId, reasonCode);
-        transitionSaga(order.getId(), OrderSagaState.COMPENSATING, eventId, "PaymentFailed", reasonCode);
+        transitionSaga(order.getId(), OrderSagaState.COMPENSATING, eventId, reasonCode);
         publishInventoryReleaseRequested(order, reasonCode);
     }
 
@@ -216,11 +206,10 @@ public class OrderSagaService {
             Long orderId,
             OrderSagaState nextState,
             String eventId,
-            String eventType,
             String failReasonCode
     ) {
         orderSagaRepository.findByOrder_Id(orderId)
-                .ifPresent(saga -> saga.transition(nextState, eventId, eventType, failReasonCode));
+                .ifPresent(saga -> saga.transition(nextState, eventId, failReasonCode));
     }
 
     private void publishPaymentPrepareRequested(OrderEntity order) {
@@ -245,7 +234,7 @@ public class OrderSagaService {
 
         order.updateStatus(OrderStatus.PAYMENT_PENDING, null, null, null);
         saveStatusHistory(order, OrderStatus.RESERVED, OrderStatus.PAYMENT_PENDING, eventId, "PAYMENT_PREPARE_REQUESTED");
-        transitionSaga(order.getId(), OrderSagaState.WAITING_PAYMENT_RESULT, eventId, "PaymentPrepareRequested", null);
+        transitionSaga(order.getId(), OrderSagaState.WAITING_PAYMENT_RESULT, eventId, null);
     }
 
     private void publishInventoryReleaseRequested(OrderEntity order, String reasonCode) {
@@ -278,26 +267,6 @@ public class OrderSagaService {
         OrderDomainEvent event = OrderDomainEvent.builder()
                 .eventId(eventId)
                 .eventType("OrderConfirmed")
-                .aggregateType("ORDER")
-                .aggregateId(String.valueOf(order.getId()))
-                .topic(orderEventTopic)
-                .partitionKey(String.valueOf(order.getId()))
-                .payload(payload)
-                .build();
-        orderDomainEventPublisher.publish(event);
-    }
-
-    private void publishOrderCancelled(OrderEntity order) {
-        String eventId = OrderIdGenerator.newEventId();
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", order.getId());
-        payload.put("orderNo", order.getOrderNo());
-        payload.put("buyerId", order.getBuyerId());
-        payload.put("cancelledAt", LocalDateTime.now());
-
-        OrderDomainEvent event = OrderDomainEvent.builder()
-                .eventId(eventId)
-                .eventType("OrderCancelled")
                 .aggregateType("ORDER")
                 .aggregateId(String.valueOf(order.getId()))
                 .topic(orderEventTopic)

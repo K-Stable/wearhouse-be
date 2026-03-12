@@ -1,5 +1,25 @@
+server:
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: ${SPRING_SHUTDOWN_TIMEOUT:30s}
+  task:
+    execution:
+      shutdown:
+        await-termination: true
+        await-termination-period: ${SPRING_TASK_AWAIT_TERMINATION:10s}
+    scheduling:
+      shutdown:
+        await-termination: true
+        await-termination-period: ${SPRING_SCHEDULING_AWAIT_TERMINATION:10s}
+  kafka:
+    consumer:
+      group-id: ${INVENTORY_KAFKA_CONSUMER_GROUP:inventory-service-group}
+
 wearhouse:
   kafka:
+    common-config-enabled: ${KAFKA_COMMON_CONFIG_ENABLED:true}
     inventory-command-topic: ${INVENTORY_COMMAND_TOPIC:wearhouse.inventory.command.v1}
     inventory-event-topic: ${INVENTORY_EVENT_TOPIC:wearhouse.inventory.event.v1}
     order-event-topic: ${ORDER_EVENT_TOPIC:wearhouse.order.event.v1}
@@ -19,8 +39,3 @@ wearhouse:
       stock-key-prefix: ${INVENTORY_STOCK_CACHE_KEY_PREFIX:inventory:stock:available:}
     kafka:
       send-timeout-ms: ${INVENTORY_KAFKA_SEND_TIMEOUT_MS:3000}
-
-spring:
-  kafka:
-    consumer:
-      group-id: ${INVENTORY_KAFKA_CONSUMER_GROUP:inventory-service-group}

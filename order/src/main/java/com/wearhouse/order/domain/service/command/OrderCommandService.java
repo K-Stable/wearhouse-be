@@ -26,11 +26,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.wearhouse.common.global.transactional.WriteTx;
 
 @Service
+@RequiredArgsConstructor
 public class OrderCommandService {
 
     private static final Set<OrderStatus> CANCELLABLE_STATUSES = Set.of(
@@ -42,7 +45,6 @@ public class OrderCommandService {
     );
     private static final String AGGREGATE_TYPE_ORDER = "ORDER";
     private static final String EVENT_ORDER_CREATED = "OrderCreated";
-    private static final String EVENT_ORDER_CANCELLED = "OrderCancelled";
     private static final String EVENT_INVENTORY_RESERVE_REQUESTED = "InventoryReserveRequested";
     private static final String EVENT_INVENTORY_RELEASE_REQUESTED = "InventoryReleaseRequested";
     private static final String REASON_ORDER_CREATED = "ORDER_CREATED";
@@ -57,27 +59,9 @@ public class OrderCommandService {
     private final OrderSagaRepository orderSagaRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderDomainEventPublisher orderDomainEventPublisher;
-    private final String inventoryReserveTopic;
-    private final String inventoryCommandTopic;
-    private final int paymentResultTimeoutMinutes;
+    private final @Value("${wearhouse.kafka.inventory-reserve-topic:wearhouse.inventory.command.v1}") String inventoryReserveTopic;
+    private final @Value("${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}") String inventoryCommandTopic;
 
-    public OrderCommandService(
-            OrderRepository orderRepository,
-            OrderSagaRepository orderSagaRepository,
-            OrderStatusHistoryRepository orderStatusHistoryRepository,
-            OrderDomainEventPublisher orderDomainEventPublisher,
-            @Value("${wearhouse.kafka.inventory-reserve-topic:wearhouse.inventory.command.v1}") String inventoryReserveTopic,
-            @Value("${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}") String inventoryCommandTopic,
-            @Value("${wearhouse.order.payment-result-timeout-minutes:30}") int paymentResultTimeoutMinutes
-    ) {
-        this.orderRepository = orderRepository;
-        this.orderSagaRepository = orderSagaRepository;
-        this.orderStatusHistoryRepository = orderStatusHistoryRepository;
-        this.orderDomainEventPublisher = orderDomainEventPublisher;
-        this.inventoryReserveTopic = inventoryReserveTopic;
-        this.inventoryCommandTopic = inventoryCommandTopic;
-        this.paymentResultTimeoutMinutes = paymentResultTimeoutMinutes;
-    }
 
     @WriteTx
     public OrderCreateResponse createOrder(OrderCreateRequest request) {
@@ -93,7 +77,7 @@ public class OrderCommandService {
 
         saveCreatedOrder(order, eventId);
 
-        String sagaId = startSaga(order, eventId, orderedAt);
+        String sagaId = startSaga(order, eventId);
         publishInventoryReserveRequested(order, request, amountSummary.payAmount(), payloadItems, eventId);
 
         return OrderCreateResponse.builder()
@@ -210,15 +194,13 @@ public class OrderCommandService {
         saveStatusHistory(order, null, OrderStatus.PENDING_RESERVE, eventId, REASON_ORDER_CREATED);
     }
 
-    private String startSaga(OrderEntity order, String eventId, LocalDateTime orderedAt) {
+    private String startSaga(OrderEntity order, String eventId) {
         String sagaId = OrderIdGenerator.newSagaId();
         OrderSagaEntity saga = OrderSagaEntity.create(
                 order,
                 sagaId,
                 OrderSagaState.WAITING_INVENTORY,
-                eventId,
-                EVENT_ORDER_CREATED,
-                orderedAt.plusMinutes(paymentResultTimeoutMinutes)
+                eventId
         );
         orderSagaRepository.save(saga);
         return sagaId;
@@ -264,7 +246,7 @@ public class OrderCommandService {
         order.updateStatus(OrderStatus.CANCELLED, cancelReasonCode, null, cancelledAt);
         order.markItemsCancelled();
         saveStatusHistory(order, currentStatus, OrderStatus.CANCELLED, cancelEventId, cancelReasonCode);
-        transitionSaga(order.getId(), OrderSagaState.CANCELLED, cancelEventId, EVENT_ORDER_CANCELLED, cancelReasonCode);
+        transitionSaga(order.getId(), OrderSagaState.CANCELLED, cancelEventId, cancelReasonCode);
     }
 
     private void publishInventoryReleaseIfRequired(
@@ -352,11 +334,10 @@ public class OrderCommandService {
             Long orderId,
             OrderSagaState nextState,
             String eventId,
-            String eventType,
             String failReasonCode
     ) {
         orderSagaRepository.findByOrder_Id(orderId)
-                .ifPresent(saga -> saga.transition(nextState, eventId, eventType, failReasonCode));
+                .ifPresent(saga -> saga.transition(nextState, eventId, failReasonCode));
     }
 
     private void validateCreateRequest(OrderCreateRequest request) {

@@ -87,13 +87,13 @@ class OrderSagaServiceFlowTest {
                 .toList();
         assertThat(eventTypes).containsExactly("PaymentPrepareRequested", "OrderConfirmed");
 
-        verify(orderStatusHistoryRepository, atLeast(4)).save(any());
+        verify(orderStatusHistoryRepository, atLeast(2)).save(any());
         verify(orderInboxRepository).markProcessed("inv-evt-1", "order-inventory-consumer");
         verify(orderInboxRepository).markProcessed("pay-evt-1", "order-payment-consumer");
     }
 
     @Test
-    void 결제실패_플로우_보상후_주문취소로_수렴한다() {
+    void 결제실패_플로우_보상후_주문서_복귀가능상태를_유지한다() {
         OrderEntity order = testOrder(2L, OrderStatus.PENDING_RESERVE);
         OrderSagaEntity saga = mock(OrderSagaEntity.class);
         stubCommon(order, saga);
@@ -107,22 +107,21 @@ class OrderSagaServiceFlowTest {
 
         orderSagaService.onInventoryEvent("inv-evt-3", "InventoryReleased", "inventory-event", "2", "{}", payload);
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-        assertThat(order.getCancelledAt()).isNotNull();
-        assertThat(order.getItems()).extracting("status").containsOnly(OrderItemStatus.CANCELLED);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAYMENT_FAILED);
+        assertThat(order.getCancelledAt()).isNull();
+        assertThat(order.getItems()).extracting("status").containsOnly(OrderItemStatus.PENDING_RESERVE);
 
         ArgumentCaptor<OrderDomainEvent> eventCaptor = ArgumentCaptor.forClass(OrderDomainEvent.class);
-        verify(orderDomainEventPublisher, times(3)).publish(eventCaptor.capture());
+        verify(orderDomainEventPublisher, times(2)).publish(eventCaptor.capture());
         List<String> eventTypes = eventCaptor.getAllValues().stream()
                 .map(OrderDomainEvent::getEventType)
                 .toList();
         assertThat(eventTypes).containsExactly(
                 "PaymentPrepareRequested",
-                "InventoryReleaseRequested",
-                "OrderCancelled"
+                "InventoryReleaseRequested"
         );
 
-        verify(orderStatusHistoryRepository, atLeast(4)).save(any());
+        verify(orderStatusHistoryRepository, atLeast(2)).save(any());
         verify(orderInboxRepository).markProcessed("inv-evt-2", "order-inventory-consumer");
         verify(orderInboxRepository).markProcessed("pay-evt-2", "order-payment-consumer");
         verify(orderInboxRepository).markProcessed("inv-evt-3", "order-inventory-consumer");

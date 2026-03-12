@@ -18,7 +18,7 @@ public class InventoryOutboxRecordListener {
     private final InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics;
 
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
-    public void record(InventoryDomainEvent event) {
+    public void recordMessageHandler(InventoryDomainEvent event) {
         try {
             String payload = objectMapper.writeValueAsString(event.toEnvelope());
             inventoryOutboxRepository.saveReady(
@@ -36,4 +36,3 @@ public class InventoryOutboxRecordListener {
         }
     }
 }
-

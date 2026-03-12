@@ -2,46 +2,41 @@ package com.wearhouse.order.domain.event;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wearhouse.order.infra.kafka.service.OrderOutboxKafkaPublishService;
+import com.wearhouse.common.support.event.ExternalEventMessageListener;
+import com.wearhouse.order.infra.kafka.producer.OrderKafkaProducer;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
-public class OrderOutboxPublishListener {
+@RequiredArgsConstructor
+public class OrderOutboxPublishListener implements ExternalEventMessageListener<OrderDomainEvent> {
 
     private final ObjectMapper objectMapper;
-    private final OrderOutboxKafkaPublishService orderOutboxKafkaPublishService;
+    private final OrderKafkaProducer orderKafkaProducer;
 
-    public OrderOutboxPublishListener(
-            ObjectMapper objectMapper,
-            OrderOutboxKafkaPublishService orderOutboxKafkaPublishService
-    ) {
-        this.objectMapper = objectMapper;
-        this.orderOutboxKafkaPublishService = orderOutboxKafkaPublishService;
-    }
 
+    @Override
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void publish(OrderDomainEvent event) {
+    public void sendMessageHandler(OrderDomainEvent event) {
         try {
             String payload = objectMapper.writeValueAsString(event.toEnvelope());
-            orderOutboxKafkaPublishService.send(
+            orderKafkaProducer.send(
                     event.getEventId(),
                     event.getEventType(),
                     event.getTopic(),
                     event.getPartitionKey(),
                     payload,
-                    0,
                     "after_commit"
             );
         } catch (JsonProcessingException exception) {
-            orderOutboxKafkaPublishService.send(
+            orderKafkaProducer.send(
                     event.getEventId(),
                     event.getEventType(),
                     event.getTopic(),
                     event.getPartitionKey(),
                     "{\"serializationError\":true}",
-                    0,
                     "serialization_fallback"
             );
         }

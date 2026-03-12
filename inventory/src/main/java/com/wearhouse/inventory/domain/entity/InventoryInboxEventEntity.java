@@ -39,6 +39,9 @@ public class InventoryInboxEventEntity extends BaseEntity {
     @Column(name = "consumer_name", nullable = false, length = 80)
     private String consumerName;
 
+    // consumer_id;
+    // message_id
+
     @Column(name = "event_type", nullable = false, length = 100)
     private String eventType;
 

@@ -1,5 +1,25 @@
+server:
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: ${SPRING_SHUTDOWN_TIMEOUT:30s}
+  task:
+    execution:
+      shutdown:
+        await-termination: true
+        await-termination-period: ${SPRING_TASK_AWAIT_TERMINATION:10s}
+    scheduling:
+      shutdown:
+        await-termination: true
+        await-termination-period: ${SPRING_SCHEDULING_AWAIT_TERMINATION:10s}
+  kafka:
+    consumer:
+      group-id: ${PAYMENT_KAFKA_CONSUMER_GROUP:payment-service-group}
+
 wearhouse:
   kafka:
+    common-config-enabled: ${KAFKA_COMMON_CONFIG_ENABLED:true}
     payment-prepare-topic: ${PAYMENT_PREPARE_TOPIC:wearhouse.payment.command.v1}
     payment-event-topic: ${PAYMENT_EVENT_TOPIC:wearhouse.payment.event.v1}
   payment:
@@ -11,11 +31,6 @@ wearhouse:
       timeout-batch-size: ${PAYMENT_MOCK_TIMEOUT_BATCH_SIZE:200}
       fail-methods: ${PAYMENT_MOCK_FAIL_METHODS:FAIL}
       timeout-methods: ${PAYMENT_MOCK_TIMEOUT_METHODS:TIMEOUT}
-
-spring:
-  kafka:
-    consumer:
-      group-id: ${PAYMENT_KAFKA_CONSUMER_GROUP:payment-service-group}
 
 management:
   endpoints:

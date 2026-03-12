@@ -18,9 +18,8 @@ public interface PaymentOutboxEventJpaRepository extends JpaRepository<PaymentOu
     @Query(value = """
             SELECT *
             FROM payment_outbox_event
-            WHERE status IN ('READY', 'SEND_FAIL')
+            WHERE status = 'FAIL'
               AND created_at <= :cutoffAt
-              AND (next_retry_at IS NULL OR next_retry_at <= NOW())
             ORDER BY id
             LIMIT :limit
             FOR UPDATE SKIP LOCKED
@@ -30,4 +29,3 @@ public interface PaymentOutboxEventJpaRepository extends JpaRepository<PaymentOu
             @Param("limit") int limit
     );
 }
-

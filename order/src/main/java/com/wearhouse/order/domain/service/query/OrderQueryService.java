@@ -8,21 +8,28 @@ import com.wearhouse.order.domain.entity.OrderEntity;
 import com.wearhouse.order.domain.entity.OrderItemEntity;
 import com.wearhouse.order.domain.entity.OrderInfo;
 import com.wearhouse.order.domain.exception.OrderErrorCode;
+import com.wearhouse.order.domain.model.OrderStatus;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import com.wearhouse.common.global.transactional.ReadTx;
 
 @Service
+@RequiredArgsConstructor
 public class OrderQueryService {
 
-    private final OrderRepository orderRepository;
+    private static final String NEXT_ACTION_VIEW_ORDER = "VIEW_ORDER";
+    private static final String NEXT_ACTION_RETURN_TO_CHECKOUT = "RETURN_TO_CHECKOUT";
+    private static final Set<OrderStatus> RETRYABLE_STATUSES = Set.of(
+            OrderStatus.RESERVE_FAILED,
+            OrderStatus.PAYMENT_FAILED
+    );
 
-    public OrderQueryService(OrderRepository orderRepository) {
-        this.orderRepository = orderRepository;
-    }
+    private final OrderRepository orderRepository;
 
     @ReadTx
     public OrderDetailResponse getOrderDetail(String orderNo) {
@@ -31,10 +38,14 @@ public class OrderQueryService {
 
         List<OrderItemDetailResponse> detailItems = mapDetailItems(order.getItems());
         OrderInfo info = order.getOrderInfo();
+        boolean retryable = RETRYABLE_STATUSES.contains(order.getStatus());
         return OrderDetailResponse.builder()
                 .orderNo(order.getOrderNo())
                 .buyerId(order.getBuyerId())
                 .status(order.getStatus().name())
+                .failReasonCode(order.getFailReasonCode())
+                .retryable(retryable)
+                .nextAction(retryable ? NEXT_ACTION_RETURN_TO_CHECKOUT : NEXT_ACTION_VIEW_ORDER)
                 .paymentMethod(info == null ? null : info.getPaymentMethod())
                 .recipientName(info == null ? null : info.getRecipientName())
                 .recipientPhone(info == null ? null : info.getRecipientPhone())

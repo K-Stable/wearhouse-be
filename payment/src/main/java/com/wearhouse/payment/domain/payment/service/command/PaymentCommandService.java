@@ -7,6 +7,7 @@ import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import com.wearhouse.payment.support.PaymentIdGenerator;
+import com.wearhouse.common.support.lock.DistributedLock;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -59,6 +60,10 @@ public class PaymentCommandService {
     }
 
     @WriteTx
+    @DistributedLock(
+            key = "#p4['orderId']",
+            prefix = "payment:lock:prepare:"
+    )
     public void handlePaymentPrepareRequested(
             String eventId,
             String topic,

@@ -4,7 +4,7 @@ import com.wearhouse.order.domain.entity.OrderInboxEventEntity;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface OrderInboxEventJpaRepository extends JpaRepository<OrderInboxEventEntity, Long> {
+public interface OrderInboxEventRepository extends JpaRepository<OrderInboxEventEntity, Long> {
 
     Optional<OrderInboxEventEntity> findByEventIdAndConsumerName(String eventId, String consumerName);
 }

@@ -30,14 +30,28 @@ services:
       timeout: 5s
       retries: 10
 
-  redis:
+  redis-auth:
     image: redis:7.4.2
-    container_name: wearhouse-redis
+    container_name: wearhouse-redis-auth
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${AUTH_REDIS_PORT:-6379}:6379"
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
-      - redis-data:/data
+      - redis-auth-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis-order:
+    image: redis:7.4.2
+    container_name: wearhouse-redis-order
+    ports:
+      - "${ORDER_REDIS_PORT:-6380}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-order-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -190,12 +204,12 @@ services:
     depends_on:
       - service-discovery
       - config-server
-      - redis
+      - redis-auth
     environment:
       AUTH_SERVER_PORT: ${AUTH_SERVER_PORT:-8101}
       EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
       SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI:-http://config-server:8888}
-      REDIS_HOST: redis
+      REDIS_HOST: redis-auth
       REDIS_PORT: 6379
       AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-wearhouse-auth}
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-wearhouse-local-jwt-secret-key-change-me-please-1234567890}
@@ -219,7 +233,7 @@ services:
       - config-server
       - auth-service
       - mysql
-      - redis
+      - redis-auth
     environment:
       USER_SERVER_PORT: ${USER_SERVER_PORT:-8102}
       EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
@@ -229,7 +243,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       USER_DB_NAME: ${USER_DB_NAME}
-      REDIS_HOST: redis
+      REDIS_HOST: redis-auth
       REDIS_PORT: 6379
       USER_AUTH_BUYER_SIGNUP_URL: ${USER_AUTH_BUYER_SIGNUP_URL:-http://auth-service:8101/api/v1/internal/auth/buyers/signup}
       USER_AUTH_SELLER_SIGNUP_URL: ${USER_AUTH_SELLER_SIGNUP_URL:-http://auth-service:8101/api/v1/internal/auth/sellers/signup}
@@ -255,7 +269,7 @@ services:
       - service-discovery
       - config-server
       - mysql
-      - redis
+      - redis-auth
     environment:
       PRODUCT_SERVER_PORT: ${PRODUCT_SERVER_PORT:-8103}
       EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
@@ -265,7 +279,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       PRODUCT_DB_NAME: ${PRODUCT_DB_NAME}
-      REDIS_HOST: redis
+      REDIS_HOST: redis-auth
       REDIS_PORT: 6379
       PASSPORT_SHARED_SECRET: ${PASSPORT_SHARED_SECRET:-wearhouse-passport-shared-secret}
     ports:
@@ -283,7 +297,7 @@ services:
       - config-server
       - kafka
       - mysql
-      - redis
+      - redis-order
     environment:
       ORDER_SERVER_PORT: ${ORDER_SERVER_PORT:-8104}
       EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
@@ -293,7 +307,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       ORDER_DB_NAME: ${ORDER_DB_NAME}
-      REDIS_HOST: redis
+      REDIS_HOST: redis-order
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KAFKA_TEST_TOPIC: ${KAFKA_TEST_TOPIC:-wearhouse.test.topic}
@@ -313,7 +327,7 @@ services:
       - config-server
       - kafka
       - mysql
-      - redis
+      - redis-order
     environment:
       PAYMENT_SERVER_PORT: ${PAYMENT_SERVER_PORT:-8105}
       EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
@@ -323,7 +337,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       PAYMENT_DB_NAME: ${PAYMENT_DB_NAME}
-      REDIS_HOST: redis
+      REDIS_HOST: redis-order
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       PAYMENT_KAFKA_CONSUMER_GROUP: ${PAYMENT_KAFKA_CONSUMER_GROUP:-payment-service-group}
@@ -342,7 +356,7 @@ services:
       - config-server
       - kafka
       - mysql
-      - redis
+      - redis-order
     environment:
       INVENTORY_SERVER_PORT: ${INVENTORY_SERVER_PORT:-8106}
       EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
@@ -352,7 +366,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       INVENTORY_DB_NAME: ${INVENTORY_DB_NAME}
-      REDIS_HOST: redis
+      REDIS_HOST: redis-order
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       INVENTORY_KAFKA_CONSUMER_GROUP: ${INVENTORY_KAFKA_CONSUMER_GROUP:-inventory-service-group}
@@ -373,7 +387,7 @@ services:
       - user-service
       - product-service
       - order-service
-      - redis
+      - redis-auth
     environment:
       API_GATEWAY_SERVER_PORT: ${API_GATEWAY_SERVER_PORT:-8000}
       API_GATEWAY_ALLOWED_ORIGINS: "${API_GATEWAY_ALLOWED_ORIGINS:-http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}"
@@ -386,14 +400,15 @@ services:
       AUTH_USER_CHANGED_CHANNEL: ${AUTH_USER_CHANGED_CHANNEL:-wearhouse.auth.user-changed.v1}
       PASSPORT_CACHE_TTL_SECONDS: ${PASSPORT_CACHE_TTL_SECONDS:-60}
       PASSPORT_USER_INDEX_TTL_SECONDS: ${PASSPORT_USER_INDEX_TTL_SECONDS:-1800}
-      REDIS_HOST: redis
+      REDIS_HOST: redis-auth
       REDIS_PORT: 6379
     ports:
       - "${API_GATEWAY_SERVER_PORT:-8000}:8000"
 
 volumes:
   mysql-data:
-  redis-data:
+  redis-auth-data:
+  redis-order-data:
   prometheus-data:
   grafana-data:
   alertmanager-data:

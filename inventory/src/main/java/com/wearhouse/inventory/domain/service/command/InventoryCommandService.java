@@ -39,6 +39,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import com.wearhouse.common.global.transactional.WriteTx;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -325,7 +327,7 @@ public class InventoryCommandService {
             }
             return results;
         } finally {
-            releaseHotSkuLocks(lockHandles);
+            releaseHotSkuLocksAfterTransaction(lockHandles);
         }
     }
 
@@ -379,42 +381,67 @@ public class InventoryCommandService {
     }
 
     private List<SkuLockHandle> acquireHotSkuLocks(Set<Long> skuIds, String sourceEventId) {
-        if (hotSkuIds.isEmpty() || skuIds.isEmpty()) {
-            return List.of();
-        }
-
-        List<Long> hotTargets = skuIds.stream()
-                .filter(hotSkuIds::contains)
-                .sorted()
-                .toList();
-        if (hotTargets.isEmpty()) {
+        List<Long> lockTargets = selectLockTargets(skuIds);
+        if (lockTargets.isEmpty()) {
             return List.of();
         }
 
         String ownerToken = sourceEventId + ":" + InventoryIdGenerator.newEventId();
         List<SkuLockHandle> lockHandles = new ArrayList<>();
         try {
-            for (Long skuId : hotTargets) {
+            for (Long skuId : lockTargets) {
                 SkuLockHandle handle = inventoryHotSkuLockService.acquire(skuId, ownerToken);
                 if (handle == null) {
-                    inventoryKafkaFlowMetrics.incrementConcurrencyGuard("hot_sku_lock", "acquire_fail");
+                    inventoryKafkaFlowMetrics.incrementConcurrencyGuard("redisson_lock", "acquire_fail");
                     throw new ErrorException(InventoryErrorCode.HOT_SKU_LOCK_ACQUIRE_FAILED);
                 }
                 lockHandles.add(handle);
             }
             return lockHandles;
         } catch (RuntimeException exception) {
-            releaseHotSkuLocks(lockHandles);
+            releaseHotSkuLocksNow(lockHandles);
             throw exception;
         }
     }
 
-    private void releaseHotSkuLocks(List<SkuLockHandle> lockHandles) {
+    private List<Long> selectLockTargets(Set<Long> skuIds) {
+        if (skuIds == null || skuIds.isEmpty()) {
+            return List.of();
+        }
+        if (hotSkuIds.isEmpty()) {
+            return skuIds.stream().sorted().toList();
+        }
+        return skuIds.stream()
+                .filter(hotSkuIds::contains)
+                .sorted()
+                .toList();
+    }
+
+    private void releaseHotSkuLocksAfterTransaction(List<SkuLockHandle> lockHandles) {
         if (lockHandles == null || lockHandles.isEmpty()) {
             return;
         }
-        Collections.reverse(lockHandles);
-        for (SkuLockHandle lockHandle : lockHandles) {
+        List<SkuLockHandle> releaseTargets = new ArrayList<>(lockHandles);
+        if (TransactionSynchronizationManager.isSynchronizationActive()
+                && TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    releaseHotSkuLocksNow(releaseTargets);
+                }
+            });
+            return;
+        }
+        releaseHotSkuLocksNow(releaseTargets);
+    }
+
+    private void releaseHotSkuLocksNow(List<SkuLockHandle> lockHandles) {
+        if (lockHandles == null || lockHandles.isEmpty()) {
+            return;
+        }
+        List<SkuLockHandle> releaseTargets = new ArrayList<>(lockHandles);
+        Collections.reverse(releaseTargets);
+        for (SkuLockHandle lockHandle : releaseTargets) {
             inventoryHotSkuLockService.release(lockHandle);
         }
     }
