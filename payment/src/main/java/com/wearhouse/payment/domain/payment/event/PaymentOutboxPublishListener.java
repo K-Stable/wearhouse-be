@@ -27,7 +27,6 @@ public class PaymentOutboxPublishListener implements ExternalEventMessageListene
                     event.getTopic(),
                     event.getPartitionKey(),
                     payload,
-                    0,
                     "after_commit"
             );
         } catch (JsonProcessingException exception) {
@@ -37,7 +36,6 @@ public class PaymentOutboxPublishListener implements ExternalEventMessageListene
                     event.getTopic(),
                     event.getPartitionKey(),
                     "{\"serializationError\":true}",
-                    0,
                     "serialization_fallback"
             );
         }

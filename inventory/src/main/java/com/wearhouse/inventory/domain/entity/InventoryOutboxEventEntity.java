@@ -10,11 +10,11 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
 
 // id,
 //message_id
@@ -60,20 +60,14 @@ public class InventoryOutboxEventEntity extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     private InventoryOutboxStatus status;
 
-    @Column(name = "retry_count", nullable = false)
-    private Integer retryCount;
+    @Column(name = "sent_at")
+    private LocalDateTime sentAt;
 
-    @Column(name = "next_retry_at")
-    private LocalDateTime nextRetryAt;
+    @Column(name = "fail_code", length = 50)
+    private String failCode;
 
-    @Column(name = "published_at")
-    private LocalDateTime publishedAt;
-
-    @Column(name = "error_code", length = 50)
-    private String errorCode;
-
-    @Column(name = "error_message", length = 255)
-    private String errorMessage;
+    @Column(name = "fail_message", length = 255)
+    private String failMessage;
 
     @Builder
     private InventoryOutboxEventEntity(
@@ -93,7 +87,6 @@ public class InventoryOutboxEventEntity extends BaseEntity {
         this.partitionKey = partitionKey;
         this.payload = payload;
         this.status = InventoryOutboxStatus.READY;
-        this.retryCount = 0;
     }
 
     public static InventoryOutboxEventEntity ready(
@@ -117,25 +110,16 @@ public class InventoryOutboxEventEntity extends BaseEntity {
     }
 
     public void markSuccess() {
-        this.status = InventoryOutboxStatus.SEND_SUCCESS;
-        this.publishedAt = LocalDateTime.now();
-        this.errorCode = null;
-        this.errorMessage = null;
+        this.status = InventoryOutboxStatus.SUCCESS;
+        this.sentAt = LocalDateTime.now();
+        this.failCode = null;
+        this.failMessage = null;
     }
 
-    public void markFailed(int retryCount, LocalDateTime nextRetryAt, String errorCode, String errorMessage) {
-        this.status = InventoryOutboxStatus.SEND_FAIL;
-        this.retryCount = retryCount;
-        this.nextRetryAt = nextRetryAt;
-        this.errorCode = errorCode;
-        this.errorMessage = truncate(errorMessage, 255);
-    }
-
-    public void markDead(int retryCount, String errorCode, String errorMessage) {
-        this.status = InventoryOutboxStatus.DEAD;
-        this.retryCount = retryCount;
-        this.errorCode = errorCode;
-        this.errorMessage = truncate(errorMessage, 255);
+    public void markFailed(String failCode, String failMessage) {
+        this.status = InventoryOutboxStatus.FAIL;
+        this.failCode = failCode;
+        this.failMessage = truncate(failMessage, 255);
     }
 
     private String truncate(String value, int maxLength) {
@@ -145,4 +129,3 @@ public class InventoryOutboxEventEntity extends BaseEntity {
         return value.substring(0, maxLength);
     }
 }
-

@@ -15,9 +15,8 @@ public class OrderKafkaFlowMetrics {
     public OrderKafkaFlowMetrics(MeterRegistry meterRegistry, OrderOutboxEventRepository outboxEventJpaRepository) {
         this.meterRegistry = meterRegistry;
         registerOutboxGauge(outboxEventJpaRepository, OrderOutboxStatus.READY, "ready");
-        registerOutboxGauge(outboxEventJpaRepository, OrderOutboxStatus.SEND_FAIL, "send_fail");
-        registerOutboxGauge(outboxEventJpaRepository, OrderOutboxStatus.SEND_SUCCESS, "send_success");
-        registerOutboxGauge(outboxEventJpaRepository, OrderOutboxStatus.DEAD, "dead");
+        registerOutboxGauge(outboxEventJpaRepository, OrderOutboxStatus.FAIL, "fail");
+        registerOutboxGauge(outboxEventJpaRepository, OrderOutboxStatus.SUCCESS, "success");
     }
 
     public void incrementOutboxRecorded(String eventType, String topic) {

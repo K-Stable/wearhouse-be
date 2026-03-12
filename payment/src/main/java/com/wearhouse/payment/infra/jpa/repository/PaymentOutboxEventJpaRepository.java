@@ -18,7 +18,7 @@ public interface PaymentOutboxEventJpaRepository extends JpaRepository<PaymentOu
     @Query(value = """
             SELECT *
             FROM payment_outbox_event
-            WHERE status <> 'SEND_SUCCESS'
+            WHERE status = 'FAIL'
               AND created_at <= :cutoffAt
             ORDER BY id
             LIMIT :limit

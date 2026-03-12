@@ -147,6 +147,9 @@ class OrderControllerDocsTest {
                 .orderNo("O202603060001")
                 .buyerId(1L)
                 .status("CONFIRMED")
+                .failReasonCode(null)
+                .retryable(false)
+                .nextAction("VIEW_ORDER")
                 .paymentMethod("CARD")
                 .recipientName("홍길동")
                 .recipientPhone("01012345678")
@@ -188,6 +191,9 @@ class OrderControllerDocsTest {
                                 fieldWithPath("data.orderNo").type(JsonFieldType.STRING).description("주문 번호"),
                                 fieldWithPath("data.buyerId").type(JsonFieldType.NUMBER).description("구매자 ID"),
                                 fieldWithPath("data.status").type(JsonFieldType.STRING).description("주문 상태"),
+                                fieldWithPath("data.failReasonCode").type(JsonFieldType.STRING).optional().description("실패 사유 코드"),
+                                fieldWithPath("data.retryable").type(JsonFieldType.BOOLEAN).description("주문서 재진입 가능 여부"),
+                                fieldWithPath("data.nextAction").type(JsonFieldType.STRING).description("프론트 다음 액션"),
                                 fieldWithPath("data.paymentMethod").type(JsonFieldType.STRING).description("결제 수단"),
                                 fieldWithPath("data.recipientName").type(JsonFieldType.STRING).description("수령인 이름"),
                                 fieldWithPath("data.recipientPhone").type(JsonFieldType.STRING).description("수령인 연락처"),

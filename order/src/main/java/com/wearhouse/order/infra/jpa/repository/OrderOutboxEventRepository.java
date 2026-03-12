@@ -17,7 +17,7 @@ public interface OrderOutboxEventRepository extends JpaRepository<OrderOutboxEve
     @Query(value = """
             SELECT *
             FROM order_outbox_event
-            WHERE status <> 'SEND_SUCCESS'
+            WHERE status = 'FAIL'
               AND created_at <= :cutoffAt
             ORDER BY id
             LIMIT :limit

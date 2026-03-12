@@ -42,32 +42,24 @@ public class OrderOutboxRepository {
 
     public void markFail(
             String eventId,
-            int retryCount,
-            LocalDateTime nextRetryAt,
             String errorCode,
             String errorMessage
     ) {
         orderOutboxEventRepository.findByEventId(eventId)
-                .ifPresent(entity -> entity.markFailed(retryCount, nextRetryAt, errorCode, errorMessage));
-    }
-
-    public void markDead(String eventId, int retryCount, String errorCode, String errorMessage) {
-        orderOutboxEventRepository.findByEventId(eventId)
-                .ifPresent(entity -> entity.markDead(retryCount, errorCode, errorMessage));
+                .ifPresent(entity -> entity.markFailed(errorCode, errorMessage));
     }
 
     public List<OutboxCandidate> lockRepublishCandidates(LocalDateTime cutoffAt, int limit) {
         List<OrderOutboxEventEntity> entities = orderOutboxEventRepository.lockRepublishCandidates(cutoffAt, limit);
         List<OutboxCandidate> candidates = new ArrayList<>();
         for (OrderOutboxEventEntity entity : entities) {
-            if (entity.getStatus() != OrderOutboxStatus.SEND_SUCCESS) {
+            if (entity.getStatus() == OrderOutboxStatus.FAIL) {
                 candidates.add(new OutboxCandidate(
                         entity.getEventId(),
                         entity.getEventType(),
                         entity.getTopic(),
                         entity.getPartitionKey(),
-                        entity.getPayload(),
-                        entity.getRetryCount()
+                        entity.getPayload()
                 ));
             }
         }
@@ -80,22 +72,19 @@ public class OrderOutboxRepository {
         private final String topic;
         private final String partitionKey;
         private final String payload;
-        private final int retryCount;
 
         public OutboxCandidate(
                 String eventId,
                 String eventType,
                 String topic,
                 String partitionKey,
-                String payload,
-                int retryCount
+                String payload
         ) {
             this.eventId = eventId;
             this.eventType = eventType;
             this.topic = topic;
             this.partitionKey = partitionKey;
             this.payload = payload;
-            this.retryCount = retryCount;
         }
 
         public String getEventId() {
@@ -116,10 +105,6 @@ public class OrderOutboxRepository {
 
         public String getPayload() {
             return payload;
-        }
-
-        public int getRetryCount() {
-            return retryCount;
         }
     }
 }

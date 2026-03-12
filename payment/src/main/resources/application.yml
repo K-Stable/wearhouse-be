@@ -68,14 +68,7 @@ wearhouse:
   outbox:
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:3000}
     stale-minutes: ${OUTBOX_STALE_MINUTES:10}
-    republish-interval-ms: ${OUTBOX_REPUBLISH_INTERVAL_MS:60000}
     republish-batch-size: ${OUTBOX_REPUBLISH_BATCH_SIZE:100}
-    retry:
-      max-retries: ${OUTBOX_MAX_RETRIES:3}
-      exponential:
-        initial-delay-ms: ${OUTBOX_RETRY_INITIAL_DELAY_MS:2000}
-        max-delay-ms: ${OUTBOX_RETRY_MAX_DELAY_MS:60000}
-        multiplier: ${OUTBOX_RETRY_MULTIPLIER:2.0}
 
 eureka:
   client:

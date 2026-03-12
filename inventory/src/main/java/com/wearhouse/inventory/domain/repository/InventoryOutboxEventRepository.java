@@ -18,7 +18,7 @@ public interface InventoryOutboxEventRepository extends JpaRepository<InventoryO
     @Query(value = """
             SELECT *
             FROM inventory_outbox_event
-            WHERE status <> 'SEND_SUCCESS'
+            WHERE status = 'FAIL'
               AND created_at <= :cutoffAt
             ORDER BY id
             LIMIT :limit

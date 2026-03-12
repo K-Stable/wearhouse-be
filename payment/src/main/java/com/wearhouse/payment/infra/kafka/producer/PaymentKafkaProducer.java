@@ -3,7 +3,6 @@ package com.wearhouse.payment.infra.kafka.producer;
 import com.wearhouse.common.support.config.OutboxProperties;
 import com.wearhouse.payment.infra.jpa.repository.PaymentOutboxRepository;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
-import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -24,7 +23,6 @@ public class PaymentKafkaProducer {
             String topic,
             String partitionKey,
             String payload,
-            int currentRetryCount,
             String trigger
     ) {
         String key = partitionKey == null || partitionKey.isBlank() ? eventId : partitionKey;
@@ -34,27 +32,12 @@ public class PaymentKafkaProducer {
             paymentOutboxRepository.markSuccess(eventId);
             paymentKafkaFlowMetrics.incrementPublishSuccess(eventType, topic, trigger);
         } catch (Exception exception) {
-            int nextRetryCount = currentRetryCount + 1;
-            if (nextRetryCount > outboxProperties.maxRetries()) {
-                paymentOutboxRepository.markDead(eventId, nextRetryCount, "KAFKA_SEND_ERROR", exception.getMessage());
-                paymentKafkaFlowMetrics.incrementPublishFailure(eventType, topic, trigger, "dead");
-                return;
-            }
-
-            LocalDateTime nextRetryAt = LocalDateTime.now().plusNanos(computeDelayMillis(nextRetryCount) * 1_000_000);
             paymentOutboxRepository.markFail(
                     eventId,
-                    nextRetryCount,
-                    nextRetryAt,
                     "KAFKA_SEND_ERROR",
                     exception.getMessage()
             );
-            paymentKafkaFlowMetrics.incrementPublishFailure(eventType, topic, trigger, "retry");
+            paymentKafkaFlowMetrics.incrementPublishFailure(eventType, topic, trigger, "fail");
         }
-    }
-
-    private long computeDelayMillis(int retryCount) {
-        double delay = outboxProperties.initialDelayMs() * Math.pow(outboxProperties.delayMultiplier(), Math.max(0, retryCount - 1));
-        return (long) Math.min(delay, outboxProperties.maxDelayMs());
     }
 }

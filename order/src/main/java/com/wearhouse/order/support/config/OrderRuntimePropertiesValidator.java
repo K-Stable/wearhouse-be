@@ -13,7 +13,6 @@ public class OrderRuntimePropertiesValidator {
     private final String paymentPrepareTopic;
     private final String paymentEventTopic;
     private final String orderEventTopic;
-    private final int paymentResultTimeoutMinutes;
 
     public OrderRuntimePropertiesValidator(
             @Value("${wearhouse.kafka.inventory-reserve-topic:}") String inventoryReserveTopic,
@@ -21,8 +20,7 @@ public class OrderRuntimePropertiesValidator {
             @Value("${wearhouse.kafka.inventory-event-topic:}") String inventoryEventTopic,
             @Value("${wearhouse.kafka.payment-prepare-topic:}") String paymentPrepareTopic,
             @Value("${wearhouse.kafka.payment-event-topic:}") String paymentEventTopic,
-            @Value("${wearhouse.kafka.order-event-topic:}") String orderEventTopic,
-            @Value("${wearhouse.order.payment-result-timeout-minutes:0}") int paymentResultTimeoutMinutes
+            @Value("${wearhouse.kafka.order-event-topic:}") String orderEventTopic
     ) {
         this.inventoryReserveTopic = inventoryReserveTopic;
         this.inventoryCommandTopic = inventoryCommandTopic;
@@ -30,7 +28,6 @@ public class OrderRuntimePropertiesValidator {
         this.paymentPrepareTopic = paymentPrepareTopic;
         this.paymentEventTopic = paymentEventTopic;
         this.orderEventTopic = orderEventTopic;
-        this.paymentResultTimeoutMinutes = paymentResultTimeoutMinutes;
     }
 
     @PostConstruct
@@ -41,7 +38,6 @@ public class OrderRuntimePropertiesValidator {
         requireText("wearhouse.kafka.payment-prepare-topic", paymentPrepareTopic);
         requireText("wearhouse.kafka.payment-event-topic", paymentEventTopic);
         requireText("wearhouse.kafka.order-event-topic", orderEventTopic);
-        requirePositive("wearhouse.order.payment-result-timeout-minutes", paymentResultTimeoutMinutes);
     }
 
     private void requireText(String key, String value) {
@@ -50,9 +46,4 @@ public class OrderRuntimePropertiesValidator {
         }
     }
 
-    private void requirePositive(String key, int value) {
-        if (value <= 0) {
-            throw new IllegalStateException(key + " 값은 1 이상이어야 합니다.");
-        }
-    }
 }
