@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import java.util.Locale;
 
 public enum Category {
+    NEW,
     OUTER,
     TOP,
     BOTTOM,

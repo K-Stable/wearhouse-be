@@ -64,14 +64,21 @@ public class InventoryQueryService {
     }
 
     @ReadTx
-    public List<SellerInventoryItemResponse> findSellerInventoryItems(LoginUser currentUser, String keyword, int limit) {
+    public List<SellerInventoryItemResponse> findSellerInventoryItems(
+            LoginUser currentUser,
+            String keyword,
+            Integer status,
+            int limit
+    ) {
         Long sellerId = requireSeller(currentUser);
         String normalizedKeyword = normalizeKeyword(keyword);
+        Integer normalizedStatus = normalizeStatus(status);
         int normalizedLimit = normalizeLimit(limit);
 
         return inventoryStockRepository.findSellerInventoryItems(
                 sellerId,
                 normalizedKeyword,
+                normalizedStatus,
                 PageRequest.of(0, normalizedLimit)
         );
     }
@@ -112,6 +119,16 @@ public class InventoryQueryService {
             return DEFAULT_SELLER_LIMIT;
         }
         return Math.min(limit, MAX_SELLER_LIMIT);
+    }
+
+    private Integer normalizeStatus(Integer status) {
+        if (status == null) {
+            return null;
+        }
+        if (status != InventoryStockEntity.STATUS_SOLD_OUT && status != InventoryStockEntity.STATUS_ON_SALE) {
+            throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
+        }
+        return status;
     }
 
 }
