@@ -1,6 +1,8 @@
 package com.wearhouse.common.infra.feign.inventory;
 
 import com.wearhouse.common.global.response.ApiResponse;
+import com.wearhouse.common.infra.feign.inventory.dto.InventoryOrderPreviewRequest;
+import com.wearhouse.common.infra.feign.inventory.dto.InventoryOrderPreviewResponse;
 import com.wearhouse.common.infra.feign.inventory.dto.InventoryStockResponse;
 import com.wearhouse.common.infra.feign.inventory.dto.InventoryStockUpsertRequest;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -36,5 +38,11 @@ public interface InventoryStockFeignClient {
             @RequestHeader("X-Passport-Sig") String signature,
             @RequestHeader("X-Passport-Ts") String timestamp,
             @PathVariable("productId") Long productId
+    );
+
+    @PostMapping("/orders/preview")
+    ApiResponse<InventoryOrderPreviewResponse> previewOrder(
+            @RequestHeader("X-Internal-Secret") String internalSecret,
+            @RequestBody InventoryOrderPreviewRequest request
     );
 }

@@ -44,7 +44,11 @@ public class OrderPassportAuthenticationFilter extends OncePerRequestFilter {
         }
         String path = request.getRequestURI();
         if ("POST".equalsIgnoreCase(request.getMethod())
-                && ("/api/v1/orders".equals(path) || "/api/v1/orders/".equals(path))) {
+                && (
+                "/api/v1/orders".equals(path)
+                        || "/api/v1/orders/".equals(path)
+                        || "/api/v1/buyer/guest/orders/preview".equals(path)
+        )) {
             return true;
         }
         return path.startsWith("/api/v1/internal/")

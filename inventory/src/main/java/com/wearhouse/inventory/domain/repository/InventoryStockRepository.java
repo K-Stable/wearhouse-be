@@ -14,6 +14,12 @@ public interface InventoryStockRepository extends JpaRepository<InventoryStockEn
 
     Optional<InventoryStockEntity> findBySkuId(Long skuId);
 
+    Optional<InventoryStockEntity> findFirstByProductIdAndOptionColorIgnoreCaseAndOptionSizeIgnoreCase(
+            Long productId,
+            String optionColor,
+            String optionSize
+    );
+
     List<InventoryStockEntity> findAllBySkuIdIn(Collection<Long> skuIds);
 
     List<InventoryStockEntity> findAllByProductIdAndSellerId(Long productId, Long sellerId);

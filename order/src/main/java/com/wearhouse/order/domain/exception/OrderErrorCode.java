@@ -8,7 +8,11 @@ public enum OrderErrorCode implements ErrorCode {
     ORDER_ITEM_EMPTY(HttpStatus.BAD_REQUEST, "ORDER_400_001", "주문 상품은 최소 1개 이상이어야 합니다."),
     INVALID_ORDER_AMOUNT(HttpStatus.BAD_REQUEST, "ORDER_400_002", "주문 금액이 올바르지 않습니다."),
     INVALID_ORDER_STATE(HttpStatus.CONFLICT, "ORDER_409_001", "현재 주문 상태에서는 처리할 수 없습니다."),
-    OUTBOX_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ORDER_500_001", "주문 이벤트 발행에 실패했습니다.");
+    INVENTORY_PREVIEW_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ORDER_503_001", "재고 프리뷰 조회에 실패했습니다."),
+    USER_PREVIEW_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ORDER_503_002", "회원 프리뷰 조회에 실패했습니다."),
+    INVENTORY_PREVIEW_INVALID_RESPONSE(HttpStatus.INTERNAL_SERVER_ERROR, "ORDER_500_001", "재고 프리뷰 응답이 올바르지 않습니다."),
+    USER_PREVIEW_INVALID_RESPONSE(HttpStatus.INTERNAL_SERVER_ERROR, "ORDER_500_002", "회원 프리뷰 응답이 올바르지 않습니다."),
+    OUTBOX_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ORDER_500_003", "주문 이벤트 발행에 실패했습니다.");
 
     private final HttpStatus status;
     private final String code;
