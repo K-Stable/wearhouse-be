@@ -5,7 +5,8 @@ import com.wearhouse.cart.domain.dto.request.CartItemUpsertRequest;
 import com.wearhouse.cart.domain.dto.response.CartItemResponse;
 import com.wearhouse.cart.domain.dto.response.CartItemsResponse;
 import com.wearhouse.cart.domain.response.CartSuccessCode;
-import com.wearhouse.cart.domain.service.CartService;
+import com.wearhouse.cart.domain.service.command.CartCommandService;
+import com.wearhouse.cart.domain.service.query.CartQueryService;
 import com.wearhouse.common.global.response.ApiResponse;
 import com.wearhouse.common.security.current.LoginBuyer;
 import com.wearhouse.common.security.current.LoginUser;
@@ -26,11 +27,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/buyer/carts/items")
 public class CartController {
 
-    private final CartService cartService;
+    private final CartCommandService cartCommandService;
+    private final CartQueryService cartQueryService;
 
     @GetMapping
     public ApiResponse<CartItemsResponse> getCartItems(@LoginBuyer LoginUser currentUser) {
-        CartItemsResponse response = cartService.getCartItems(currentUser);
+        CartItemsResponse response = cartQueryService.getCartItems(currentUser);
         return ApiResponse.success(CartSuccessCode.CART_ITEM_LIST_FETCHED, response);
     }
 
@@ -39,7 +41,7 @@ public class CartController {
             @LoginBuyer LoginUser currentUser,
             @Valid @RequestBody CartItemUpsertRequest request
     ) {
-        List<CartItemResponse> response = cartService.upsertCartItems(currentUser, request);
+        List<CartItemResponse> response = cartCommandService.upsertCartItems(currentUser, request);
         return ApiResponse.success(CartSuccessCode.CART_ITEM_UPSERTED, response);
     }
 
@@ -49,7 +51,7 @@ public class CartController {
             @PathVariable Long cartItemId,
             @Valid @RequestBody CartItemQuantityUpdateRequest request
     ) {
-        CartItemResponse response = cartService.updateQuantity(currentUser, cartItemId, request);
+        CartItemResponse response = cartCommandService.updateQuantity(currentUser, cartItemId, request);
         return ApiResponse.success(CartSuccessCode.CART_ITEM_QUANTITY_UPDATED, response);
     }
 
@@ -58,13 +60,13 @@ public class CartController {
             @LoginBuyer LoginUser currentUser,
             @PathVariable Long cartItemId
     ) {
-        cartService.deleteCartItem(currentUser, cartItemId);
+        cartCommandService.deleteCartItem(currentUser, cartItemId);
         return ApiResponse.success(CartSuccessCode.CART_ITEM_DELETED);
     }
 
     @DeleteMapping
     public ApiResponse<Void> clearCartItems(@LoginBuyer LoginUser currentUser) {
-        cartService.clearCartItems(currentUser);
+        cartCommandService.clearCartItems(currentUser);
         return ApiResponse.success(CartSuccessCode.CART_ITEMS_CLEARED);
     }
 }
