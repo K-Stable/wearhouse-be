@@ -34,6 +34,8 @@ eureka:
     prefer-ip-address: true
 
 wearhouse:
+  redisson:
+    enabled: false
   cart:
     passport:
       shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
