@@ -26,6 +26,7 @@ public interface InventoryStockRepository extends JpaRepository<InventoryStockEn
 
     @Query("""
             SELECT new com.wearhouse.inventory.domain.dto.response.SellerInventoryItemResponse(
+                stock.skuId,
                 stock.productId,
                 stock.mainImageUrl,
                 stock.productName,
