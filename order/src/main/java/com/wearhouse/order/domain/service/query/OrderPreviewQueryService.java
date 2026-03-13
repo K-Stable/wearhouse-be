@@ -194,11 +194,11 @@ public class OrderPreviewQueryService {
         if (item.optionId() == null) {
             return "OPTION_NOT_FOUND";
         }
-        if (item.productStatus() == null || !"RELEASED".equalsIgnoreCase(item.productStatus())) {
-            return "PRODUCT_NOT_RELEASED";
-        }
         if (item.availableQuantity() == null || item.availableQuantity() <= 0) {
             return "OUT_OF_STOCK";
+        }
+        if (item.productStatus() == null || !"RELEASED".equalsIgnoreCase(item.productStatus())) {
+            return "PRODUCT_NOT_RELEASED";
         }
         return "INSUFFICIENT_STOCK";
     }

@@ -16,7 +16,6 @@ public record InventoryStockResponse(
         String color,
         String mainImageUrl,
         Integer availableQty,
-        Integer status,
         Integer reservedQty,
         Long version
 ) {
@@ -33,7 +32,6 @@ public record InventoryStockResponse(
                 entity.getOptionColor(),
                 entity.getMainImageUrl(),
                 entity.getAvailableQty(),
-                entity.getStatus(),
                 entity.getReservedQty(),
                 entity.getVersion()
         );

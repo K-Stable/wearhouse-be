@@ -125,8 +125,7 @@ public class InventoryQueryService {
             InventoryStockEntity stock = resolvedItem.stock();
             int availableQty = availableBySku.getOrDefault(stock.getSkuId(), 0);
             boolean releasedStatus = InventoryProductStatus.RELEASED.name().equalsIgnoreCase(stock.getProductStatus());
-            boolean onSaleStatus = stock.getStatus() != null && stock.getStatus() == InventoryStockEntity.STATUS_ON_SALE;
-            boolean available = releasedStatus && onSaleStatus && availableQty >= resolvedItem.quantity();
+            boolean available = releasedStatus && availableQty >= resolvedItem.quantity();
 
             lines.add(new InventoryOrderPreviewLineResponse(
                     stock.getProductId(),

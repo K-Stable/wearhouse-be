@@ -169,13 +169,6 @@ public class SellerProductCommandService {
         return requestedStatus == null ? ProductStatus.PENDING : requestedStatus;
     }
 
-    private int resolveInventoryStatus(ProductStatus productStatus, int stockQuantity) {
-        if (productStatus == ProductStatus.SOLD_OUT || stockQuantity <= 0) {
-            return 0;
-        }
-        return 1;
-    }
-
     private ProductSeasonEntity resolveSeason(Long sellerId, Long seasonId) {
         return productSeasonRepository.findByIdAndSellerId(seasonId, sellerId)
                 .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_SEASON_NOT_FOUND));
@@ -235,7 +228,6 @@ public class SellerProductCommandService {
                 productInventoryClient.upsertStock(
                         optionId,
                         stockQuantity,
-                        resolveInventoryStatus(product.getStatus(), stockQuantity),
                         product.getStatus().name(),
                         product.getSellerId(),
                         product.getId(),

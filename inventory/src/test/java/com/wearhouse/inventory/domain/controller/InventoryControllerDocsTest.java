@@ -72,8 +72,7 @@ class InventoryControllerDocsTest {
                 "RELEASED",
                 "S",
                 "Black",
-                "https://cdn.example.com/main.jpg",
-                1
+                "https://cdn.example.com/main.jpg"
         );
         InventoryStockResponse response = new InventoryStockResponse(
                 1001L,
@@ -87,7 +86,6 @@ class InventoryControllerDocsTest {
                 "Black",
                 "https://cdn.example.com/main.jpg",
                 50,
-                1,
                 0,
                 1L
         );
@@ -111,8 +109,7 @@ class InventoryControllerDocsTest {
                                 fieldWithPath("productStatus").type(JsonFieldType.STRING).description("상품 상태(PENDING/RELEASED/SOLD_OUT/HIDDEN)"),
                                 fieldWithPath("size").type(JsonFieldType.STRING).description("옵션 사이즈"),
                                 fieldWithPath("color").type(JsonFieldType.STRING).description("옵션 색상"),
-                                fieldWithPath("mainImageUrl").type(JsonFieldType.STRING).description("대표 이미지 URL"),
-                                fieldWithPath("status").type(JsonFieldType.NUMBER).description("재고 상태(1:판매중, 0:품절)")
+                                fieldWithPath("mainImageUrl").type(JsonFieldType.STRING).description("대표 이미지 URL")
                         ),
                         responseFields(
                                 fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("성공 여부"),
@@ -129,7 +126,6 @@ class InventoryControllerDocsTest {
                                 fieldWithPath("data.color").type(JsonFieldType.STRING).description("옵션 색상"),
                                 fieldWithPath("data.mainImageUrl").type(JsonFieldType.STRING).description("대표 이미지 URL"),
                                 fieldWithPath("data.availableQty").type(JsonFieldType.NUMBER).description("가용 재고 수량"),
-                                fieldWithPath("data.status").type(JsonFieldType.NUMBER).description("재고 상태(1:판매중, 0:품절)"),
                                 fieldWithPath("data.reservedQty").type(JsonFieldType.NUMBER).description("예약 재고 수량"),
                                 fieldWithPath("data.version").type(JsonFieldType.NUMBER).description("낙관락 버전"),
                                 fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
@@ -152,7 +148,6 @@ class InventoryControllerDocsTest {
                 "Black",
                 "https://cdn.example.com/main.jpg",
                 50,
-                1,
                 3,
                 7L
         );
@@ -181,7 +176,6 @@ class InventoryControllerDocsTest {
                                 fieldWithPath("data.color").type(JsonFieldType.STRING).description("옵션 색상"),
                                 fieldWithPath("data.mainImageUrl").type(JsonFieldType.STRING).description("대표 이미지 URL"),
                                 fieldWithPath("data.availableQty").type(JsonFieldType.NUMBER).description("가용 재고 수량"),
-                                fieldWithPath("data.status").type(JsonFieldType.NUMBER).description("재고 상태(1:판매중, 0:품절)"),
                                 fieldWithPath("data.reservedQty").type(JsonFieldType.NUMBER).description("예약 재고 수량"),
                                 fieldWithPath("data.version").type(JsonFieldType.NUMBER).description("낙관락 버전"),
                                 fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")

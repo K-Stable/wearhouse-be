@@ -24,7 +24,6 @@ public class ProductInventoryClient {
     public void upsertStock(
             Long skuId,
             Integer availableQty,
-            Integer status,
             String productStatus,
             Long sellerId,
             Long productId,
@@ -52,8 +51,7 @@ public class ProductInventoryClient {
                             productStatus,
                             size,
                             color,
-                            mainImageUrl,
-                            status
+                            mainImageUrl
                     )
             );
             if (response == null || !response.success()) {

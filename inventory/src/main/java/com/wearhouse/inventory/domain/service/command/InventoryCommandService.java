@@ -97,7 +97,6 @@ public class InventoryCommandService {
                 ));
 
         stock.setAvailableQty(request.availableQty());
-        stock.setStatus(request.status());
         stock.updateSnapshot(
                 request.sellerId(),
                 request.productId(),
@@ -734,9 +733,7 @@ public class InventoryCommandService {
                 || normalizeProductStatus(request.productStatus()) == null
                 || isBlank(request.size())
                 || isBlank(request.color())
-                || isBlank(request.mainImageUrl())
-                || request.status() == null
-                || !isValidStatus(request.status())) {
+                || isBlank(request.mainImageUrl())) {
             throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
         }
     }
@@ -750,10 +747,6 @@ public class InventoryCommandService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
-    }
-
-    private boolean isValidStatus(Integer status) {
-        return status == InventoryStockEntity.STATUS_SOLD_OUT || status == InventoryStockEntity.STATUS_ON_SALE;
     }
 
     private String normalizeProductStatus(String productStatus) {
