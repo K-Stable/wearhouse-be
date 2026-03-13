@@ -5,6 +5,7 @@ include(
     "auth",
     "user",
     "product",
+    "cart",
     "order",
     "payment",
     "settlement",

@@ -31,6 +31,7 @@ public class ApiGatewaySecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(GatewayRequestPolicy.PUBLIC_URL_PATTERNS).permitAll()
                         .requestMatchers(GatewayRequestPolicy.BUYER_MYPAGE_PATTERN).authenticated()
+                        .requestMatchers(GatewayRequestPolicy.BUYER_CART_PATTERN).authenticated()
                         .requestMatchers(GatewayRequestPolicy.BUYER_PATTERN).permitAll()
                         .requestMatchers(GatewayRequestPolicy.SELLER_PATTERN).hasRole("SELLER")
                         .anyRequest().authenticated()
