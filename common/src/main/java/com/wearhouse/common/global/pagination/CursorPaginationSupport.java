@@ -5,17 +5,7 @@ import java.util.function.Function;
 
 public final class CursorPaginationSupport {
 
-    public static final int DEFAULT_LIMIT = 20;
-    public static final int MAX_LIMIT = 100;
-
     private CursorPaginationSupport() {
-    }
-
-    public static int normalizeLimit(Integer requestedLimit) {
-        if (requestedLimit == null || requestedLimit <= 0) {
-            return DEFAULT_LIMIT;
-        }
-        return Math.min(requestedLimit, MAX_LIMIT);
     }
 
     public static <S, T> CursorPageResponse<T> toCursorPage(
@@ -24,12 +14,20 @@ public final class CursorPaginationSupport {
             Function<S, Long> cursorExtractor,
             Function<S, T> mapper
     ) {
+        if (sources == null || sources.isEmpty() || limit <= 0) {
+            return new CursorPageResponse<>(List.of(), null, false);
+        }
+
         boolean hasNext = sources.size() > limit;
-        List<S> pageSources = hasNext ? sources.subList(0, limit) : sources;
+        int pageSize = Math.min(sources.size(), limit);
+        List<S> pageSources = sources.subList(0, pageSize);
         List<T> items = pageSources.stream().map(mapper).toList();
-        Long nextCursor = hasNext && !pageSources.isEmpty()
-                ? cursorExtractor.apply(pageSources.get(pageSources.size() - 1))
-                : null;
+
+        Long nextCursor = null;
+        if (hasNext) {
+            nextCursor = cursorExtractor.apply(pageSources.get(pageSources.size() - 1));
+        }
+
         return new CursorPageResponse<>(items, nextCursor, hasNext);
     }
 }

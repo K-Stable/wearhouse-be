@@ -5,8 +5,6 @@ import com.wearhouse.common.global.pagination.CursorPageResponse;
 import com.wearhouse.common.global.pagination.CursorPaginationSupport;
 import com.wearhouse.common.global.transactional.ReadTx;
 import com.wearhouse.common.security.current.LoginUser;
-import com.wearhouse.product.domain.dto.response.BuyerProductDetailResponse;
-import com.wearhouse.product.domain.dto.response.BuyerProductListResponse;
 import com.wearhouse.product.domain.dto.response.ProductOptionResponse;
 import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductListResponse;
@@ -32,13 +30,13 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class SellerProductQueryService {
 
     private static final String SELLER_USER_TYPE = "SELLER";
+    private static final int DEFAULT_LIMIT = 20;
 
     private final ProductRepository productRepository;
     private final ProductSeasonRepository productSeasonRepository;
@@ -55,34 +53,16 @@ public class SellerProductQueryService {
     ) {
         Long sellerId = requireSeller(currentUser);
         validateSeasonOwnership(sellerId, seasonId);
-        int normalizedLimit = CursorPaginationSupport.normalizeLimit(limit);
-        List<ProductEntity> products = productRepository.findSellerProducts(
+        int pageLimit = resolveLimit(limit);
+        List<ProductEntity> products = productRepository.findSellerProductsByCursor(
                 sellerId,
                 status,
                 normalizeKeyword(keyword),
                 cursor,
                 seasonId,
-                PageRequest.of(0, normalizedLimit + 1)
+                pageLimit + 1
         );
-        return CursorPaginationSupport.toCursorPage(products, normalizedLimit, ProductEntity::getId, this::toSellerListResponse);
-    }
-
-    @ReadTx
-    public CursorPageResponse<BuyerProductListResponse> getBuyerProducts(
-            String category,
-            String keyword,
-            Long cursor,
-            Integer limit
-    ) {
-        int normalizedLimit = CursorPaginationSupport.normalizeLimit(limit);
-        Category normalizedCategory = normalizeCategory(category);
-        List<ProductEntity> products = productRepository.findBuyerProducts(
-                normalizedCategory,
-                normalizeKeyword(keyword),
-                cursor,
-                PageRequest.of(0, normalizedLimit + 1)
-        );
-        return CursorPaginationSupport.toCursorPage(products, normalizedLimit, ProductEntity::getId, this::toBuyerListResponse);
+        return CursorPaginationSupport.toCursorPage(products, pageLimit, ProductEntity::getId, this::toSellerListResponse);
     }
 
     @ReadTx
@@ -92,15 +72,15 @@ public class SellerProductQueryService {
             Integer limit
     ) {
         Long sellerId = requireSeller(currentUser);
-        int normalizedLimit = CursorPaginationSupport.normalizeLimit(limit);
+        int pageLimit = resolveLimit(limit);
         List<ProductSeasonEntity> seasons = productSeasonRepository.findSellerSeasons(
                 sellerId,
                 cursor,
-                PageRequest.of(0, normalizedLimit + 1)
+                PageRequest.of(0, pageLimit + 1)
         );
         return CursorPaginationSupport.toCursorPage(
                 seasons,
-                normalizedLimit,
+                pageLimit,
                 ProductSeasonEntity::getId,
                 this::toSeasonListResponse
         );
@@ -115,48 +95,11 @@ public class SellerProductQueryService {
     }
 
     @ReadTx
-    public CursorPageResponse<ProductSeasonListResponse> getBuyerSeasons(Long cursor, Integer limit) {
-        int normalizedLimit = CursorPaginationSupport.normalizeLimit(limit);
-        List<ProductSeasonEntity> seasons = productSeasonRepository.findBuyerSeasons(
-                cursor,
-                PageRequest.of(0, normalizedLimit + 1)
-        );
-        return CursorPaginationSupport.toCursorPage(
-                seasons,
-                normalizedLimit,
-                ProductSeasonEntity::getId,
-                this::toSeasonListResponse
-        );
-    }
-
-    @ReadTx
     public SellerProductResponse getSellerProduct(LoginUser currentUser, Long productId) {
         Long sellerId = requireSeller(currentUser);
         ProductEntity product = productRepository.findByIdAndSellerId(productId, sellerId)
                 .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_NOT_FOUND));
         return toSellerProductResponse(product);
-    }
-
-    @ReadTx
-    public BuyerProductDetailResponse getBuyerProductDetail(Long productId) {
-        ProductEntity product = productRepository.findByIdAndStatus(productId, ProductStatus.RELEASED)
-                .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_NOT_FOUND));
-
-        List<ProductEntity> similarProducts = productRepository
-                .findTop8ByStatusAndCategoryAndIdNotOrderByIdDesc(ProductStatus.RELEASED, product.getCategory(), product.getId());
-
-        return new BuyerProductDetailResponse(
-                product.getId(),
-                product.getName(),
-                product.getPrice(),
-                formatCategory(product.getCategory()),
-                product.getDetails(),
-                extractMainImageUrl(product),
-                extractImages(product, ProductImageType.PREVIEW),
-                extractImages(product, ProductImageType.DETAIL),
-                toOptionResponses(product.getOptions()),
-                similarProducts.stream().limit(4).map(this::toBuyerListResponse).toList()
-        );
     }
 
     private SellerProductListResponse toSellerListResponse(ProductEntity product) {
@@ -196,15 +139,6 @@ public class SellerProductQueryService {
                 extractImages(product, ProductImageType.PREVIEW),
                 extractImages(product, ProductImageType.DETAIL),
                 toOptionResponses(product.getOptions())
-        );
-    }
-
-    private BuyerProductListResponse toBuyerListResponse(ProductEntity product) {
-        return new BuyerProductListResponse(
-                product.getId(),
-                product.getName(),
-                product.getPrice(),
-                extractMainImageUrl(product)
         );
     }
 
@@ -256,7 +190,7 @@ public class SellerProductQueryService {
             try {
                 availableQty = productInventoryClient.getAvailableQty(option.getId());
             } catch (RuntimeException exception) {
-                throw new ErrorException(ProductErrorCode.INVENTORY_STOCK_SYNC_FAILED);
+                availableQty = option.getStockQuantity();
             }
             stockByOptionId.put(option.getId(), availableQty);
         }
@@ -282,20 +216,15 @@ public class SellerProductQueryService {
         return keyword == null || keyword.isBlank() ? null : keyword.trim();
     }
 
-    private Category normalizeCategory(String rawCategory) {
-        String normalized = rawCategory == null || rawCategory.isBlank() ? null : rawCategory.trim();
-        if (normalized == null) {
-            return null;
-        }
-        try {
-            return Category.valueOf(normalized.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException exception) {
-            throw new ErrorException(ProductErrorCode.INVALID_PRODUCT_CATEGORY);
-        }
-    }
-
     private String formatCategory(Category category) {
         String upper = category.name();
         return upper.substring(0, 1) + upper.substring(1).toLowerCase(Locale.ROOT);
+    }
+
+    private int resolveLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_LIMIT;
+        }
+        return limit;
     }
 }

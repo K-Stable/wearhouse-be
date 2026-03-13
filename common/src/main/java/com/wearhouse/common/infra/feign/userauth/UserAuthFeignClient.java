@@ -10,7 +10,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 
-@FeignClient(name = "user-service", path = "/api/v1/internal/users/auth")
+@FeignClient(
+        contextId = "userAuthFeignClient",
+        name = "user-service",
+        path = "/api/v1/internal/users/auth"
+)
 public interface UserAuthFeignClient {
 
     @PostMapping("/signup")

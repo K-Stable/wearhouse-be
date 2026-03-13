@@ -1,5 +1,6 @@
 package com.wearhouse.inventory.domain.entity;
 
+import com.wearhouse.inventory.domain.model.InventoryProductStatus;
 import com.wearhouse.inventory.infra.jpa.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,9 +20,6 @@ import lombok.NoArgsConstructor;
 @Table(name = "inventory_stock")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InventoryStockEntity extends BaseEntity {
-
-    public static final int STATUS_SOLD_OUT = 0;
-    public static final int STATUS_ON_SALE = 1;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,6 +43,9 @@ public class InventoryStockEntity extends BaseEntity {
     @Column(name = "product_category", length = 60)
     private String productCategory;
 
+    @Column(name = "product_status", nullable = false, length = 20)
+    private String productStatus;
+
     @Column(name = "option_size", length = 60)
     private String optionSize;
 
@@ -56,9 +57,6 @@ public class InventoryStockEntity extends BaseEntity {
 
     @Column(name = "available_qty", nullable = false)
     private Integer availableQty;
-
-    @Column(name = "status", nullable = false)
-    private Integer status;
 
     @Column(name = "reserved_qty", nullable = false)
     private Integer reservedQty;
@@ -76,22 +74,24 @@ public class InventoryStockEntity extends BaseEntity {
             String productName,
             BigDecimal productPrice,
             String productCategory,
+            String productStatus,
             String optionSize,
             String optionColor,
             String mainImageUrl
     ) {
         this.skuId = skuId;
         this.availableQty = Math.max(availableQty == null ? 0 : availableQty, 0);
-        this.status = resolveStatus(this.availableQty);
         this.reservedQty = 0;
         this.sellerId = sellerId;
         this.productId = productId;
         this.productName = productName;
         this.productPrice = productPrice;
         this.productCategory = productCategory;
+        this.productStatus = productStatus;
         this.optionSize = optionSize;
         this.optionColor = optionColor;
         this.mainImageUrl = mainImageUrl;
+        syncProductStatusByAvailableQty();
     }
 
     public static InventoryStockEntity create(
@@ -102,6 +102,7 @@ public class InventoryStockEntity extends BaseEntity {
             String productName,
             BigDecimal productPrice,
             String productCategory,
+            String productStatus,
             String optionSize,
             String optionColor,
             String mainImageUrl
@@ -114,6 +115,7 @@ public class InventoryStockEntity extends BaseEntity {
                 productName,
                 productPrice,
                 productCategory,
+                productStatus,
                 optionSize,
                 optionColor,
                 mainImageUrl
@@ -130,7 +132,7 @@ public class InventoryStockEntity extends BaseEntity {
         }
         this.availableQty = this.availableQty - quantity;
         this.reservedQty = this.reservedQty + quantity;
-        this.status = resolveStatus(this.availableQty);
+        syncProductStatusByAvailableQty();
     }
 
     public void release(int quantity) {
@@ -139,7 +141,7 @@ public class InventoryStockEntity extends BaseEntity {
         }
         this.availableQty = this.availableQty + quantity;
         this.reservedQty = Math.max(0, this.reservedQty - quantity);
-        this.status = resolveStatus(this.availableQty);
+        syncProductStatusByAvailableQty();
     }
 
     public void confirm(int quantity) {
@@ -147,19 +149,17 @@ public class InventoryStockEntity extends BaseEntity {
             return;
         }
         this.reservedQty = Math.max(0, this.reservedQty - quantity);
-        this.status = resolveStatus(this.availableQty);
+        syncProductStatusByAvailableQty();
     }
 
     public void setAvailableQty(int availableQty) {
         this.availableQty = Math.max(availableQty, 0);
-        this.status = resolveStatus(this.availableQty);
+        syncProductStatusByAvailableQty();
     }
 
-    public void setStatus(int status) {
-        if (status != STATUS_SOLD_OUT && status != STATUS_ON_SALE) {
-            throw new IllegalArgumentException("재고 상태 값이 올바르지 않습니다.");
-        }
-        this.status = status;
+    public void setProductStatus(String productStatus) {
+        this.productStatus = productStatus;
+        syncProductStatusByAvailableQty();
     }
 
     public void updateSnapshot(
@@ -168,6 +168,7 @@ public class InventoryStockEntity extends BaseEntity {
             String productName,
             BigDecimal productPrice,
             String productCategory,
+            String productStatus,
             String optionSize,
             String optionColor,
             String mainImageUrl
@@ -177,12 +178,24 @@ public class InventoryStockEntity extends BaseEntity {
         this.productName = productName;
         this.productPrice = productPrice;
         this.productCategory = productCategory;
+        this.productStatus = productStatus;
         this.optionSize = optionSize;
         this.optionColor = optionColor;
         this.mainImageUrl = mainImageUrl;
+        syncProductStatusByAvailableQty();
     }
 
-    private int resolveStatus(int availableQty) {
-        return availableQty <= 0 ? STATUS_SOLD_OUT : STATUS_ON_SALE;
+    private void syncProductStatusByAvailableQty() {
+        if (this.availableQty == null || this.availableQty <= 0) {
+            this.productStatus = InventoryProductStatus.SOLD_OUT.name();
+            return;
+        }
+        if (this.productStatus == null || this.productStatus.isBlank()) {
+            this.productStatus = InventoryProductStatus.RELEASED.name();
+            return;
+        }
+        if (InventoryProductStatus.SOLD_OUT.name().equalsIgnoreCase(this.productStatus)) {
+            this.productStatus = InventoryProductStatus.RELEASED.name();
+        }
     }
 }

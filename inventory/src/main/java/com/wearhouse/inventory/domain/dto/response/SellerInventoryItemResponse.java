@@ -3,6 +3,7 @@ package com.wearhouse.inventory.domain.dto.response;
 import java.math.BigDecimal;
 
 public record SellerInventoryItemResponse(
+        Long skuId,
         Long productId,
         String mainImg,
         String name,
@@ -11,6 +12,6 @@ public record SellerInventoryItemResponse(
         String size,
         String color,
         Integer stockQuantity,
-        Integer status
+        String status
 ) {
 }

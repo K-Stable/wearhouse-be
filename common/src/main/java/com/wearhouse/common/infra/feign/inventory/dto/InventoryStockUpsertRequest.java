@@ -10,9 +10,9 @@ public record InventoryStockUpsertRequest(
         String productName,
         BigDecimal productPrice,
         String category,
+        String productStatus,
         String size,
         String color,
-        String mainImageUrl,
-        Integer status
+        String mainImageUrl
 ) {
 }

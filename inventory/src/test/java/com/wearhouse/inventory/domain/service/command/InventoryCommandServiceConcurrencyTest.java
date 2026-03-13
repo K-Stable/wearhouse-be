@@ -99,6 +99,7 @@ class InventoryCommandServiceConcurrencyTest {
                         "Debug Product",
                         BigDecimal.valueOf(50000),
                         "OUTER",
+                        "RELEASED",
                         "S",
                         "Black",
                         "https://cdn.example.com/main.jpg"
@@ -138,6 +139,7 @@ class InventoryCommandServiceConcurrencyTest {
                 "Lock Target Product",
                 BigDecimal.valueOf(42000),
                 "TOP",
+                "RELEASED",
                 "M",
                 "Blue",
                 "https://cdn.example.com/main-blue.jpg"

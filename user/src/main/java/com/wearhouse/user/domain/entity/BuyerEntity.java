@@ -37,6 +37,9 @@ public class BuyerEntity extends BaseEntity {
     @Column(name = "phone", nullable = false, length = 30)
     private String phone;
 
+    @Column(name = "point", nullable = false, length = 30)
+    private String point;
+
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
@@ -50,6 +53,7 @@ public class BuyerEntity extends BaseEntity {
             String email,
             String name,
             String phone,
+            String point,
             String status,
             Long userVersion
     ) {
@@ -58,6 +62,7 @@ public class BuyerEntity extends BaseEntity {
         this.email = email;
         this.name = name;
         this.phone = phone;
+        this.point = point == null ? "0" : point;
         this.status = status;
         this.userVersion = userVersion;
     }
@@ -69,6 +74,7 @@ public class BuyerEntity extends BaseEntity {
                 .email(email)
                 .name(name)
                 .phone(phone)
+                .point("0")
                 .status("ACTIVE")
                 .userVersion(1L)
                 .build();
@@ -81,6 +87,7 @@ public class BuyerEntity extends BaseEntity {
                 .email(email)
                 .name(name)
                 .phone("")
+                .point("0")
                 .status("ACTIVE")
                 .userVersion(1L)
                 .build();

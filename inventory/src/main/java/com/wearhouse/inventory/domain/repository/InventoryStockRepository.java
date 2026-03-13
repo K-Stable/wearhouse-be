@@ -14,12 +14,19 @@ public interface InventoryStockRepository extends JpaRepository<InventoryStockEn
 
     Optional<InventoryStockEntity> findBySkuId(Long skuId);
 
+    Optional<InventoryStockEntity> findFirstByProductIdAndOptionColorIgnoreCaseAndOptionSizeIgnoreCase(
+            Long productId,
+            String optionColor,
+            String optionSize
+    );
+
     List<InventoryStockEntity> findAllBySkuIdIn(Collection<Long> skuIds);
 
     List<InventoryStockEntity> findAllByProductIdAndSellerId(Long productId, Long sellerId);
 
     @Query("""
             SELECT new com.wearhouse.inventory.domain.dto.response.SellerInventoryItemResponse(
+                stock.skuId,
                 stock.productId,
                 stock.mainImageUrl,
                 stock.productName,
@@ -28,16 +35,18 @@ public interface InventoryStockRepository extends JpaRepository<InventoryStockEn
                 stock.optionSize,
                 stock.optionColor,
                 stock.availableQty,
-                stock.status
+                stock.productStatus
             )
             FROM InventoryStockEntity stock
             WHERE stock.sellerId = :sellerId
               AND (:keyword IS NULL OR LOWER(stock.productName) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND (:status IS NULL OR stock.productStatus = :status)
             ORDER BY stock.updatedAt DESC, stock.id DESC
             """)
     List<SellerInventoryItemResponse> findSellerInventoryItems(
             @Param("sellerId") Long sellerId,
             @Param("keyword") String keyword,
+            @Param("status") String status,
             Pageable pageable
     );
 

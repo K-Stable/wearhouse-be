@@ -11,11 +11,11 @@ public record InventoryStockResponse(
         String productName,
         BigDecimal productPrice,
         String category,
+        String productStatus,
         String size,
         String color,
         String mainImageUrl,
         Integer availableQty,
-        Integer status,
         Integer reservedQty,
         Long version
 ) {
@@ -27,11 +27,11 @@ public record InventoryStockResponse(
                 entity.getProductName(),
                 entity.getProductPrice(),
                 entity.getProductCategory(),
+                entity.getProductStatus(),
                 entity.getOptionSize(),
                 entity.getOptionColor(),
                 entity.getMainImageUrl(),
                 entity.getAvailableQty(),
-                entity.getStatus(),
                 entity.getReservedQty(),
                 entity.getVersion()
         );

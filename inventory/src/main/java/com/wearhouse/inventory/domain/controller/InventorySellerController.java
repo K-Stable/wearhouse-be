@@ -32,10 +32,11 @@ public class InventorySellerController {
     public ApiResponse<List<SellerInventoryItemResponse>> getSellerInventories(
             @LoginSeller LoginUser currentUser,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "50") int limit
     ) {
         List<SellerInventoryItemResponse> response =
-                inventoryQueryService.findSellerInventoryItems(currentUser, keyword, limit);
+                inventoryQueryService.findSellerInventoryItems(currentUser, keyword, status, limit);
         return ApiResponse.success(InventorySuccessCode.INVENTORY_LIST_FETCHED, response);
     }
 

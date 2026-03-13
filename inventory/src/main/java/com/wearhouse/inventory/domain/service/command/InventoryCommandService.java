@@ -11,6 +11,7 @@ import com.wearhouse.inventory.domain.dto.request.InventoryStockUpdateRequest;
 import com.wearhouse.inventory.domain.dto.request.InventoryStockUpsertRequest;
 import com.wearhouse.inventory.domain.dto.response.InventoryStockResponse;
 import com.wearhouse.inventory.domain.exception.InventoryErrorCode;
+import com.wearhouse.inventory.domain.model.InventoryProductStatus;
 import com.wearhouse.inventory.domain.model.InventoryReservationStatus;
 import com.wearhouse.inventory.domain.repository.InventoryInboxRepository;
 import com.wearhouse.inventory.domain.repository.InventoryReservationRepository;
@@ -78,6 +79,7 @@ public class InventoryCommandService {
     @WriteTx
     public InventoryStockResponse upsertStock(InventoryStockUpsertRequest request) {
         validateUpsertRequest(request);
+        String normalizedProductStatus = normalizeProductStatus(request.productStatus());
 
         InventoryStockEntity stock = inventoryStockRepository.findBySkuId(request.skuId())
                 .orElseGet(() -> InventoryStockEntity.create(
@@ -88,19 +90,20 @@ public class InventoryCommandService {
                         request.productName(),
                         request.productPrice(),
                         request.category(),
+                        normalizedProductStatus,
                         request.size(),
                         request.color(),
                         request.mainImageUrl()
                 ));
 
         stock.setAvailableQty(request.availableQty());
-        stock.setStatus(request.status());
         stock.updateSnapshot(
                 request.sellerId(),
                 request.productId(),
                 request.productName(),
                 request.productPrice(),
                 request.category(),
+                normalizedProductStatus,
                 request.size(),
                 request.color(),
                 request.mainImageUrl()
@@ -113,13 +116,20 @@ public class InventoryCommandService {
     @WriteTx
     public InventoryStockResponse updateSellerInventory(LoginUser currentUser, Long skuId, InventoryStockUpdateRequest request) {
         Long sellerId = requireSeller(currentUser);
-        if (request == null || (request.availableQty() == null && request.status() == null)) {
+        if (request == null || (request.availableQty() == null && request.productStatus() == null)) {
             throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
         }
         if (request.availableQty() != null && request.availableQty() < 0) {
             throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
         }
-        if (request.status() != null && !isValidStatus(request.status())) {
+        String normalizedProductStatus = null;
+        if (request.productStatus() != null) {
+            normalizedProductStatus = normalizeProductStatus(request.productStatus());
+            if (normalizedProductStatus == null) {
+                throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
+            }
+        }
+        if (request.availableQty() == null && normalizedProductStatus == null) {
             throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
         }
 
@@ -132,8 +142,8 @@ public class InventoryCommandService {
         if (request.availableQty() != null) {
             stock.setAvailableQty(request.availableQty());
         }
-        if (request.status() != null) {
-            stock.setStatus(request.status());
+        if (normalizedProductStatus != null) {
+            stock.setProductStatus(normalizedProductStatus);
         }
 
         InventoryStockEntity saved = inventoryStockRepository.save(stock);
@@ -720,11 +730,10 @@ public class InventoryCommandService {
                 || request.productPrice() == null
                 || request.productPrice().compareTo(BigDecimal.ZERO) < 0
                 || isBlank(request.category())
+                || normalizeProductStatus(request.productStatus()) == null
                 || isBlank(request.size())
                 || isBlank(request.color())
-                || isBlank(request.mainImageUrl())
-                || request.status() == null
-                || !isValidStatus(request.status())) {
+                || isBlank(request.mainImageUrl())) {
             throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
         }
     }
@@ -740,8 +749,8 @@ public class InventoryCommandService {
         return value == null || value.isBlank();
     }
 
-    private boolean isValidStatus(Integer status) {
-        return status == InventoryStockEntity.STATUS_SOLD_OUT || status == InventoryStockEntity.STATUS_ON_SALE;
+    private String normalizeProductStatus(String productStatus) {
+        return InventoryProductStatus.normalizeForPersist(productStatus);
     }
 
     private record InventoryReserveCommand(Long orderId, String orderNo, List<ReserveLine> lines) {
