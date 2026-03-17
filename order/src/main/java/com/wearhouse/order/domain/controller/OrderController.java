@@ -57,16 +57,16 @@ public class OrderController {
         return orderCommandService.cancelOrder(orderNo, request);
     }
 
-    @PostMapping("/buyer/orders/preview")
-    public OrderPreviewResponse previewForBuyer(
+    @PostMapping("/buyer/orders/checkout")
+    public OrderPreviewResponse buyerCheckout(
             @LoginBuyer LoginUser currentUser,
-            @Valid @RequestBody OrderPreviewRequest request
+            @Valid @RequestBody OrderCheckoutRequest request
     ) {
-        return orderQueryService.previewForBuyer(currentUser.userId(), request);
+        return orderQueryService.buyerCheckou(currentUser.userId(), request);
     }
 
-    @PostMapping("/buyer/guest/orders/preview")
-    public OrderPreviewResponse previewForGuest(@Valid @RequestBody OrderPreviewRequest request) {
-        return orderQueryService.previewForGuest(request);
+    @PostMapping("/buyer/orders/guest-checkout")
+    public OrderPreviewResponse guestCheckout(@Valid @RequestBody OrderPreviewRequest request) {
+        return orderQueryService.buyerCheckout(request);
     }
 }
