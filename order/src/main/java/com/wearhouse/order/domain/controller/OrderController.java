@@ -1,10 +1,14 @@
 package com.wearhouse.order.domain.controller;
 
+import com.wearhouse.common.security.current.LoginBuyer;
+import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.order.domain.dto.request.OrderCancelRequest;
 import com.wearhouse.order.domain.dto.request.OrderCreateRequest;
+import com.wearhouse.order.domain.dto.request.OrderPreviewRequest;
 import com.wearhouse.order.domain.dto.response.OrderCancelResponse;
 import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
 import com.wearhouse.order.domain.dto.response.OrderDetailResponse;
+import com.wearhouse.order.domain.dto.response.OrderPreviewResponse;
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
 import com.wearhouse.order.domain.service.command.OrderCommandService;
 import com.wearhouse.order.domain.service.query.OrderQueryService;
@@ -19,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/orders")
+@RequestMapping("/api/v1")
 public class OrderController {
 
     private final OrderCommandService orderCommandService;
@@ -30,17 +34,17 @@ public class OrderController {
         this.orderQueryService = orderQueryService;
     }
 
-    @PostMapping
+    @PostMapping("/orders")
     public OrderCreateResponse createOrder(@Valid @RequestBody OrderCreateRequest request) {
         return orderCommandService.createOrder(request);
     }
 
-    @GetMapping("/{orderNo}")
+    @GetMapping("/orders/{orderNo}")
     public OrderDetailResponse getOrder(@PathVariable String orderNo) {
         return orderQueryService.getOrderDetail(orderNo);
     }
 
-    @GetMapping
+    @GetMapping("/orders")
     public List<OrderSummaryResponse> getBuyerOrders(
             @RequestParam Long buyerId,
             @RequestParam(defaultValue = "20") int limit
@@ -48,8 +52,21 @@ public class OrderController {
         return orderQueryService.getBuyerOrders(buyerId, limit);
     }
 
-    @PostMapping("/{orderNo}/cancel")
+    @PostMapping("/orders/{orderNo}/cancel")
     public OrderCancelResponse cancelOrder(@PathVariable String orderNo, @RequestBody(required = false) OrderCancelRequest request) {
         return orderCommandService.cancelOrder(orderNo, request);
+    }
+
+    @PostMapping("/buyer/orders/checkout")
+    public OrderPreviewResponse buyerCheckout(
+            @LoginBuyer LoginUser currentUser,
+            @Valid @RequestBody OrderCheckoutRequest request
+    ) {
+        return orderQueryService.buyerCheckou(currentUser.userId(), request);
+    }
+
+    @PostMapping("/buyer/orders/guest-checkout")
+    public OrderPreviewResponse guestCheckout(@Valid @RequestBody OrderPreviewRequest request) {
+        return orderQueryService.buyerCheckout(request);
     }
 }

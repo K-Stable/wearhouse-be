@@ -17,10 +17,12 @@ public final class GatewayRequestPolicy {
 
     public static final String BUYER_PATTERN = "/api/v1/buyer/**";
     public static final String BUYER_MYPAGE_PATTERN = "/api/v1/buyer/mypage/**";
+    public static final String BUYER_CART_PATTERN = "/api/v1/buyer/carts/**";
     public static final String SELLER_PATTERN = "/api/v1/seller/**";
 
     private static final String BUYER_PATH_PREFIX = "/api/v1/buyer/";
     private static final String BUYER_MYPAGE_PREFIX = "/api/v1/buyer/mypage";
+    private static final String BUYER_CART_PREFIX = "/api/v1/buyer/carts";
 
     private GatewayRequestPolicy() {
     }
@@ -47,7 +49,7 @@ public final class GatewayRequestPolicy {
         if (path == null || !path.startsWith(BUYER_PATH_PREFIX)) {
             return false;
         }
-        return !path.startsWith(BUYER_MYPAGE_PREFIX);
+        return !path.startsWith(BUYER_MYPAGE_PREFIX) && !path.startsWith(BUYER_CART_PREFIX);
     }
 
     private static String normalizeServicePrefixedPath(String path) {
