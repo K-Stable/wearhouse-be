@@ -10,13 +10,17 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.wearhouse.common.global.response.ApiResponse;
 import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.product.domain.dto.request.ProductCreateRequest;
+import com.wearhouse.product.domain.dto.request.ProductImagePresignedUploadRequest;
 import com.wearhouse.product.domain.dto.request.ProductOptionCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductSeasonUpdateRequest;
+import com.wearhouse.product.domain.dto.response.ProductImagePresignedUploadResponse;
 import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
 import com.wearhouse.product.domain.model.Category;
+import com.wearhouse.product.domain.model.ProductImageType;
 import com.wearhouse.product.domain.model.ProductStatus;
 import com.wearhouse.product.domain.response.ProductSuccessCode;
 import com.wearhouse.product.domain.service.seller.SellerProductCommandService;
+import com.wearhouse.product.domain.service.seller.SellerProductImageService;
 import com.wearhouse.product.domain.service.seller.SellerProductQueryService;
 import java.math.BigDecimal;
 import java.util.List;
@@ -34,6 +38,9 @@ class ProductSellerControllerTest {
 
     @Mock
     private SellerProductQueryService sellerProductQueryService;
+
+    @Mock
+    private SellerProductImageService sellerProductImageService;
 
     @InjectMocks
     private ProductSellerController productSellerController;
@@ -53,12 +60,12 @@ class ProductSellerControllerTest {
                         new ProductOptionCreateRequest("M", "Black", 3),
                         new ProductOptionCreateRequest("S", "Navy", 5)
                 ),
-                "https://cdn.example.com/products/main.jpg",
+                "prod/products/seller-11/main/main.jpg",
                 List.of(
-                        "https://cdn.example.com/products/preview-1.jpg",
-                        "https://cdn.example.com/products/preview-2.jpg"
+                        "prod/products/seller-11/preview/preview-1.jpg",
+                        "prod/products/seller-11/preview/preview-2.jpg"
                 ),
-                List.of("https://cdn.example.com/products/detail-1.jpg"),
+                List.of("prod/products/seller-11/detail/detail-1.jpg"),
                 ProductStatus.PENDING
         );
 
@@ -118,6 +125,32 @@ class ProductSellerControllerTest {
         assertEquals(ProductSuccessCode.SELLER_PRODUCT_SEASON_FETCHED.code(), response.code());
         assertEquals(ProductSuccessCode.SELLER_PRODUCT_SEASON_FETCHED.message(), response.message());
         assertEquals(season, response.data());
+        assertNotNull(response.timestamp());
+    }
+
+    @Test
+    void createPresignedUploadUrlShouldReturnWrappedResponseWithData() {
+        LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
+        ProductImagePresignedUploadRequest request = new ProductImagePresignedUploadRequest(
+                "product-main.jpg",
+                "image/jpeg",
+                ProductImageType.MAIN
+        );
+        ProductImagePresignedUploadResponse payload = new ProductImagePresignedUploadResponse(
+                "prod/products/seller-11/main/2026/03/18/uuid.jpg",
+                "https://upload.example.com/presigned",
+                "https://cdn.example.com/prod/products/seller-11/main/2026/03/18/uuid.jpg"
+        );
+        org.mockito.Mockito.when(sellerProductImageService.issuePresignedUploadUrl(seller, request)).thenReturn(payload);
+
+        ApiResponse<ProductImagePresignedUploadResponse> response =
+                productSellerController.createPresignedUploadUrl(seller, request);
+
+        verify(sellerProductImageService).issuePresignedUploadUrl(seller, request);
+        assertTrue(response.success());
+        assertEquals(ProductSuccessCode.PRODUCT_IMAGE_UPLOAD_URL_CREATED.code(), response.code());
+        assertEquals(ProductSuccessCode.PRODUCT_IMAGE_UPLOAD_URL_CREATED.message(), response.message());
+        assertEquals(payload, response.data());
         assertNotNull(response.timestamp());
     }
 }
