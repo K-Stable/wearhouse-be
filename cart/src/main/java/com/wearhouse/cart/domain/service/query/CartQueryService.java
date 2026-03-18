@@ -1,7 +1,7 @@
 package com.wearhouse.cart.domain.service.query;
 
-import com.wearhouse.cart.domain.dto.response.CartItemResponse;
-import com.wearhouse.cart.domain.dto.response.CartItemsResponse;
+import com.wearhouse.cart.domain.dto.response.BuyerCartItemResponse;
+import com.wearhouse.cart.domain.dto.response.BuyerCartItemsResponse;
 import com.wearhouse.cart.domain.entity.CartItemEntity;
 import com.wearhouse.cart.domain.repository.CartItemRepository;
 import com.wearhouse.cart.domain.service.CartServiceSupport;
@@ -19,17 +19,17 @@ public class CartQueryService {
     private final CartItemRepository cartItemRepository;
 
     @ReadTx
-    public CartItemsResponse getCartItems(LoginUser currentUser) {
+    public BuyerCartItemsResponse getBuyerCartItems(LoginUser currentUser) {
         Long buyerId = CartServiceSupport.extractBuyerId(currentUser);
         List<CartItemEntity> cartItems = cartItemRepository.findAllByBuyerIdOrderByUpdatedAtDescIdDesc(buyerId);
-        List<CartItemResponse> items = cartItems.stream()
+        List<BuyerCartItemResponse> items = cartItems.stream()
                 .map(CartServiceSupport::toCartItemResponse)
                 .toList();
 
         BigDecimal totalPrice = items.stream()
-                .map(CartItemResponse::subtotalPrice)
+                .map(BuyerCartItemResponse::subtotalPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return new CartItemsResponse(totalPrice, items);
+        return new BuyerCartItemsResponse(totalPrice, items);
     }
 }
