@@ -5,6 +5,7 @@ import com.wearhouse.common.global.pagination.CursorPageResponse;
 import com.wearhouse.common.global.pagination.CursorPaginationSupport;
 import com.wearhouse.common.global.transactional.ReadTx;
 import com.wearhouse.common.security.current.LoginUser;
+import com.wearhouse.common.support.s3.S3StorageService;
 import com.wearhouse.product.domain.dto.response.ProductOptionResponse;
 import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductListResponse;
@@ -41,6 +42,7 @@ public class SellerProductQueryService {
     private final ProductRepository productRepository;
     private final ProductSeasonRepository productSeasonRepository;
     private final ProductInventoryClient productInventoryClient;
+    private final S3StorageService s3StorageService;
 
     @ReadTx
     public CursorPageResponse<SellerProductListResponse> getSellerProducts(
@@ -154,6 +156,7 @@ public class SellerProductQueryService {
                 .filter(image -> image.getImageType() == ProductImageType.MAIN)
                 .sorted(Comparator.comparing(ProductImageEntity::getSortOrder).thenComparing(ProductImageEntity::getId))
                 .map(ProductImageEntity::getImageUrl)
+                .map(s3StorageService::getImageUrl)
                 .findFirst()
                 .orElse(null);
     }
@@ -163,6 +166,7 @@ public class SellerProductQueryService {
                 .filter(image -> image.getImageType() == imageType)
                 .sorted(Comparator.comparing(ProductImageEntity::getSortOrder).thenComparing(ProductImageEntity::getId))
                 .map(ProductImageEntity::getImageUrl)
+                .map(s3StorageService::getImageUrl)
                 .toList();
     }
 

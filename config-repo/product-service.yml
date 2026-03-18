@@ -1,5 +1,7 @@
 wearhouse:
   product:
+    image:
+      key-prefix: ${PRODUCT_IMAGE_KEY_PREFIX:dev}
     passport:
       shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
 
