@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.security.current.LoginUser;
-import com.wearhouse.common.support.s3.S3StorageService;
 import com.wearhouse.product.domain.entity.ProductSeasonEntity;
 import com.wearhouse.product.domain.exception.ProductErrorCode;
 import com.wearhouse.product.domain.model.ProductStatus;
@@ -34,9 +33,6 @@ class SellerProductQueryServiceTest {
 
     @Mock
     private ProductInventoryClient productInventoryClient;
-
-    @Mock
-    private S3StorageService s3StorageService;
 
     @InjectMocks
     private SellerProductQueryService sellerProductQueryService;

@@ -19,16 +19,6 @@ management:
       exposure:
         include: health,info,env,prometheus
 
-wearhouse:
-  s3:
-    enabled: ${S3_ENABLED:false}
-    access-key: ${S3_ACCESS_KEY:}
-    secret-key: ${S3_SECRET_KEY:}
-    region: ${S3_REGION:ap-northeast-2}
-    bucket: ${S3_BUCKET:wearhouse-231629457117}
-    public-base-url: ${S3_PUBLIC_BASE_URL:}
-    presigned-put-expire-seconds: ${S3_PRESIGNED_PUT_EXPIRE_SECONDS:300}
-
 
 
 #  ALTER USER 'wearhouse'@'localhost' IDENTIFIED BY 'm072715!';

@@ -10,6 +10,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.List;
+import org.hibernate.validator.constraints.URL;
 
 public record ProductCreateRequest(
         @NotBlank
@@ -32,11 +33,12 @@ public record ProductCreateRequest(
         List<@Valid ProductOptionCreateRequest> options,
 
         @NotBlank
+        @URL
         String mainImageUrl,
 
-        List<@NotBlank String> previewImageUrls,
+        List<@NotBlank @URL String> previewImageUrls,
 
-        List<@NotBlank String> detailImageUrls,
+        List<@NotBlank @URL String> detailImageUrls,
 
         ProductStatus status
 

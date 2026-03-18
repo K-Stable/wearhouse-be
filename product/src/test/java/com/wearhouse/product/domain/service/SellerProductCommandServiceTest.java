@@ -9,7 +9,6 @@ import static org.mockito.Mockito.when;
 
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.security.current.LoginUser;
-import com.wearhouse.common.support.s3.S3StorageService;
 import com.wearhouse.product.domain.dto.request.ProductCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductOptionCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductSeasonUpdateRequest;
@@ -44,16 +43,12 @@ class SellerProductCommandServiceTest {
     @Mock
     private ProductInventoryClient productInventoryClient;
 
-    @Mock
-    private S3StorageService s3StorageService;
-
     @Test
     void createProductShouldFlushBeforeInventorySync() {
         SellerProductCommandService service = new SellerProductCommandService(
                 productRepository,
                 productSeasonRepository,
-                productInventoryClient,
-                s3StorageService
+                productInventoryClient
         );
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
         ProductCreateRequest request = new ProductCreateRequest(
@@ -67,9 +62,9 @@ class SellerProductCommandServiceTest {
                         new ProductOptionCreateRequest("S", "Black", 10),
                         new ProductOptionCreateRequest("M", "Black", 3)
                 ),
-                "prod/products/seller-11/main/main.jpg",
-                List.of("prod/products/seller-11/preview/p1.jpg"),
-                List.of("prod/products/seller-11/detail/d1.jpg"),
+                "https://cdn.example.com/main.jpg",
+                List.of("https://cdn.example.com/p1.jpg"),
+                List.of("https://cdn.example.com/d1.jpg"),
                 ProductStatus.PENDING
         );
         when(productSeasonRepository.findByIdAndSellerId(7L, 11L))
@@ -83,8 +78,6 @@ class SellerProductCommandServiceTest {
             ReflectionTestUtils.setField(options.get(1), "id", 1002L);
             return persisted;
         });
-        when(s3StorageService.getImageUrl("prod/products/seller-11/main/main.jpg"))
-                .thenReturn("https://cdn.example.com/prod/products/seller-11/main/main.jpg");
 
         service.createProduct(seller, 7L, request);
 
@@ -93,7 +86,7 @@ class SellerProductCommandServiceTest {
         verify(productInventoryClient).upsertStock(
                 eq(1001L),
                 eq(10),
-                eq("PENDING"),
+                eq(1),
                 eq(11L),
                 eq(501L),
                 eq("Debug Product"),
@@ -101,12 +94,12 @@ class SellerProductCommandServiceTest {
                 eq("OUTER"),
                 eq("S"),
                 eq("Black"),
-                eq("https://cdn.example.com/prod/products/seller-11/main/main.jpg")
+                eq("https://cdn.example.com/main.jpg")
         );
         verify(productInventoryClient).upsertStock(
                 eq(1002L),
                 eq(3),
-                eq("PENDING"),
+                eq(1),
                 eq(11L),
                 eq(501L),
                 eq("Debug Product"),
@@ -114,7 +107,7 @@ class SellerProductCommandServiceTest {
                 eq("OUTER"),
                 eq("M"),
                 eq("Black"),
-                eq("https://cdn.example.com/prod/products/seller-11/main/main.jpg")
+                eq("https://cdn.example.com/main.jpg")
         );
     }
 
@@ -123,8 +116,7 @@ class SellerProductCommandServiceTest {
         SellerProductCommandService service = new SellerProductCommandService(
                 productRepository,
                 productSeasonRepository,
-                productInventoryClient,
-                s3StorageService
+                productInventoryClient
         );
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
         ProductCreateRequest request = new ProductCreateRequest(
@@ -135,9 +127,9 @@ class SellerProductCommandServiceTest {
                 "size-guide",
                 "shipping",
                 List.of(new ProductOptionCreateRequest("S", "Black", 10)),
-                "prod/products/seller-11/main/main.jpg",
-                List.of("prod/products/seller-11/preview/p1.jpg"),
-                List.of("prod/products/seller-11/detail/d1.jpg"),
+                "https://cdn.example.com/main.jpg",
+                List.of("https://cdn.example.com/p1.jpg"),
+                List.of("https://cdn.example.com/d1.jpg"),
                 ProductStatus.PENDING
         );
         when(productSeasonRepository.findByIdAndSellerId(999L, 11L)).thenReturn(Optional.empty());
@@ -155,8 +147,7 @@ class SellerProductCommandServiceTest {
         SellerProductCommandService service = new SellerProductCommandService(
                 productRepository,
                 productSeasonRepository,
-                productInventoryClient,
-                s3StorageService
+                productInventoryClient
         );
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
         ProductSeasonEntity season = ProductSeasonEntity.create(11L, "old-season");
@@ -173,8 +164,7 @@ class SellerProductCommandServiceTest {
         SellerProductCommandService service = new SellerProductCommandService(
                 productRepository,
                 productSeasonRepository,
-                productInventoryClient,
-                s3StorageService
+                productInventoryClient
         );
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
         ProductSeasonEntity season = ProductSeasonEntity.create(11L, "2026 SUMMER");
@@ -194,8 +184,7 @@ class SellerProductCommandServiceTest {
         SellerProductCommandService service = new SellerProductCommandService(
                 productRepository,
                 productSeasonRepository,
-                productInventoryClient,
-                s3StorageService
+                productInventoryClient
         );
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
         ProductEntity product = ProductEntity.create(

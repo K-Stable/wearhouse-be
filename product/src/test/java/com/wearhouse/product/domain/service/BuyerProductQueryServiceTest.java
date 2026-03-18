@@ -4,12 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.wearhouse.common.support.s3.S3StorageService;
 import com.wearhouse.product.domain.dto.response.BuyerProductDetailResponse;
 import com.wearhouse.product.domain.entity.ProductEntity;
 import com.wearhouse.product.domain.model.BuyerProductSortType;
 import com.wearhouse.product.domain.model.Category;
-import com.wearhouse.product.domain.model.ProductImageType;
 import com.wearhouse.product.domain.model.ProductStatus;
 import com.wearhouse.product.domain.repository.ProductRepository;
 import com.wearhouse.product.domain.repository.ProductSeasonRepository;
@@ -36,9 +34,6 @@ class BuyerProductQueryServiceTest {
 
     @Mock
     private ProductInventoryClient productInventoryClient;
-
-    @Mock
-    private S3StorageService s3StorageService;
 
     @InjectMocks
     private BuyerProductQueryService buyerProductQueryService;
@@ -110,35 +105,5 @@ class BuyerProductQueryServiceTest {
                 BuyerProductSortType.PRICE_HIGH,
                 21
         );
-    }
-
-    @Test
-    void getBuyerProductDetailShouldResolveMainImageKeyToUrl() {
-        ProductEntity product = ProductEntity.create(
-                11L,
-                "Debug Product",
-                new BigDecimal("50000"),
-                Category.OUTER,
-                "desc",
-                "size-guide",
-                "shipping",
-                ProductStatus.RELEASED
-        );
-        ReflectionTestUtils.setField(product, "id", 501L);
-        product.addImage(ProductImageType.MAIN, "prod/products/seller-11/main/a.jpg", 0);
-
-        when(productRepository.findByIdAndStatus(501L, ProductStatus.RELEASED))
-                .thenReturn(Optional.of(product));
-        when(productRepository.findTop8ByStatusAndCategoryAndIdNotOrderByIdDesc(
-                ProductStatus.RELEASED,
-                Category.OUTER,
-                501L
-        )).thenReturn(List.of());
-        when(s3StorageService.getImageUrl("prod/products/seller-11/main/a.jpg"))
-                .thenReturn("https://cdn.example.com/prod/products/seller-11/main/a.jpg");
-
-        BuyerProductDetailResponse response = buyerProductQueryService.getBuyerProductDetail(501L);
-
-        assertEquals("https://cdn.example.com/prod/products/seller-11/main/a.jpg", response.mainImageUrl());
     }
 }

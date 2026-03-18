@@ -5,19 +5,16 @@ import com.wearhouse.common.global.response.ApiResponse;
 import com.wearhouse.common.security.current.LoginSeller;
 import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.product.domain.dto.request.ProductCreateRequest;
-import com.wearhouse.product.domain.dto.request.ProductImagePresignedUploadRequest;
 import com.wearhouse.product.domain.dto.request.ProductSeasonCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductSeasonUpdateRequest;
 import com.wearhouse.product.domain.dto.request.ProductStatusesUpdateRequest;
 import com.wearhouse.product.domain.dto.request.ProductStatusUpdateRequest;
-import com.wearhouse.product.domain.dto.response.ProductImagePresignedUploadResponse;
 import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductResponse;
 import com.wearhouse.product.domain.model.ProductStatus;
 import com.wearhouse.product.domain.response.ProductSuccessCode;
 import com.wearhouse.product.domain.service.seller.SellerProductCommandService;
-import com.wearhouse.product.domain.service.seller.SellerProductImageService;
 import com.wearhouse.product.domain.service.seller.SellerProductQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +37,6 @@ public class ProductSellerController {
 
     private final SellerProductCommandService sellerProductCommandService;
     private final SellerProductQueryService sellerProductQueryService;
-    private final SellerProductImageService sellerProductImageService;
 
     @PostMapping("/seasons")
     public ApiResponse<Void> createProductSeason(
@@ -49,15 +45,6 @@ public class ProductSellerController {
     ) {
         sellerProductCommandService.createProductSeason(currentUser, request);
         return ApiResponse.success(ProductSuccessCode.PRODUCT_SEASON_CREATED);
-    }
-
-    @PostMapping("/images/presigned-upload")
-    public ApiResponse<ProductImagePresignedUploadResponse> createPresignedUploadUrl(
-            @LoginSeller LoginUser currentUser,
-            @Valid @RequestBody ProductImagePresignedUploadRequest request
-    ) {
-        ProductImagePresignedUploadResponse response = sellerProductImageService.issuePresignedUploadUrl(currentUser, request);
-        return ApiResponse.success(ProductSuccessCode.PRODUCT_IMAGE_UPLOAD_URL_CREATED, response);
     }
 
     @PostMapping("/seasons/{seasonId}")
