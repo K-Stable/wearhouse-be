@@ -76,7 +76,7 @@
 
 - 공통 상태: `READY -> SUCCESS | FAIL`
 - 저장 시점: 도메인 이벤트 `BEFORE_COMMIT`에 `READY` 저장
-- 발행 시점: `AFTER_COMMIT`에 Kafka publish 시도
+- 발행 시점: `Outbox Relay Scheduler`가 주기적으로 `READY/FAIL` 레코드를 조회해 Kafka publish 시도
 - publish 성공: `SUCCESS`
 - publish 실패: `FAIL` + reason 저장
 
@@ -84,6 +84,10 @@
 
 - 공통 상태: `RECEIVED -> PROCESSED | FAILED`
 - `tryReceive`에서 `(eventId, consumer)` unique 충돌이면 중복으로 간주하고 skip
+- Kafka consumer는 `ack-mode: manual_immediate`, `enable-auto-commit: false`로 설정
+- Inbox 처리 성공(또는 중복 스킵) 후 `ack.acknowledge()` 수행, 예외 시 ack 없음(재처리)
+- 전역 `DefaultErrorHandler` 적용: `FixedBackOff(retry-interval-ms, retry-attempts)` + `DeadLetterPublishingRecoverer`
+- `ErrorException`, `IllegalArgumentException`은 non-retryable로 분류되어 즉시 DLT로 위임
 - 정상 처리 시 `PROCESSED`
 - 처리 중 시스템 예외 시 `FAILED`
 
@@ -92,8 +96,9 @@
 
 ## 5.3 재발행
 
-- order/payment/inventory 모두 `OutboxRepublishBatchService`가 있음
-- 현재 코드에는 `republishFailedEvents()`를 주기 실행하는 `@Scheduled` 연결은 없음
+- order/payment/inventory 모두 `OutboxRepublishBatchService` + `OutboxRelayScheduler`가 있음
+- `@Scheduled(fixedDelay = wearhouse.outbox.republish-interval-ms, default 500ms)`로 relay가 동작함
+- relay는 `READY`, `FAIL` 상태를 모두 대상에 포함함
 
 ---
 
@@ -103,13 +108,15 @@
 sequenceDiagram
     participant B as Buyer FE
     participant O as Order Service
+    participant OR as Outbox Relay
     participant K as Kafka
     participant I as Inventory Service
     participant P as Payment Service
     participant Pay as Pay Server
 
     B->>O: 주문 생성 요청
-    O->>K: InventoryReserveRequested
+    O->>O: Outbox(READY) 저장
+    OR->>K: InventoryReserveRequested 발행
     K->>I: InventoryReserveRequested consume
     alt 재고 예약 성공
         I->>K: StockReserved

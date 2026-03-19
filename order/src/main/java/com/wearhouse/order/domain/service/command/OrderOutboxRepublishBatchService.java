@@ -5,7 +5,6 @@ import com.wearhouse.common.support.config.OutboxProperties;
 import com.wearhouse.order.infra.jpa.repository.OrderOutboxRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderOutboxRepository.OutboxCandidate;
 import com.wearhouse.order.infra.kafka.producer.OrderKafkaProducer;
-import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -19,12 +18,8 @@ public class OrderOutboxRepublishBatchService {
     private final OutboxProperties outboxProperties;
 
     @WriteTx
-    public int republishFailedEvents() {
-        LocalDateTime cutoffAt = LocalDateTime.now().minusMinutes(outboxProperties.staleMinutes());
-        List<OutboxCandidate> candidates = orderOutboxRepository.lockRepublishCandidates(
-                cutoffAt,
-                outboxProperties.republishBatchSize()
-        );
+    public int publishOutboxEvents() {
+        List<OutboxCandidate> candidates = orderOutboxRepository.lockRepublishCandidates(outboxProperties.republishBatchSize());
         for (OutboxCandidate candidate : candidates) {
             orderKafkaProducer.send(
                     candidate.getEventId(),

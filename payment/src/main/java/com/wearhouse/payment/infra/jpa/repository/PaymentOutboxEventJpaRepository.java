@@ -2,7 +2,6 @@ package com.wearhouse.payment.infra.jpa.repository;
 
 import com.wearhouse.payment.domain.payment.entity.PaymentOutboxEventEntity;
 import com.wearhouse.payment.domain.payment.model.PaymentOutboxStatus;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,14 +17,10 @@ public interface PaymentOutboxEventJpaRepository extends JpaRepository<PaymentOu
     @Query(value = """
             SELECT *
             FROM payment_outbox_event
-            WHERE status = 'FAIL'
-              AND created_at <= :cutoffAt
+            WHERE status IN ('READY', 'FAIL')
             ORDER BY id
             LIMIT :limit
             FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
-    List<PaymentOutboxEventEntity> lockRepublishCandidates(
-            @Param("cutoffAt") LocalDateTime cutoffAt,
-            @Param("limit") int limit
-    );
+    List<PaymentOutboxEventEntity> lockRepublishCandidates(@Param("limit") int limit);
 }

@@ -6,6 +6,7 @@ import com.wearhouse.order.domain.service.command.OrderSagaService;
 import com.wearhouse.order.support.monitoring.OrderKafkaFlowMetrics;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +24,7 @@ public class OrderKafkaConsumer {
     @KafkaListener(topics = "${wearhouse.kafka.inventory-event-topic:wearhouse.inventory.event.v1}")
     public void consumeInventoryEvent(
             String message,
+            Acknowledgment acknowledgment,
             @Header(name = "kafka_receivedTopic", required = false) String topic,
             @Header(name = "kafka_receivedMessageKey", required = false) String key
     ) throws Exception {
@@ -42,6 +44,7 @@ public class OrderKafkaConsumer {
                     payload
             );
             orderKafkaFlowMetrics.incrementConsumerHandled("inventory", eventType, topic, "success");
+            acknowledgment.acknowledge();
         } catch (Exception exception) {
             orderKafkaFlowMetrics.incrementConsumerHandled("inventory", eventType, topic, "failed");
             throw exception;
@@ -51,6 +54,7 @@ public class OrderKafkaConsumer {
     @KafkaListener(topics = "${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
     public void consumePaymentEvent(
             String message,
+            Acknowledgment acknowledgment,
             @Header(name = "kafka_receivedTopic", required = false) String topic,
             @Header(name = "kafka_receivedMessageKey", required = false) String key
     ) throws Exception {
@@ -70,6 +74,7 @@ public class OrderKafkaConsumer {
                     payload
             );
             orderKafkaFlowMetrics.incrementConsumerHandled("payment", eventType, topic, "success");
+            acknowledgment.acknowledge();
         } catch (Exception exception) {
             orderKafkaFlowMetrics.incrementConsumerHandled("payment", eventType, topic, "failed");
             throw exception;

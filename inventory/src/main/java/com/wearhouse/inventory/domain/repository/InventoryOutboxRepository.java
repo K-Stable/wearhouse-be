@@ -1,8 +1,6 @@
 package com.wearhouse.inventory.domain.repository;
 
 import com.wearhouse.inventory.domain.entity.InventoryOutboxEventEntity;
-import com.wearhouse.inventory.domain.model.InventoryOutboxStatus;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -55,19 +53,17 @@ public class InventoryOutboxRepository {
                 });
     }
 
-    public List<OutboxCandidate> lockRepublishCandidates(LocalDateTime cutoffAt, int limit) {
-        List<InventoryOutboxEventEntity> entities = inventoryOutboxEventRepository.lockRepublishCandidates(cutoffAt, limit);
+    public List<OutboxCandidate> lockRepublishCandidates(int limit) {
+        List<InventoryOutboxEventEntity> entities = inventoryOutboxEventRepository.lockRepublishCandidates(limit);
         List<OutboxCandidate> candidates = new ArrayList<>();
         for (InventoryOutboxEventEntity entity : entities) {
-            if (entity.getStatus() == InventoryOutboxStatus.FAIL) {
-                candidates.add(new OutboxCandidate(
-                        entity.getEventId(),
-                        entity.getEventType(),
-                        entity.getTopic(),
-                        entity.getPartitionKey(),
-                        entity.getPayload()
-                ));
-            }
+            candidates.add(new OutboxCandidate(
+                    entity.getEventId(),
+                    entity.getEventType(),
+                    entity.getTopic(),
+                    entity.getPartitionKey(),
+                    entity.getPayload()
+            ));
         }
         return candidates;
     }

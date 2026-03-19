@@ -2,7 +2,6 @@ package com.wearhouse.inventory.domain.repository;
 
 import com.wearhouse.inventory.domain.entity.InventoryOutboxEventEntity;
 import com.wearhouse.inventory.domain.model.InventoryOutboxStatus;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,14 +17,10 @@ public interface InventoryOutboxEventRepository extends JpaRepository<InventoryO
     @Query(value = """
             SELECT *
             FROM inventory_outbox_event
-            WHERE status = 'FAIL'
-              AND created_at <= :cutoffAt
+            WHERE status IN ('READY', 'FAIL')
             ORDER BY id
             LIMIT :limit
             FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
-    List<InventoryOutboxEventEntity> lockRepublishCandidates(
-            @Param("cutoffAt") LocalDateTime cutoffAt,
-            @Param("limit") int limit
-    );
+    List<InventoryOutboxEventEntity> lockRepublishCandidates(@Param("limit") int limit);
 }

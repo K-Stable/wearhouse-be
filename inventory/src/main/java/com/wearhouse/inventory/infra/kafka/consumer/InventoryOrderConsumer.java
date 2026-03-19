@@ -8,6 +8,7 @@ import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +24,7 @@ public class InventoryOrderConsumer {
     @KafkaListener(topics = "${wearhouse.kafka.order-event-topic:wearhouse.order.event.v1}")
     public void consume(
             String message,
+            Acknowledgment acknowledgment,
             @Header(name = "kafka_receivedTopic", required = false) String topic,
             @Header(name = "kafka_receivedMessageKey", required = false) String key
     ) throws Exception {
@@ -43,6 +45,7 @@ public class InventoryOrderConsumer {
                 );
             }
             inventoryKafkaFlowMetrics.incrementConsumerHandled("order", eventType, topic, "success");
+            acknowledgment.acknowledge();
         } catch (Exception exception) {
             inventoryKafkaFlowMetrics.incrementConsumerHandled("order", eventType, topic, "failed");
             throw exception;

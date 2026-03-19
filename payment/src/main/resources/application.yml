@@ -40,11 +40,13 @@ spring:
       auto-create: true
     listener:
       missing-topics-fatal: false
+      ack-mode: manual_immediate
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
     consumer:
       group-id: ${PAYMENT_KAFKA_CONSUMER_GROUP:payment-service-group}
+      enable-auto-commit: false
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -52,6 +54,10 @@ spring:
 wearhouse:
   kafka:
     common-config-enabled: true
+    error-handler:
+      retry-interval-ms: ${KAFKA_RETRY_INTERVAL_MS:2000}
+      retry-attempts: ${KAFKA_RETRY_ATTEMPTS:3}
+      dlt-topic: ${KAFKA_DLT_TOPIC:wearhouse.kafka.failure.payment.v1}
     payment-prepare-topic: ${PAYMENT_PREPARE_TOPIC:wearhouse.payment.command.v1}
     payment-event-topic: ${PAYMENT_EVENT_TOPIC:wearhouse.payment.event.v1}
   payment:

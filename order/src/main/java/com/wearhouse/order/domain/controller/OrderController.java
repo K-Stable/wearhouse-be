@@ -17,6 +17,8 @@ import com.wearhouse.order.domain.service.command.OrderCheckoutOrchestrationServ
 import com.wearhouse.order.domain.service.query.OrderQueryService;
 import jakarta.validation.Valid;
 import java.util.List;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,21 +29,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1")
+@RequiredArgsConstructor
 public class OrderController {
 
     private final OrderCommandService orderCommandService;
     private final OrderCheckoutOrchestrationService orderCheckoutOrchestrationService;
     private final OrderQueryService orderQueryService;
 
-    public OrderController(
-            OrderCommandService orderCommandService,
-            OrderCheckoutOrchestrationService orderCheckoutOrchestrationService,
-            OrderQueryService orderQueryService
-    ) {
-        this.orderCommandService = orderCommandService;
-        this.orderCheckoutOrchestrationService = orderCheckoutOrchestrationService;
-        this.orderQueryService = orderQueryService;
-    }
+
 
     @PostMapping("/orders")
     public OrderCreateResponse createOrder(@Valid @RequestBody OrderCreateRequest request) {
