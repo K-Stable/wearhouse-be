@@ -12,6 +12,40 @@ public record OrderCreateResponse(
         BigDecimal payAmount,
         String sagaId,
         String outboxEventId,
-        LocalDateTime orderedAt
+        LocalDateTime orderedAt,
+        String paymentKey,
+        String paymentId,
+        String paymentSessionId,
+        String merchantKey,
+        String nonce,
+        String deadline,
+        String payloadHash
 ) {
+
+    public OrderCreateResponse withStablepaySession(
+            String paymentKey,
+            String paymentId,
+            String paymentSessionId,
+            String merchantKey,
+            String nonce,
+            String deadline,
+            String payloadHash
+    ) {
+        return new OrderCreateResponse(
+                orderId,
+                orderNo,
+                status,
+                payAmount,
+                sagaId,
+                outboxEventId,
+                orderedAt,
+                paymentKey,
+                paymentId,
+                paymentSessionId,
+                merchantKey,
+                nonce,
+                deadline,
+                payloadHash
+        );
+    }
 }

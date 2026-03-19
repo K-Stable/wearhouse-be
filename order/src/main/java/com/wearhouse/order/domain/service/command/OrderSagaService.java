@@ -118,6 +118,12 @@ public class OrderSagaService {
     }
 
     private void handleStockReserved(OrderEntity order, OrderStatus currentStatus, String eventId) {
+        if (currentStatus == OrderStatus.PAYMENT_FAILED) {
+            order.markItemsReserved();
+            publishInventoryReleaseRequested(order, asString(order.getFailReasonCode(), "PAYMENT_FAILED"));
+            transitionSaga(order.getId(), OrderSagaState.COMPENSATING, eventId, order.getFailReasonCode());
+            return;
+        }
         if (currentStatus != OrderStatus.PENDING_RESERVE) {
             return;
         }
@@ -175,15 +181,22 @@ public class OrderSagaService {
             String eventId,
             Map<String, Object> payload
     ) {
-        if (currentStatus != OrderStatus.PAYMENT_PENDING) {
+        if (currentStatus != OrderStatus.PENDING_RESERVE
+                && currentStatus != OrderStatus.RESERVED
+                && currentStatus != OrderStatus.PAYMENT_PENDING) {
             return;
         }
 
         String reasonCode = asString(payload.get("reasonCode"), "PAYMENT_FAILED");
         order.updateStatus(OrderStatus.PAYMENT_FAILED, reasonCode, null, null);
         saveStatusHistory(order, currentStatus, OrderStatus.PAYMENT_FAILED, eventId, reasonCode);
-        transitionSaga(order.getId(), OrderSagaState.COMPENSATING, eventId, reasonCode);
-        publishInventoryReleaseRequested(order, reasonCode);
+
+        if (currentStatus == OrderStatus.RESERVED || currentStatus == OrderStatus.PAYMENT_PENDING) {
+            transitionSaga(order.getId(), OrderSagaState.COMPENSATING, eventId, reasonCode);
+            publishInventoryReleaseRequested(order, reasonCode);
+            return;
+        }
+        transitionSaga(order.getId(), OrderSagaState.FAILED, eventId, reasonCode);
     }
 
     private void saveStatusHistory(
@@ -219,7 +232,12 @@ public class OrderSagaService {
         payload.put("orderNo", order.getOrderNo());
         payload.put("buyerId", order.getBuyerId());
         payload.put("amount", order.getTotalAmount());
-        payload.put("paymentMethod", order.getOrderInfo() == null ? null : order.getOrderInfo().getPaymentMethod());
+        payload.put(
+                "paymentMethod",
+                order.getOrderInfo() == null || order.getOrderInfo().getPaymentMethod() == null
+                        ? null
+                        : order.getOrderInfo().getPaymentMethod().name()
+        );
 
         OrderDomainEvent event = OrderDomainEvent.builder()
                 .eventId(eventId)

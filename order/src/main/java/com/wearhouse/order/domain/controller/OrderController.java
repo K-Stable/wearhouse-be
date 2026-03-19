@@ -11,6 +11,7 @@ import com.wearhouse.order.domain.dto.response.OrderDetailResponse;
 import com.wearhouse.order.domain.dto.response.OrderPreviewResponse;
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
 import com.wearhouse.order.domain.service.command.OrderCommandService;
+import com.wearhouse.order.domain.service.command.OrderCheckoutOrchestrationService;
 import com.wearhouse.order.domain.service.query.OrderQueryService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -27,16 +28,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
 
     private final OrderCommandService orderCommandService;
+    private final OrderCheckoutOrchestrationService orderCheckoutOrchestrationService;
     private final OrderQueryService orderQueryService;
 
-    public OrderController(OrderCommandService orderCommandService, OrderQueryService orderQueryService) {
+    public OrderController(
+            OrderCommandService orderCommandService,
+            OrderCheckoutOrchestrationService orderCheckoutOrchestrationService,
+            OrderQueryService orderQueryService
+    ) {
         this.orderCommandService = orderCommandService;
+        this.orderCheckoutOrchestrationService = orderCheckoutOrchestrationService;
         this.orderQueryService = orderQueryService;
     }
 
     @PostMapping("/orders")
     public OrderCreateResponse createOrder(@Valid @RequestBody OrderCreateRequest request) {
-        return orderCommandService.createOrder(request);
+        return orderCheckoutOrchestrationService.createOrder(request);
     }
 
     @GetMapping("/orders/{orderNo}")
@@ -60,13 +67,13 @@ public class OrderController {
     @PostMapping("/buyer/orders/checkout")
     public OrderPreviewResponse buyerCheckout(
             @LoginBuyer LoginUser currentUser,
-            @Valid @RequestBody OrderCheckoutRequest request
+            @Valid @RequestBody OrderPreviewRequest request
     ) {
-        return orderQueryService.buyerCheckou(currentUser.userId(), request);
+        return orderQueryService.previewForBuyer(currentUser.userId(), request);
     }
 
     @PostMapping("/buyer/orders/guest-checkout")
     public OrderPreviewResponse guestCheckout(@Valid @RequestBody OrderPreviewRequest request) {
-        return orderQueryService.buyerCheckout(request);
+        return orderQueryService.previewForGuest(request);
     }
 }

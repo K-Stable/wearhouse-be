@@ -1,5 +1,6 @@
 package com.wearhouse.order.domain.dto.request;
 
+import com.wearhouse.order.domain.model.PaymentMethod;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -15,13 +16,16 @@ import lombok.extern.jackson.Jacksonized;
 @Jacksonized
 public record OrderCreateRequest(
         Long buyerId,
-        @NotBlank String paymentMethod,
+        @NotNull PaymentMethod paymentMethod,
         @NotBlank String recipientName,
         @NotBlank String recipientPhone,
         @NotBlank String zipCode,
         @NotBlank String address1,
         String address2,
         String deliveryRequest,
+        String payerAddress,
+        String tokenAddress,
+        String chainId,
         BigDecimal shippingFee,
         BigDecimal discountAmount,
         BigDecimal pointUsedAmount,

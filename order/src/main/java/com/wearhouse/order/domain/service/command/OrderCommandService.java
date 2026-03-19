@@ -284,7 +284,7 @@ public class OrderCommandService {
         payload.put("orderNo", order.getOrderNo());
         payload.put("buyerId", request.buyerId());
         payload.put("payAmount", payAmount);
-        payload.put("paymentMethod", request.paymentMethod());
+        payload.put("paymentMethod", request.paymentMethod() == null ? null : request.paymentMethod().name());
         payload.put("recipientName", request.recipientName());
         payload.put("recipientPhone", request.recipientPhone());
         payload.put("zipCode", request.zipCode());
@@ -342,6 +342,9 @@ public class OrderCommandService {
 
     private void validateCreateRequest(OrderCreateRequest request) {
         if (request == null) {
+            throw new ErrorException(OrderErrorCode.INVALID_ORDER_AMOUNT);
+        }
+        if (request.paymentMethod() == null) {
             throw new ErrorException(OrderErrorCode.INVALID_ORDER_AMOUNT);
         }
         if (request.items() == null || request.items().isEmpty()) {

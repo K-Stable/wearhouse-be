@@ -31,3 +31,9 @@ wearhouse:
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:3000}
     stale-minutes: ${OUTBOX_STALE_MINUTES:10}
     republish-batch-size: ${OUTBOX_REPUBLISH_BATCH_SIZE:100}
+  order:
+    internal:
+      shared-secret: ${ORDER_INTERNAL_SHARED_SECRET:wearhouse-order-internal-secret}
+    stablepay:
+      default-token-address: ${ORDER_STABLEPAY_DEFAULT_TOKEN_ADDRESS:0x0000000000000000000000000000000000000000}
+      default-chain-id: ${ORDER_STABLEPAY_DEFAULT_CHAIN_ID:8453}

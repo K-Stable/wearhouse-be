@@ -23,7 +23,7 @@ public class PaymentSecurityConfig {
                 .cors(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/v1/internal/**", "/actuator/**", "/error").permitAll()
+                        .requestMatchers("/api/v1/internal/**", "/api/v1/payments/webhooks/**", "/actuator/**", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(paymentPassportAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

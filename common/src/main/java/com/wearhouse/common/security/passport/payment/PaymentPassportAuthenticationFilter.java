@@ -44,6 +44,7 @@ public class PaymentPassportAuthenticationFilter extends OncePerRequestFilter {
         }
         String path = request.getRequestURI();
         return path.startsWith("/api/v1/internal/")
+                || path.startsWith("/api/v1/payments/webhooks/")
                 || path.startsWith("/actuator")
                 || path.startsWith("/error");
     }

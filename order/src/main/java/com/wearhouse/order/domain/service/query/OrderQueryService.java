@@ -73,7 +73,7 @@ public class OrderQueryService {
                 .failReasonCode(order.getFailReasonCode())
                 .retryable(retryable)
                 .nextAction(retryable ? NEXT_ACTION_RETURN_TO_CHECKOUT : NEXT_ACTION_VIEW_ORDER)
-                .paymentMethod(info == null ? null : info.getPaymentMethod())
+                .paymentMethod(info == null || info.getPaymentMethod() == null ? null : info.getPaymentMethod().name())
                 .recipientName(info == null ? null : info.getRecipientName())
                 .recipientPhone(info == null ? null : info.getRecipientPhone())
                 .zipCode(info == null ? null : info.getZipCode())

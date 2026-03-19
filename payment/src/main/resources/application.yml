@@ -57,6 +57,9 @@ wearhouse:
   payment:
     passport:
       shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
+    stablepay:
+      session-expire-minutes: ${PAYMENT_STABLEPAY_SESSION_EXPIRE_MINUTES:15}
+      merchant-key: ${PAYMENT_STABLEPAY_MERCHANT_KEY:merchant_demo_key}
     kafka:
       send-timeout-ms: ${PAYMENT_KAFKA_SEND_TIMEOUT_MS:3000}
     mock:
@@ -65,6 +68,13 @@ wearhouse:
       timeout-batch-size: ${PAYMENT_MOCK_TIMEOUT_BATCH_SIZE:200}
       fail-methods: ${PAYMENT_MOCK_FAIL_METHODS:FAIL}
       timeout-methods: ${PAYMENT_MOCK_TIMEOUT_METHODS:TIMEOUT}
+  order:
+    internal:
+      shared-secret: ${ORDER_INTERNAL_SHARED_SECRET:wearhouse-order-internal-secret}
+  pay:
+    webhook:
+      secret: ${PAY_WEBHOOK_SECRET:pay-webhook-secret}
+      allowed-skew-seconds: ${PAY_WEBHOOK_ALLOWED_SKEW_SECONDS:300}
   outbox:
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:3000}
     stale-minutes: ${OUTBOX_STALE_MINUTES:10}

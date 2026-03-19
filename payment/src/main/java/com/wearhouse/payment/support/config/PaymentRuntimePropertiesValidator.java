@@ -13,6 +13,9 @@ public class PaymentRuntimePropertiesValidator {
     private final int pendingTimeoutMinutes;
     private final long timeoutCheckIntervalMs;
     private final int timeoutBatchSize;
+    private final int stablepaySessionExpireMinutes;
+    private final String orderInternalSharedSecret;
+    private final String payWebhookSecret;
 
     public PaymentRuntimePropertiesValidator(
             @Value("${wearhouse.kafka.payment-prepare-topic:}") String paymentPrepareTopic,
@@ -20,7 +23,10 @@ public class PaymentRuntimePropertiesValidator {
             @Value("${wearhouse.payment.kafka.send-timeout-ms:0}") long paymentKafkaSendTimeoutMs,
             @Value("${wearhouse.payment.mock.pending-timeout-minutes:0}") int pendingTimeoutMinutes,
             @Value("${wearhouse.payment.mock.timeout-check-interval-ms:0}") long timeoutCheckIntervalMs,
-            @Value("${wearhouse.payment.mock.timeout-batch-size:0}") int timeoutBatchSize
+            @Value("${wearhouse.payment.mock.timeout-batch-size:0}") int timeoutBatchSize,
+            @Value("${wearhouse.payment.stablepay.session-expire-minutes:0}") int stablepaySessionExpireMinutes,
+            @Value("${wearhouse.order.internal.shared-secret:}") String orderInternalSharedSecret,
+            @Value("${wearhouse.pay.webhook.secret:}") String payWebhookSecret
     ) {
         this.paymentPrepareTopic = paymentPrepareTopic;
         this.paymentEventTopic = paymentEventTopic;
@@ -28,6 +34,9 @@ public class PaymentRuntimePropertiesValidator {
         this.pendingTimeoutMinutes = pendingTimeoutMinutes;
         this.timeoutCheckIntervalMs = timeoutCheckIntervalMs;
         this.timeoutBatchSize = timeoutBatchSize;
+        this.stablepaySessionExpireMinutes = stablepaySessionExpireMinutes;
+        this.orderInternalSharedSecret = orderInternalSharedSecret;
+        this.payWebhookSecret = payWebhookSecret;
     }
 
     @PostConstruct
@@ -38,6 +47,9 @@ public class PaymentRuntimePropertiesValidator {
         requirePositive("wearhouse.payment.mock.pending-timeout-minutes", pendingTimeoutMinutes);
         requirePositive("wearhouse.payment.mock.timeout-check-interval-ms", timeoutCheckIntervalMs);
         requirePositive("wearhouse.payment.mock.timeout-batch-size", timeoutBatchSize);
+        requirePositive("wearhouse.payment.stablepay.session-expire-minutes", stablepaySessionExpireMinutes);
+        requireText("wearhouse.order.internal.shared-secret", orderInternalSharedSecret);
+        requireText("wearhouse.pay.webhook.secret", payWebhookSecret);
     }
 
     private void requireText(String key, String value) {

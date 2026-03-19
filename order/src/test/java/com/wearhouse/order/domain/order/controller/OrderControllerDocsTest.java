@@ -27,7 +27,9 @@ import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
 import com.wearhouse.order.domain.dto.response.OrderDetailResponse;
 import com.wearhouse.order.domain.dto.response.OrderDetailResponse.OrderItemDetailResponse;
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
+import com.wearhouse.order.domain.model.PaymentMethod;
 import com.wearhouse.order.domain.service.command.OrderCommandService;
+import com.wearhouse.order.domain.service.command.OrderCheckoutOrchestrationService;
 import com.wearhouse.order.domain.service.query.OrderQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -60,6 +62,9 @@ class OrderControllerDocsTest {
     private OrderCommandService orderCommandService;
 
     @MockitoBean
+    private OrderCheckoutOrchestrationService orderCheckoutOrchestrationService;
+
+    @MockitoBean
     private OrderQueryService orderQueryService;
 
     @Test
@@ -67,13 +72,16 @@ class OrderControllerDocsTest {
     void createOrder() throws Exception {
         OrderCreateRequest request = OrderCreateRequest.builder()
                 .buyerId(1L)
-                .paymentMethod("CARD")
+                .paymentMethod(PaymentMethod.CARD)
                 .recipientName("홍길동")
                 .recipientPhone("01012345678")
                 .zipCode("06236")
                 .address1("서울시 강남구")
                 .address2("101동 101호")
                 .deliveryRequest("문 앞에 놓아주세요")
+                .payerAddress("0x1111111111111111111111111111111111111111")
+                .tokenAddress("0x2222222222222222222222222222222222222222")
+                .chainId("8453")
                 .shippingFee(new BigDecimal("3000"))
                 .discountAmount(new BigDecimal("1000"))
                 .pointUsedAmount(BigDecimal.ZERO)
@@ -97,7 +105,7 @@ class OrderControllerDocsTest {
                 .outboxEventId("OUTB01TEST0123456789012345")
                 .orderedAt(LocalDateTime.of(2026, 3, 6, 12, 0, 0))
                 .build();
-        given(orderCommandService.createOrder(any(OrderCreateRequest.class))).willReturn(response);
+        given(orderCheckoutOrchestrationService.createOrder(any(OrderCreateRequest.class))).willReturn(response);
 
         mockMvc.perform(post("/api/v1/orders")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -115,6 +123,9 @@ class OrderControllerDocsTest {
                                 fieldWithPath("address1").type(JsonFieldType.STRING).description("기본 주소"),
                                 fieldWithPath("address2").type(JsonFieldType.STRING).optional().description("상세 주소"),
                                 fieldWithPath("deliveryRequest").type(JsonFieldType.STRING).optional().description("배송 요청사항"),
+                                fieldWithPath("payerAddress").type(JsonFieldType.STRING).optional().description("StablePay 지갑 주소"),
+                                fieldWithPath("tokenAddress").type(JsonFieldType.STRING).optional().description("StablePay 토큰 주소"),
+                                fieldWithPath("chainId").type(JsonFieldType.STRING).optional().description("StablePay 체인 ID"),
                                 fieldWithPath("shippingFee").type(JsonFieldType.NUMBER).optional().description("배송비"),
                                 fieldWithPath("discountAmount").type(JsonFieldType.NUMBER).optional().description("할인 금액"),
                                 fieldWithPath("pointUsedAmount").type(JsonFieldType.NUMBER).optional().description("포인트 사용 금액"),
@@ -137,6 +148,13 @@ class OrderControllerDocsTest {
                                 fieldWithPath("data.sagaId").type(JsonFieldType.STRING).description("Saga ID"),
                                 fieldWithPath("data.outboxEventId").type(JsonFieldType.STRING).description("Outbox 이벤트 ID"),
                                 fieldWithPath("data.orderedAt").type(JsonFieldType.STRING).description("주문 시각"),
+                                fieldWithPath("data.paymentKey").type(JsonFieldType.STRING).optional().description("StablePay paymentKey"),
+                                fieldWithPath("data.paymentId").type(JsonFieldType.STRING).optional().description("StablePay paymentId"),
+                                fieldWithPath("data.paymentSessionId").type(JsonFieldType.STRING).optional().description("StablePay paymentSessionId"),
+                                fieldWithPath("data.merchantKey").type(JsonFieldType.STRING).optional().description("StablePay merchantKey"),
+                                fieldWithPath("data.nonce").type(JsonFieldType.STRING).optional().description("StablePay nonce"),
+                                fieldWithPath("data.deadline").type(JsonFieldType.STRING).optional().description("StablePay deadline"),
+                                fieldWithPath("data.payloadHash").type(JsonFieldType.STRING).optional().description("StablePay payload hash"),
                                 fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
                         )
                 ));

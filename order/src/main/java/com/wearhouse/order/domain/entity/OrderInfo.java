@@ -1,13 +1,17 @@
 package com.wearhouse.order.domain.entity;
 
+import com.wearhouse.order.domain.model.PaymentMethod;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 
 @Embeddable
 public class OrderInfo {
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "payment_method")
-    private String paymentMethod;
+    private PaymentMethod paymentMethod;
 
     @Column(name = "recipient_name")
     private String recipientName;
@@ -31,7 +35,7 @@ public class OrderInfo {
     }
 
     private OrderInfo(
-            String paymentMethod,
+            PaymentMethod paymentMethod,
             String recipientName,
             String recipientPhone,
             String zipCode,
@@ -49,7 +53,7 @@ public class OrderInfo {
     }
 
     public static OrderInfo of(
-            String paymentMethod,
+            PaymentMethod paymentMethod,
             String recipientName,
             String recipientPhone,
             String zipCode,
@@ -60,7 +64,7 @@ public class OrderInfo {
         return new OrderInfo(paymentMethod, recipientName, recipientPhone, zipCode, address1, address2, deliveryRequest);
     }
 
-    public String getPaymentMethod() {
+    public PaymentMethod getPaymentMethod() {
         return paymentMethod;
     }
 

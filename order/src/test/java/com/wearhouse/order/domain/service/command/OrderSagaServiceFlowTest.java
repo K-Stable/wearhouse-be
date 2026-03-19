@@ -16,6 +16,7 @@ import com.wearhouse.order.domain.entity.OrderSagaEntity;
 import com.wearhouse.order.domain.event.OrderDomainEvent;
 import com.wearhouse.order.domain.event.OrderDomainEventPublisher;
 import com.wearhouse.order.domain.model.OrderItemStatus;
+import com.wearhouse.order.domain.model.PaymentMethod;
 import com.wearhouse.order.domain.model.OrderStatus;
 import com.wearhouse.order.infra.jpa.repository.OrderInboxRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
@@ -146,7 +147,7 @@ class OrderSagaServiceFlowTest {
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                OrderInfo.of("CARD", "tester", "01012345678", "12345", "Seoul", "Gangnam", null),
+                OrderInfo.of(PaymentMethod.CARD, "tester", "01012345678", "12345", "Seoul", "Gangnam", null),
                 LocalDateTime.now()
         );
         ReflectionTestUtils.setField(order, "id", orderId);
