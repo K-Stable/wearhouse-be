@@ -41,7 +41,7 @@ public class CartController {
             @LoginBuyer LoginUser currentUser,
             @Valid @RequestBody CartItemUpsertRequest request
     ) {
-        List<BuyerCartItemResponse> response = cartCommandService.upsertBuyerCartItems(currentUser, request);
+        List<BuyerCartItemResponse> response = cartCommandService.upsertCartItems(currentUser, request);
         return ApiResponse.success(CartSuccessCode.CART_ITEM_UPSERTED, response);
     }
 
