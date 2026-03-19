@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
+import com.wearhouse.payment.infra.pay.PayConfirmGateway;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentCommandServiceStablepayTest {
@@ -28,6 +30,8 @@ class PaymentCommandServiceStablepayTest {
     private PaymentInboxRepository paymentInboxRepository;
     @Mock
     private PaymentTransactionRepository paymentTransactionRepository;
+    @Mock
+    private PayConfirmGateway payConfirmGateway;
     @Mock
     private PaymentDomainEventPublisher paymentDomainEventPublisher;
     @Mock
@@ -40,17 +44,17 @@ class PaymentCommandServiceStablepayTest {
         paymentCommandService = new PaymentCommandService(
                 paymentInboxRepository,
                 paymentTransactionRepository,
+                payConfirmGateway,
                 paymentDomainEventPublisher,
-                paymentKafkaFlowMetrics,
-                "wearhouse.payment.event.v1",
-                30,
-                100,
-                "FAIL",
-                "TIMEOUT",
-                "internal-secret",
-                15,
-                "merchant-key"
+                paymentKafkaFlowMetrics
         );
+        ReflectionTestUtils.setField(paymentCommandService, "paymentEventTopic", "wearhouse.payment.event.v1");
+        ReflectionTestUtils.setField(paymentCommandService, "pendingTimeoutMinutes", 30);
+        ReflectionTestUtils.setField(paymentCommandService, "timeoutBatchSize", 100);
+        ReflectionTestUtils.setField(paymentCommandService, "failMethodsRaw", "FAIL");
+        ReflectionTestUtils.setField(paymentCommandService, "timeoutMethodsRaw", "TIMEOUT");
+        ReflectionTestUtils.setField(paymentCommandService, "internalSharedSecret", "internal-secret");
+        paymentCommandService.init();
     }
 
     @Test

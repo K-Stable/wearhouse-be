@@ -4,7 +4,7 @@ import com.wearhouse.payment.domain.payment.entity.PaymentWebhookEventEntity;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface PaymentWebhookEventJpaRepository extends JpaRepository<PaymentWebhookEventEntity, Long> {
+public interface PaymentWebhookJpaRepository extends JpaRepository<PaymentWebhookEventEntity, Long> {
 
     Optional<PaymentWebhookEventEntity> findByEventId(String eventId);
 }

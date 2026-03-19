@@ -34,6 +34,7 @@ wearhouse:
   order:
     internal:
       shared-secret: ${ORDER_INTERNAL_SHARED_SECRET:wearhouse-order-internal-secret}
-    stablepay:
-      default-token-address: ${ORDER_STABLEPAY_DEFAULT_TOKEN_ADDRESS:0x0000000000000000000000000000000000000000}
-      default-chain-id: ${ORDER_STABLEPAY_DEFAULT_CHAIN_ID:8453}
+    reserve-wait-timeout-ms: ${ORDER_RESERVE_WAIT_TIMEOUT_MS:2000}
+    reserve-wait-interval-ms: ${ORDER_RESERVE_WAIT_INTERVAL_MS:100}
+    payment-confirm-wait-timeout-ms: ${ORDER_PAYMENT_CONFIRM_WAIT_TIMEOUT_MS:3000}
+    payment-confirm-wait-interval-ms: ${ORDER_PAYMENT_CONFIRM_WAIT_INTERVAL_MS:100}

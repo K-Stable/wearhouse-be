@@ -20,12 +20,14 @@ import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.support.OrderIdGenerator;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -71,6 +73,8 @@ public class OrderCommandService {
         String orderNo = OrderIdGenerator.newOrderNo();
         LocalDateTime orderedAt = LocalDateTime.now();
         String eventId = OrderIdGenerator.newEventId();
+        String customerKey = resolveCustomerKey(request.buyerId(), orderNo);
+        String customerId = UUID.nameUUIDFromBytes(customerKey.getBytes(StandardCharsets.UTF_8)).toString();
 
         OrderEntity order = createOrderEntity(request, orderNo, orderedAt, amountSummary);
         List<Map<String, Object>> payloadItems = appendItemsAndBuildReservePayload(order, request.items());
@@ -88,6 +92,9 @@ public class OrderCommandService {
                 .sagaId(sagaId)
                 .outboxEventId(eventId)
                 .orderedAt(orderedAt)
+                .customerKey(customerKey)
+                .customerId(customerId)
+                .customerName(request.recipientName())
                 .build();
     }
 
@@ -361,6 +368,13 @@ public class OrderCommandService {
                 throw new ErrorException(OrderErrorCode.INVALID_ORDER_AMOUNT);
             }
         }
+    }
+
+    private String resolveCustomerKey(Long buyerId, String orderNo) {
+        if (buyerId != null) {
+            return "buyer:" + buyerId;
+        }
+        return "guest:" + orderNo;
     }
 
     private BigDecimal calculateItemAmount(List<OrderCreateItemRequest> items) {

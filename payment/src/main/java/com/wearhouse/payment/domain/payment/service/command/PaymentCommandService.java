@@ -4,31 +4,32 @@ import com.wearhouse.common.global.error.CommonErrorCode;
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.common.support.lock.DistributedLock;
-import com.wearhouse.payment.domain.payment.dto.request.StablepaySessionPrepareRequest;
-import com.wearhouse.payment.domain.payment.dto.response.StablepaySessionPrepareResponse;
+import com.wearhouse.payment.domain.payment.dto.request.PaymentConfirmRequest;
+import com.wearhouse.payment.domain.payment.dto.response.PaymentConfirmResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
+import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
+import com.wearhouse.payment.infra.pay.PayConfirmGateway;
 import com.wearhouse.payment.support.PaymentIdGenerator;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
+import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class PaymentCommandService {
 
     private static final String PAYMENT_COMMAND_CONSUMER = "payment-command-consumer";
@@ -38,84 +39,127 @@ public class PaymentCommandService {
 
     private final PaymentInboxRepository paymentInboxRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final PayConfirmGateway payConfirmGateway;
     private final PaymentDomainEventPublisher paymentDomainEventPublisher;
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
-    private final String paymentEventTopic;
-    private final int pendingTimeoutMinutes;
-    private final int timeoutBatchSize;
-    private final Set<String> failMethods;
-    private final Set<String> timeoutMethods;
-    private final String internalSharedSecret;
-    private final int stablepaySessionExpireMinutes;
-    private final String stablepayMerchantKey;
+    @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
+    private String paymentEventTopic;
+    @Value("${wearhouse.payment.mock.pending-timeout-minutes:30}")
+    private int pendingTimeoutMinutes;
+    @Value("${wearhouse.payment.mock.timeout-batch-size:200}")
+    private int timeoutBatchSize;
+    @Value("${wearhouse.payment.mock.fail-methods:FAIL}")
+    private String failMethodsRaw;
+    @Value("${wearhouse.payment.mock.timeout-methods:TIMEOUT}")
+    private String timeoutMethodsRaw;
+    @Value("${wearhouse.order.internal.shared-secret:wearhouse-order-internal-secret}")
+    private String internalSharedSecret;
+    private Set<String> failMethods = Set.of();
+    private Set<String> timeoutMethods = Set.of();
 
-    public PaymentCommandService(
-            PaymentInboxRepository paymentInboxRepository,
-            PaymentTransactionRepository paymentTransactionRepository,
-            PaymentDomainEventPublisher paymentDomainEventPublisher,
-            PaymentKafkaFlowMetrics paymentKafkaFlowMetrics,
-            @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}") String paymentEventTopic,
-            @Value("${wearhouse.payment.mock.pending-timeout-minutes:30}") int pendingTimeoutMinutes,
-            @Value("${wearhouse.payment.mock.timeout-batch-size:200}") int timeoutBatchSize,
-            @Value("${wearhouse.payment.mock.fail-methods:FAIL}") String failMethods,
-            @Value("${wearhouse.payment.mock.timeout-methods:TIMEOUT}") String timeoutMethods,
-            @Value("${wearhouse.order.internal.shared-secret:wearhouse-order-internal-secret}") String internalSharedSecret,
-            @Value("${wearhouse.payment.stablepay.session-expire-minutes:15}") int stablepaySessionExpireMinutes,
-            @Value("${wearhouse.payment.stablepay.merchant-key:merchant_demo_key}") String stablepayMerchantKey
-    ) {
-        this.paymentInboxRepository = paymentInboxRepository;
-        this.paymentTransactionRepository = paymentTransactionRepository;
-        this.paymentDomainEventPublisher = paymentDomainEventPublisher;
-        this.paymentKafkaFlowMetrics = paymentKafkaFlowMetrics;
-        this.paymentEventTopic = paymentEventTopic;
-        this.pendingTimeoutMinutes = pendingTimeoutMinutes;
-        this.timeoutBatchSize = timeoutBatchSize;
-        this.failMethods = parseUpperCaseSet(failMethods);
-        this.timeoutMethods = parseUpperCaseSet(timeoutMethods);
-        this.internalSharedSecret = internalSharedSecret;
-        this.stablepaySessionExpireMinutes = stablepaySessionExpireMinutes;
-        this.stablepayMerchantKey = stablepayMerchantKey;
+    @PostConstruct
+    void init() {
+        this.failMethods = parseUpperCaseSet(failMethodsRaw);
+        this.timeoutMethods = parseUpperCaseSet(timeoutMethodsRaw);
     }
 
     @WriteTx
-    public StablepaySessionPrepareResponse prepareStablepaySession(
-            StablepaySessionPrepareRequest request,
+    public PaymentConfirmResponse confirmStablepayPayment(
+            PaymentConfirmRequest request,
             String internalSecret
     ) {
         assertInternalSecret(internalSecret);
-        validatePrepareSessionRequest(request);
+        validateConfirmRequest(request);
 
-        Optional<PaymentTransactionEntity> existing = paymentTransactionRepository.findByOrderId(request.orderId());
-        if (existing.isPresent()) {
-            return toSessionResponse(existing.get());
+        PaymentTransactionEntity transaction = paymentTransactionRepository.findByOrderId(request.orderId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 주문의 결제 정보를 찾을 수 없습니다."));
+        validateConfirmTarget(transaction, request);
+
+        if (transaction.getStatus() == PaymentStatus.AUTHORIZED) {
+            return new PaymentConfirmResponse(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    transaction.getPaymentId(),
+                    PaymentStatus.AUTHORIZED.name(),
+                    transaction.getCommandStatus(),
+                    null
+            );
+        }
+        if (transaction.getStatus() == PaymentStatus.FAILED) {
+            return new PaymentConfirmResponse(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    transaction.getPaymentId(),
+                    PaymentStatus.FAILED.name(),
+                    transaction.getCommandStatus(),
+                    transaction.getReasonCode()
+            );
         }
 
-        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(stablepaySessionExpireMinutes);
-        StablepaySessionIssued sessionIssued = issueSession(request, expiresAt);
-
-        try {
-            PaymentTransactionEntity transaction = PaymentTransactionEntity.pending(
-                    sessionIssued.paymentId(),
-                    request.orderId(),
-                    request.orderNo(),
-                    request.amount(),
-                    STABLEPAY_METHOD,
-                    expiresAt
-            );
-            transaction.bindStablepaySession(
-                    sessionIssued.paymentKey(),
-                    sessionIssued.paymentSessionId(),
-                    sessionIssued.merchantKey(),
-                    request.payerAddress(),
-                    request.tokenAddress()
+        PayConfirmGateway.PayConfirmResult result = payConfirmGateway.confirm(request);
+        LocalDateTime now = LocalDateTime.now();
+        if (result.resultType() == PayConfirmGateway.ResultType.AUTHORIZED) {
+            transaction.bindPaymentKey(request.paymentKey());
+            transaction.authorizeByWebhook(
+                    result.txHash(),
+                    result.commandId(),
+                    result.commandStatus(),
+                    now
             );
             paymentTransactionRepository.save(transaction);
-            return toSessionResponse(transaction, sessionIssued.nonce(), sessionIssued.deadline(), sessionIssued.payloadHash());
-        } catch (DuplicateKeyException ignored) {
-            PaymentTransactionEntity duplicated = paymentTransactionRepository.findByOrderId(request.orderId())
-                    .orElseThrow(() -> new IllegalStateException("중복 결제 트랜잭션 조회에 실패했습니다."));
-            return toSessionResponse(duplicated);
+            publishPaymentAuthorized(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    resolvePaymentId(result.paymentId(), transaction.getPaymentId()),
+                    transaction.getAmount(),
+                    transaction.getPaymentMethod(),
+                    now
+            );
+            return new PaymentConfirmResponse(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    transaction.getPaymentId(),
+                    PaymentStatus.AUTHORIZED.name(),
+                    result.commandStatus(),
+                    null
+            );
         }
+
+        if (result.resultType() == PayConfirmGateway.ResultType.FAILED) {
+            String reasonCode = resolveReasonCode(result.reasonCode());
+            transaction.failByWebhook(
+                    reasonCode,
+                    result.commandId(),
+                    result.commandStatus(),
+                    now
+            );
+            paymentTransactionRepository.save(transaction);
+            publishPaymentFailed(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    resolvePaymentId(result.paymentId(), transaction.getPaymentId()),
+                    reasonCode,
+                    "결제 승인에 실패했습니다.",
+                    now
+            );
+            return new PaymentConfirmResponse(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    transaction.getPaymentId(),
+                    PaymentStatus.FAILED.name(),
+                    result.commandStatus(),
+                    reasonCode
+            );
+        }
+
+        return new PaymentConfirmResponse(
+                transaction.getOrderId(),
+                transaction.getOrderNo(),
+                transaction.getPaymentId(),
+                PaymentStatus.PENDING.name(),
+                result.commandStatus(),
+                null
+        );
     }
 
     @WriteTx
@@ -250,29 +294,36 @@ public class PaymentCommandService {
                     command.paymentMethod(),
                     now
             );
-            publishPaymentAuthorized(command, paymentId, now);
+            publishPaymentAuthorized(command.orderId(), command.orderNo(), paymentId, command.amount(), command.paymentMethod(), now);
             paymentKafkaFlowMetrics.incrementPaymentDecision("authorized");
         } catch (DuplicateKeyException ignored) {
             // order_id unique 충돌은 중복 요청으로 간주한다.
         }
     }
 
-    private void publishPaymentAuthorized(PaymentPrepareCommand command, String paymentId, LocalDateTime authorizedAt) {
+    private void publishPaymentAuthorized(
+            Long orderId,
+            String orderNo,
+            String paymentId,
+            BigDecimal amount,
+            String paymentMethod,
+            LocalDateTime authorizedAt
+    ) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", command.orderId());
-        payload.put("orderNo", command.orderNo());
+        payload.put("orderId", orderId);
+        payload.put("orderNo", orderNo);
         payload.put("paymentId", paymentId);
-        payload.put("amount", command.amount());
-        payload.put("method", command.paymentMethod());
+        payload.put("amount", amount);
+        payload.put("method", paymentMethod);
         payload.put("authorizedAt", authorizedAt);
 
         PaymentDomainEvent event = PaymentDomainEvent.builder()
                 .eventId(PaymentIdGenerator.newEventId())
                 .eventType("PaymentAuthorized")
                 .aggregateType("ORDER")
-                .aggregateId(String.valueOf(command.orderId()))
+                .aggregateId(String.valueOf(orderId))
                 .topic(paymentEventTopic)
-                .partitionKey(String.valueOf(command.orderId()))
+                .partitionKey(String.valueOf(orderId))
                 .payload(payload)
                 .build();
         paymentDomainEventPublisher.publish(event);
@@ -332,71 +383,44 @@ public class PaymentCommandService {
         }
     }
 
-    private void validatePrepareSessionRequest(StablepaySessionPrepareRequest request) {
+    private void validateConfirmRequest(PaymentConfirmRequest request) {
         if (request == null || request.orderId() == null || request.orderNo() == null || request.orderNo().isBlank()) {
             throw new IllegalArgumentException("order 정보가 올바르지 않습니다.");
         }
         if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("결제 금액이 올바르지 않습니다.");
         }
-        if (request.payerAddress() == null || request.payerAddress().isBlank()) {
-            throw new IllegalArgumentException("payerAddress 값이 필요합니다.");
-        }
-        if (request.tokenAddress() == null || request.tokenAddress().isBlank()) {
-            throw new IllegalArgumentException("tokenAddress 값이 필요합니다.");
-        }
-        if (request.chainId() == null || request.chainId().isBlank()) {
-            throw new IllegalArgumentException("chainId 값이 필요합니다.");
+        if (request.paymentKey() == null || request.paymentKey().isBlank()) {
+            throw new IllegalArgumentException("paymentKey 값이 필요합니다.");
         }
     }
 
-    private StablepaySessionIssued issueSession(StablepaySessionPrepareRequest request, LocalDateTime expiresAt) {
-        String paymentId = PaymentIdGenerator.newPaymentId();
-        String paymentKey = "pay_" + PaymentIdGenerator.newEventId().substring(0, 20);
-        String paymentSessionId = "ps_" + PaymentIdGenerator.newEventId().substring(0, 20);
-        String nonce = "nonce_" + PaymentIdGenerator.newEventId().substring(0, 16);
-        String deadline = OffsetDateTime.of(expiresAt, ZoneOffset.UTC).toString();
-        String payloadHash = sha256Hex(
-                request.orderId() + ":" + request.orderNo() + ":" + request.amount() + ":" + request.payerAddress() + ":" + nonce
-        );
-        return new StablepaySessionIssued(
-                paymentId,
-                paymentKey,
-                paymentSessionId,
-                stablepayMerchantKey,
-                nonce,
-                deadline,
-                payloadHash
-        );
-    }
-
-    private StablepaySessionPrepareResponse toSessionResponse(PaymentTransactionEntity transaction) {
-        if (transaction.getPaymentSessionId() == null || transaction.getPaymentSessionId().isBlank()) {
-            throw new ErrorException(CommonErrorCode.BUSINESS_RULE_VIOLATION, "StablePay 세션이 아직 준비되지 않았습니다.");
+    private void validateConfirmTarget(PaymentTransactionEntity transaction, PaymentConfirmRequest request) {
+        if (!request.orderNo().equals(transaction.getOrderNo())) {
+            throw new IllegalArgumentException("orderNo 값이 일치하지 않습니다.");
         }
-        String fallbackDeadline = transaction.getExpiresAt() == null
-                ? OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(stablepaySessionExpireMinutes).toString()
-                : OffsetDateTime.of(transaction.getExpiresAt(), ZoneOffset.UTC).toString();
-        String nonce = "nonce_" + transaction.getPaymentSessionId();
-        String payloadHash = sha256Hex(transaction.getPaymentId() + ":" + transaction.getPaymentSessionId());
-        return toSessionResponse(transaction, nonce, fallbackDeadline, payloadHash);
+        if (transaction.getAmount() == null || transaction.getAmount().compareTo(request.amount()) != 0) {
+            throw new IllegalArgumentException("결제 금액이 주문 금액과 일치하지 않습니다.");
+        }
+        if (transaction.getPaymentKey() != null
+                && !transaction.getPaymentKey().isBlank()
+                && !transaction.getPaymentKey().equals(request.paymentKey())) {
+            throw new IllegalArgumentException("paymentKey 값이 기존 결제 정보와 일치하지 않습니다.");
+        }
     }
 
-    private StablepaySessionPrepareResponse toSessionResponse(
-            PaymentTransactionEntity transaction,
-            String nonce,
-            String deadline,
-            String payloadHash
-    ) {
-        return new StablepaySessionPrepareResponse(
-                transaction.getPaymentKey(),
-                transaction.getPaymentId(),
-                transaction.getPaymentSessionId(),
-                transaction.getMerchantKey(),
-                nonce,
-                deadline,
-                payloadHash
-        );
+    private String resolvePaymentId(String candidate, String fallback) {
+        if (candidate != null && !candidate.isBlank()) {
+            return candidate;
+        }
+        return fallback;
+    }
+
+    private String resolveReasonCode(String reasonCode) {
+        if (reasonCode == null || reasonCode.isBlank()) {
+            return DEFAULT_REASON_CODE;
+        }
+        return reasonCode;
     }
 
     private Set<String> parseUpperCaseSet(String raw) {
@@ -441,35 +465,11 @@ public class PaymentCommandService {
         return null;
     }
 
-    private String sha256Hex(String value) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
-            StringBuilder builder = new StringBuilder(digest.length * 2);
-            for (byte current : digest) {
-                builder.append(String.format("%02x", current));
-            }
-            return builder.toString();
-        } catch (Exception exception) {
-            throw new IllegalStateException("stablepay payload hash 생성에 실패했습니다.", exception);
-        }
-    }
-
     private record PaymentPrepareCommand(
             Long orderId,
             String orderNo,
             BigDecimal amount,
             String paymentMethod
-    ) {
-    }
-
-    private record StablepaySessionIssued(
-            String paymentId,
-            String paymentKey,
-            String paymentSessionId,
-            String merchantKey,
-            String nonce,
-            String deadline,
-            String payloadHash
     ) {
     }
 }

@@ -51,6 +51,15 @@ public class PaymentTransactionEntity extends BaseEntity {
     @Column(name = "merchant_key", length = 120)
     private String merchantKey;
 
+    @Column(name = "nonce", length = 120)
+    private String nonce;
+
+    @Column(name = "deadline", length = 120)
+    private String deadline;
+
+    @Column(name = "payload_hash", length = 128)
+    private String payloadHash;
+
     @Column(name = "payer_address", length = 100)
     private String payerAddress;
 
@@ -92,6 +101,9 @@ public class PaymentTransactionEntity extends BaseEntity {
             String paymentKey,
             String paymentSessionId,
             String merchantKey,
+            String nonce,
+            String deadline,
+            String payloadHash,
             String payerAddress,
             String tokenAddress,
             String commandId,
@@ -111,6 +123,9 @@ public class PaymentTransactionEntity extends BaseEntity {
         this.paymentKey = paymentKey;
         this.paymentSessionId = paymentSessionId;
         this.merchantKey = merchantKey;
+        this.nonce = nonce;
+        this.deadline = deadline;
+        this.payloadHash = payloadHash;
         this.payerAddress = payerAddress;
         this.tokenAddress = tokenAddress;
         this.commandId = commandId;
@@ -186,14 +201,24 @@ public class PaymentTransactionEntity extends BaseEntity {
             String paymentKey,
             String paymentSessionId,
             String merchantKey,
+            String nonce,
+            String deadline,
+            String payloadHash,
             String payerAddress,
             String tokenAddress
     ) {
         this.paymentKey = paymentKey;
         this.paymentSessionId = paymentSessionId;
         this.merchantKey = merchantKey;
+        this.nonce = nonce;
+        this.deadline = deadline;
+        this.payloadHash = payloadHash;
         this.payerAddress = payerAddress;
         this.tokenAddress = tokenAddress;
+    }
+
+    public void bindPaymentKey(String paymentKey) {
+        this.paymentKey = paymentKey;
     }
 
     public void authorizeByWebhook(String txHash, String commandId, String commandStatus, LocalDateTime authorizedAt) {

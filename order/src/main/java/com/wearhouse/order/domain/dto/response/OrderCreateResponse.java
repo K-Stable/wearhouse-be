@@ -13,23 +13,30 @@ public record OrderCreateResponse(
         String sagaId,
         String outboxEventId,
         LocalDateTime orderedAt,
-        String paymentKey,
-        String paymentId,
-        String paymentSessionId,
-        String merchantKey,
-        String nonce,
-        String deadline,
-        String payloadHash
+        String customerKey,
+        String customerId,
+        String customerName
 ) {
 
-    public OrderCreateResponse withStablepaySession(
-            String paymentKey,
-            String paymentId,
-            String paymentSessionId,
-            String merchantKey,
-            String nonce,
-            String deadline,
-            String payloadHash
+    public OrderCreateResponse withStatus(String status) {
+        return new OrderCreateResponse(
+                orderId,
+                orderNo,
+                status,
+                payAmount,
+                sagaId,
+                outboxEventId,
+                orderedAt,
+                customerKey,
+                customerId,
+                customerName
+        );
+    }
+
+    public OrderCreateResponse withCustomerContext(
+            String customerKey,
+            String customerId,
+            String customerName
     ) {
         return new OrderCreateResponse(
                 orderId,
@@ -39,13 +46,9 @@ public record OrderCreateResponse(
                 sagaId,
                 outboxEventId,
                 orderedAt,
-                paymentKey,
-                paymentId,
-                paymentSessionId,
-                merchantKey,
-                nonce,
-                deadline,
-                payloadHash
+                customerKey,
+                customerId,
+                customerName
         );
     }
 }

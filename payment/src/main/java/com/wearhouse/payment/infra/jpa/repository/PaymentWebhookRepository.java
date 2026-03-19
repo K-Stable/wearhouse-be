@@ -9,17 +9,17 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
-public class PaymentWebhookEventRepository {
+public class PaymentWebhookRepository {
 
-    private final PaymentWebhookEventJpaRepository paymentWebhookEventJpaRepository;
+    private final PaymentWebhookJpaRepository paymentWebhookJpaRepository;
 
     public Optional<PaymentWebhookEventEntity> findByEventId(String eventId) {
-        return paymentWebhookEventJpaRepository.findByEventId(eventId);
+        return paymentWebhookJpaRepository.findByEventId(eventId);
     }
 
     public void save(PaymentWebhookEventEntity entity) {
         try {
-            paymentWebhookEventJpaRepository.saveAndFlush(entity);
+            paymentWebhookJpaRepository.saveAndFlush(entity);
         } catch (DataIntegrityViolationException exception) {
             throw new DuplicateKeyException("payment webhook event 중복 키 충돌", exception);
         }

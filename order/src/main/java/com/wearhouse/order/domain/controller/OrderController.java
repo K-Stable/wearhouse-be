@@ -4,10 +4,12 @@ import com.wearhouse.common.security.current.LoginBuyer;
 import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.order.domain.dto.request.OrderCancelRequest;
 import com.wearhouse.order.domain.dto.request.OrderCreateRequest;
+import com.wearhouse.order.domain.dto.request.OrderPaymentConfirmRequest;
 import com.wearhouse.order.domain.dto.request.OrderPreviewRequest;
 import com.wearhouse.order.domain.dto.response.OrderCancelResponse;
 import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
 import com.wearhouse.order.domain.dto.response.OrderDetailResponse;
+import com.wearhouse.order.domain.dto.response.OrderPaymentConfirmResponse;
 import com.wearhouse.order.domain.dto.response.OrderPreviewResponse;
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
 import com.wearhouse.order.domain.service.command.OrderCommandService;
@@ -75,5 +77,14 @@ public class OrderController {
     @PostMapping("/buyer/orders/guest-checkout")
     public OrderPreviewResponse guestCheckout(@Valid @RequestBody OrderPreviewRequest request) {
         return orderQueryService.previewForGuest(request);
+    }
+
+    @PostMapping("/buyer/orders/{orderNo}/payments/confirm")
+    public OrderPaymentConfirmResponse confirmStablepayPayment(
+            @LoginBuyer LoginUser currentUser,
+            @PathVariable String orderNo,
+            @Valid @RequestBody OrderPaymentConfirmRequest request
+    ) {
+        return orderCheckoutOrchestrationService.confirmStablepayPayment(currentUser.userId(), orderNo, request);
     }
 }

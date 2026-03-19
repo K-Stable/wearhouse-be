@@ -9,7 +9,7 @@ import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.infra.jpa.repository.PaymentWebhookEventRepository;
+import com.wearhouse.payment.infra.jpa.repository.PaymentWebhookRepository;
 import com.wearhouse.payment.support.PaymentIdGenerator;
 import com.wearhouse.payment.support.security.PayWebhookSignatureVerifier;
 import java.nio.charset.StandardCharsets;
@@ -32,10 +32,11 @@ public class PaymentWebhookService {
 
     private final ObjectMapper objectMapper;
     private final PayWebhookSignatureVerifier signatureVerifier;
-    private final PaymentWebhookEventRepository paymentWebhookEventRepository;
+    private final PaymentWebhookRepository paymentWebhookRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final PaymentDomainEventPublisher paymentDomainEventPublisher;
-    private final @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}") String paymentEventTopic;
+    @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
+    private String paymentEventTopic;
 
     @WriteTx
     public void handle(String timestamp, String signature, String rawBody) {
@@ -66,7 +67,7 @@ public class PaymentWebhookService {
 
     private boolean registerWebhookEventIfAbsent(PayWebhookRequest webhookRequest, String rawBody) {
         try {
-            paymentWebhookEventRepository.save(PaymentWebhookEventEntity.received(
+            paymentWebhookRepository.save(PaymentWebhookEventEntity.received(
                     webhookRequest.eventId(),
                     webhookRequest.eventType(),
                     parseOccurredAt(webhookRequest.occurredAt()),
@@ -95,6 +96,9 @@ public class PaymentWebhookService {
                 coalesce(webhookRequest.payment().paymentKey(), transaction.getPaymentKey()),
                 transaction.getPaymentSessionId(),
                 coalesce(webhookRequest.payment().merchantKey(), transaction.getMerchantKey()),
+                transaction.getNonce(),
+                transaction.getDeadline(),
+                transaction.getPayloadHash(),
                 coalesce(webhookRequest.payment().payerAddress(), transaction.getPayerAddress()),
                 coalesce(webhookRequest.payment().tokenAddress(), transaction.getTokenAddress())
         );

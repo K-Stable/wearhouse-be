@@ -57,9 +57,6 @@ wearhouse:
   payment:
     passport:
       shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
-    stablepay:
-      session-expire-minutes: ${PAYMENT_STABLEPAY_SESSION_EXPIRE_MINUTES:15}
-      merchant-key: ${PAYMENT_STABLEPAY_MERCHANT_KEY:merchant_demo_key}
     kafka:
       send-timeout-ms: ${PAYMENT_KAFKA_SEND_TIMEOUT_MS:3000}
     mock:
@@ -72,6 +69,11 @@ wearhouse:
     internal:
       shared-secret: ${ORDER_INTERNAL_SHARED_SECRET:wearhouse-order-internal-secret}
   pay:
+    api-base-url: ${PAY_API_BASE_URL:http://localhost:8090}
+    merchant-id: ${PAY_MERCHANT_ID:merchant_demo}
+    access-key: ${PAY_ACCESS_KEY:pay_access_key}
+    secret-key: ${PAY_SECRET_KEY:pay_secret_key}
+    confirm-path: ${PAY_CONFIRM_PATH:/v1/payments/confirm}
     webhook:
       secret: ${PAY_WEBHOOK_SECRET:pay-webhook-secret}
       allowed-skew-seconds: ${PAY_WEBHOOK_ALLOWED_SKEW_SECONDS:300}

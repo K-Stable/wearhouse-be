@@ -11,7 +11,7 @@ import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.infra.jpa.repository.PaymentWebhookEventRepository;
+import com.wearhouse.payment.infra.jpa.repository.PaymentWebhookRepository;
 import com.wearhouse.payment.support.security.PayWebhookSignatureVerifier;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -27,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.test.util.ReflectionTestUtils;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 
@@ -34,7 +35,7 @@ import static org.mockito.Mockito.doThrow;
 class PaymentWebhookServiceTest {
 
     @Mock
-    private PaymentWebhookEventRepository paymentWebhookEventRepository;
+    private PaymentWebhookRepository paymentWebhookRepository;
     @Mock
     private PaymentTransactionRepository paymentTransactionRepository;
     @Mock
@@ -47,11 +48,11 @@ class PaymentWebhookServiceTest {
         paymentWebhookService = new PaymentWebhookService(
                 new ObjectMapper(),
                 new PayWebhookSignatureVerifier("test-secret", 300),
-                paymentWebhookEventRepository,
+                paymentWebhookRepository,
                 paymentTransactionRepository,
-                paymentDomainEventPublisher,
-                "wearhouse.payment.event.v1"
+                paymentDomainEventPublisher
         );
+        ReflectionTestUtils.setField(paymentWebhookService, "paymentEventTopic", "wearhouse.payment.event.v1");
     }
 
     @Test
@@ -68,7 +69,7 @@ class PaymentWebhookServiceTest {
         when(paymentTransactionRepository.findByPaymentId("PAY123")).thenReturn(Optional.of(transaction));
         doNothing()
                 .doThrow(new DuplicateKeyException("duplicate"))
-                .when(paymentWebhookEventRepository)
+                .when(paymentWebhookRepository)
                 .save(any());
 
         String timestamp = OffsetDateTime.now(ZoneOffset.UTC).toString();
