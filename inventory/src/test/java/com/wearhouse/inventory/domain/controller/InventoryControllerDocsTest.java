@@ -24,8 +24,10 @@ import com.wearhouse.inventory.domain.dto.request.InventoryStockUpsertRequest;
 import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse;
 import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse.InventoryAvailabilityLineResponse;
 import com.wearhouse.inventory.domain.dto.response.InventoryStockResponse;
-import com.wearhouse.inventory.domain.service.InventoryQueryService;
-import com.wearhouse.inventory.domain.service.command.InventoryCommandService;
+import com.wearhouse.inventory.domain.service.buyer.query.BuyerInventoryQueryService;
+import com.wearhouse.inventory.domain.service.seller.command.SellerInventoryCommandService;
+import com.wearhouse.inventory.domain.service.seller.query.SellerInventoryQueryService;
+import com.wearhouse.inventory.support.config.InventoryProperties;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -40,7 +42,10 @@ import org.springframework.restdocs.payload.JsonFieldType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(InventoryController.class)
+@WebMvcTest({
+        InventorySellerController.class,
+        InventoryBuyerController.class
+})
 @AutoConfigureMockMvc(addFilters = false)
 @AutoConfigureRestDocs
 @Import({GlobalResponseBodyAdvice.class, GlobalExceptionHandler.class})
@@ -53,10 +58,16 @@ class InventoryControllerDocsTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private InventoryQueryService inventoryQueryService;
+    private SellerInventoryQueryService sellerInventoryQueryService;
 
     @MockitoBean
-    private InventoryCommandService inventoryCommandService;
+    private SellerInventoryCommandService sellerInventoryCommandService;
+
+    @MockitoBean
+    private BuyerInventoryQueryService buyerInventoryQueryService;
+
+    @MockitoBean
+    private InventoryProperties inventoryProperties;
 
     @Test
     @DisplayName("재고 upsert API 문서화")
@@ -89,7 +100,7 @@ class InventoryControllerDocsTest {
                 0,
                 1L
         );
-        given(inventoryCommandService.upsertStock(any(InventoryStockUpsertRequest.class))).willReturn(response);
+        given(sellerInventoryCommandService.upsertStock(any(InventoryStockUpsertRequest.class))).willReturn(response);
 
         mockMvc.perform(post("/api/v1/internal/inventory/stocks")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -151,7 +162,7 @@ class InventoryControllerDocsTest {
                 3,
                 7L
         );
-        given(inventoryQueryService.findStockBySkuId(eq(1001L))).willReturn(response);
+        given(sellerInventoryQueryService.findStockBySkuId(eq(1001L))).willReturn(response);
 
         mockMvc.perform(get("/api/v1/internal/inventory/stocks/{skuId}", 1001L))
                 .andExpect(status().isOk())
@@ -198,7 +209,7 @@ class InventoryControllerDocsTest {
                         new InventoryAvailabilityLineResponse(5002L, 7002L, 7002L, 1, 3, true)
                 )
         );
-        given(inventoryQueryService.checkAvailability(any(InventoryAvailabilityCheckRequest.class))).willReturn(response);
+        given(buyerInventoryQueryService.checkAvailability(any(InventoryAvailabilityCheckRequest.class))).willReturn(response);
 
         mockMvc.perform(post("/api/v1/internal/inventory/stocks/availability/check")
                         .contentType(MediaType.APPLICATION_JSON)

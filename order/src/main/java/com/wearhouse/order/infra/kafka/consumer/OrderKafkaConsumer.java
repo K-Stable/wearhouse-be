@@ -3,7 +3,6 @@ package com.wearhouse.order.infra.kafka.consumer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.support.kafka.dto.KafkaMessageEnvelope;
 import com.wearhouse.order.domain.service.command.OrderSagaService;
-import com.wearhouse.order.support.monitoring.OrderKafkaFlowMetrics;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
@@ -18,7 +17,6 @@ public class OrderKafkaConsumer {
 
     private final ObjectMapper objectMapper;
     private final OrderSagaService orderSagaService;
-    private final OrderKafkaFlowMetrics orderKafkaFlowMetrics;
 
 
     @KafkaListener(topics = "${wearhouse.kafka.inventory-event-topic:wearhouse.inventory.event.v1}")
@@ -28,27 +26,22 @@ public class OrderKafkaConsumer {
             @Header(name = "kafka_receivedTopic", required = false) String topic,
             @Header(name = "kafka_receivedMessageKey", required = false) String key
     ) throws Exception {
-        String eventType = "unknown";
-        try {
-            KafkaMessageEnvelope envelope = objectMapper.readValue(message, KafkaMessageEnvelope.class);
-            String eventId = envelope.eventId();
-            eventType = safeEventType(envelope.eventType());
-            Map<String, Object> payload = requirePayload(envelope.payload());
-
-            orderSagaService.onInventoryEvent(
-                    eventId,
-                    eventType,
-                    topic,
-                    key,
-                    message,
-                    payload
-            );
-            orderKafkaFlowMetrics.incrementConsumerHandled("inventory", eventType, topic, "success");
-            acknowledgment.acknowledge();
-        } catch (Exception exception) {
-            orderKafkaFlowMetrics.incrementConsumerHandled("inventory", eventType, topic, "failed");
-            throw exception;
-        }
+        processMessage(
+                message,
+                acknowledgment,
+                topic,
+                key,
+                (eventId, eventType, parsedTopic, parsedKey, rawMessage, orderId, payload) ->
+                        orderSagaService.onInventoryEvent(
+                                eventId,
+                                eventType,
+                                parsedTopic,
+                                parsedKey,
+                                rawMessage,
+                                orderId,
+                                payload
+                        )
+        );
     }
 
     @KafkaListener(topics = "${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
@@ -58,27 +51,47 @@ public class OrderKafkaConsumer {
             @Header(name = "kafka_receivedTopic", required = false) String topic,
             @Header(name = "kafka_receivedMessageKey", required = false) String key
     ) throws Exception {
-        String eventType = "unknown";
-        try {
-            KafkaMessageEnvelope envelope = objectMapper.readValue(message, KafkaMessageEnvelope.class);
-            String eventId = envelope.eventId();
-            eventType = safeEventType(envelope.eventType());
-            Map<String, Object> payload = requirePayload(envelope.payload());
+        processMessage(
+                message,
+                acknowledgment,
+                topic,
+                key,
+                (eventId, eventType, parsedTopic, parsedKey, rawMessage, orderId, payload) ->
+                        orderSagaService.onPaymentEvent(
+                                eventId,
+                                eventType,
+                                parsedTopic,
+                                parsedKey,
+                                rawMessage,
+                                orderId,
+                                payload
+                        )
+        );
+    }
 
-            orderSagaService.onPaymentEvent(
-                    eventId,
-                    eventType,
-                    topic,
-                    key,
-                    message,
-                    payload
-            );
-            orderKafkaFlowMetrics.incrementConsumerHandled("payment", eventType, topic, "success");
-            acknowledgment.acknowledge();
-        } catch (Exception exception) {
-            orderKafkaFlowMetrics.incrementConsumerHandled("payment", eventType, topic, "failed");
-            throw exception;
-        }
+    private void processMessage(
+            String message,
+            Acknowledgment acknowledgment,
+            String topic,
+            String key,
+            SagaDispatcher dispatcher
+    ) throws Exception {
+        KafkaMessageEnvelope envelope = objectMapper.readValue(message, KafkaMessageEnvelope.class);
+        String eventId = envelope.eventId();
+        String eventType = safeEventType(envelope.eventType());
+        Map<String, Object> payload = requirePayload(envelope.payload());
+        Long orderId = requireOrderId(payload);
+
+        dispatcher.dispatch(
+                eventId,
+                eventType,
+                topic,
+                key,
+                message,
+                orderId,
+                payload
+        );
+        acknowledgment.acknowledge();
     }
 
     private Map<String, Object> requirePayload(Map<String, Object> payload) {
@@ -90,5 +103,29 @@ public class OrderKafkaConsumer {
 
     private String safeEventType(String eventType) {
         return eventType == null || eventType.isBlank() ? "unknown" : eventType;
+    }
+
+    private Long requireOrderId(Map<String, Object> payload) {
+        Object value = payload.get("orderId");
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String stringValue) {
+            return Long.parseLong(stringValue);
+        }
+        throw new IllegalArgumentException("orderId 값이 올바르지 않습니다.");
+    }
+
+    @FunctionalInterface
+    private interface SagaDispatcher {
+        void dispatch(
+                String eventId,
+                String eventType,
+                String topic,
+                String key,
+                String message,
+                Long orderId,
+                Map<String, Object> payload
+        ) throws Exception;
     }
 }

@@ -38,12 +38,6 @@ public class InventoryOutboxEventEntity extends BaseEntity {
     @Column(name = "event_id", nullable = false, unique = true, length = 26)
     private String eventId;
 
-    @Column(name = "aggregate_type", nullable = false, length = 50)
-    private String aggregateType;
-
-    @Column(name = "aggregate_id", nullable = false, length = 100)
-    private String aggregateId;
-
     @Column(name = "event_type", nullable = false, length = 100)
     private String eventType;
 
@@ -63,25 +57,18 @@ public class InventoryOutboxEventEntity extends BaseEntity {
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
 
-    @Column(name = "fail_code", length = 50)
-    private String failCode;
-
     @Column(name = "fail_message", length = 255)
     private String failMessage;
 
     @Builder
     private InventoryOutboxEventEntity(
             String eventId,
-            String aggregateType,
-            String aggregateId,
             String eventType,
             String topic,
             String partitionKey,
             String payload
     ) {
         this.eventId = eventId;
-        this.aggregateType = aggregateType;
-        this.aggregateId = aggregateId;
         this.eventType = eventType;
         this.topic = topic;
         this.partitionKey = partitionKey;
@@ -91,8 +78,6 @@ public class InventoryOutboxEventEntity extends BaseEntity {
 
     public static InventoryOutboxEventEntity ready(
             String eventId,
-            String aggregateType,
-            String aggregateId,
             String eventType,
             String topic,
             String partitionKey,
@@ -100,8 +85,6 @@ public class InventoryOutboxEventEntity extends BaseEntity {
     ) {
         return new InventoryOutboxEventEntity(
                 eventId,
-                aggregateType,
-                aggregateId,
                 eventType,
                 topic,
                 partitionKey,
@@ -112,13 +95,11 @@ public class InventoryOutboxEventEntity extends BaseEntity {
     public void markSuccess() {
         this.status = InventoryOutboxStatus.SUCCESS;
         this.sentAt = LocalDateTime.now();
-        this.failCode = null;
         this.failMessage = null;
     }
 
-    public void markFailed(String failCode, String failMessage) {
+    public void markFailed(String failMessage) {
         this.status = InventoryOutboxStatus.FAIL;
-        this.failCode = failCode;
         this.failMessage = truncate(failMessage, 255);
     }
 

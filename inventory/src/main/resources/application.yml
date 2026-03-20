@@ -66,6 +66,8 @@ wearhouse:
   inventory:
     passport:
       shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
+    internal:
+      shared-secret: ${INVENTORY_INTERNAL_SHARED_SECRET:wearhouse-inventory-internal-secret}
     reservation-hold-minutes: ${INVENTORY_RESERVATION_HOLD_MINUTES:15}
     optimistic-retry-count: ${INVENTORY_OPTIMISTIC_RETRY_COUNT:3}
     reservation-expire-interval-ms: ${INVENTORY_RESERVATION_EXPIRE_INTERVAL_MS:30000}

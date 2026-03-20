@@ -6,13 +6,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.concurrent.TimeUnit;
+import com.wearhouse.inventory.support.config.InventoryProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class InventoryHotSkuLockServiceTest {
@@ -71,10 +71,10 @@ class InventoryHotSkuLockServiceTest {
     }
 
     private InventoryHotSkuLockService newService() {
-        InventoryHotSkuLockService service = new InventoryHotSkuLockService(redissonClient);
-        ReflectionTestUtils.setField(service, "waitTimeMs", 1200L);
-        ReflectionTestUtils.setField(service, "leaseTimeMs", 3000L);
-        ReflectionTestUtils.setField(service, "lockKeyPrefix", "inventory:lock:sku:");
-        return service;
+        InventoryProperties inventoryProperties = new InventoryProperties();
+        inventoryProperties.getLock().setWaitTimeMs(1200L);
+        inventoryProperties.getLock().setLeaseTimeMs(3000L);
+        inventoryProperties.getLock().setKeyPrefix("inventory:lock:sku:");
+        return new InventoryHotSkuLockService(redissonClient, inventoryProperties);
     }
 }

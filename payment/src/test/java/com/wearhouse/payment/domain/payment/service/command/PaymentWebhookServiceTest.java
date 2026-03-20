@@ -62,7 +62,7 @@ class PaymentWebhookServiceTest {
                 1L,
                 "O202603190001",
                 new BigDecimal("10000"),
-                "STABLEPAY",
+                "STABLE",
                 LocalDateTime.now().plusMinutes(10)
         );
 

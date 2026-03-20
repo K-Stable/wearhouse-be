@@ -14,8 +14,6 @@ public class OrderOutboxRepository {
 
     public void saveReady(
             String eventId,
-            String aggregateType,
-            String aggregateId,
             String eventType,
             String topic,
             String partitionKey,
@@ -23,8 +21,6 @@ public class OrderOutboxRepository {
     ) {
         OrderOutboxEventEntity entity = OrderOutboxEventEntity.ready(
                 eventId,
-                aggregateType,
-                aggregateId,
                 eventType,
                 topic,
                 partitionKey,
@@ -35,7 +31,10 @@ public class OrderOutboxRepository {
 
     public void markSuccess(String eventId) {
         orderOutboxEventRepository.findByEventId(eventId)
-                .ifPresent(OrderOutboxEventEntity::markSuccess);
+                .ifPresent(entity -> {
+                    entity.markSuccess();
+                    orderOutboxEventRepository.save(entity);
+                });
     }
 
     public void markFail(
@@ -44,7 +43,10 @@ public class OrderOutboxRepository {
             String errorMessage
     ) {
         orderOutboxEventRepository.findByEventId(eventId)
-                .ifPresent(entity -> entity.markFailed(errorCode, errorMessage));
+                .ifPresent(entity -> {
+                    entity.markFailed(errorMessage);
+                    orderOutboxEventRepository.save(entity);
+                });
     }
 
     public List<OutboxCandidate> lockRepublishCandidates(int limit) {

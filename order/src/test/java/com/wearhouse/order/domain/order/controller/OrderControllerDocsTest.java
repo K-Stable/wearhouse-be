@@ -29,7 +29,6 @@ import com.wearhouse.order.domain.dto.response.OrderDetailResponse.OrderItemDeta
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
 import com.wearhouse.order.domain.model.PaymentMethod;
 import com.wearhouse.order.domain.service.command.OrderCommandService;
-import com.wearhouse.order.domain.service.command.OrderCheckoutOrchestrationService;
 import com.wearhouse.order.domain.service.query.OrderQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -62,9 +61,6 @@ class OrderControllerDocsTest {
     private OrderCommandService orderCommandService;
 
     @MockitoBean
-    private OrderCheckoutOrchestrationService orderCheckoutOrchestrationService;
-
-    @MockitoBean
     private OrderQueryService orderQueryService;
 
     @Test
@@ -94,18 +90,12 @@ class OrderControllerDocsTest {
                 .build();
 
         OrderCreateResponse response = OrderCreateResponse.builder()
-                .orderId(10L)
                 .orderNo("O202603060001")
-                .status("PENDING_RESERVE")
-                .payAmount(new BigDecimal("60000"))
-                .sagaId("SAGA01TEST0123456789012345")
-                .outboxEventId("OUTB01TEST0123456789012345")
-                .orderedAt(LocalDateTime.of(2026, 3, 6, 12, 0, 0))
-                .customerKey("buyer:1")
                 .customerId("11111111-1111-1111-1111-111111111111")
                 .customerName("홍길동")
+                .payAmount(new BigDecimal("60000"))
                 .build();
-        given(orderCheckoutOrchestrationService.createOrder(any(OrderCreateRequest.class))).willReturn(response);
+        given(orderCommandService.createOrder(any(OrderCreateRequest.class))).willReturn(response);
 
         mockMvc.perform(post("/api/v1/orders")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -138,16 +128,10 @@ class OrderControllerDocsTest {
                                 fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("성공 여부"),
                                 fieldWithPath("code").type(JsonFieldType.STRING).description("응답 코드"),
                                 fieldWithPath("message").type(JsonFieldType.STRING).description("응답 메시지"),
-                                fieldWithPath("data.orderId").type(JsonFieldType.NUMBER).description("주문 ID"),
                                 fieldWithPath("data.orderNo").type(JsonFieldType.STRING).description("주문 번호"),
-                                fieldWithPath("data.status").type(JsonFieldType.STRING).description("주문 상태"),
+                                fieldWithPath("data.customerId").type(JsonFieldType.STRING).description("SDK용 고객 식별자"),
+                                fieldWithPath("data.customerName").type(JsonFieldType.STRING).description("고객명"),
                                 fieldWithPath("data.payAmount").type(JsonFieldType.NUMBER).description("결제 금액"),
-                                fieldWithPath("data.sagaId").type(JsonFieldType.STRING).description("Saga ID"),
-                                fieldWithPath("data.outboxEventId").type(JsonFieldType.STRING).description("Outbox 이벤트 ID"),
-                                fieldWithPath("data.orderedAt").type(JsonFieldType.STRING).description("주문 시각"),
-                                fieldWithPath("data.customerKey").type(JsonFieldType.STRING).optional().description("Wallet SDK customerKey"),
-                                fieldWithPath("data.customerId").type(JsonFieldType.STRING).optional().description("Wallet SDK customerId"),
-                                fieldWithPath("data.customerName").type(JsonFieldType.STRING).optional().description("Wallet SDK customerName"),
                                 fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
                         )
                 ));

@@ -35,7 +35,8 @@ public class PaymentCommandService {
     private static final String PAYMENT_COMMAND_CONSUMER = "payment-command-consumer";
     private static final String DEFAULT_REASON_CODE = "PAYMENT_FAILED";
     private static final String TIMEOUT_REASON_CODE = "PAYMENT_TIMEOUT";
-    private static final String STABLEPAY_METHOD = "STABLEPAY";
+    private static final String STABLE_METHOD = "STABLE";
+    private static final String LEGACY_STABLEPAY_METHOD = "STABLEPAY";
 
     private final PaymentInboxRepository paymentInboxRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
@@ -238,7 +239,7 @@ public class PaymentCommandService {
         String normalizedMethod = normalizeMethod(command.paymentMethod());
 
         try {
-            if (STABLEPAY_METHOD.equals(normalizedMethod)) {
+            if (isStableMethod(normalizedMethod)) {
                 paymentTransactionRepository.insertPending(
                         paymentId,
                         command.orderId(),
@@ -436,6 +437,10 @@ public class PaymentCommandService {
 
     private String normalizeMethod(String method) {
         return method == null ? "" : method.trim().toUpperCase();
+    }
+
+    private boolean isStableMethod(String normalizedMethod) {
+        return STABLE_METHOD.equals(normalizedMethod) || LEGACY_STABLEPAY_METHOD.equals(normalizedMethod);
     }
 
     private String asString(Object value) {

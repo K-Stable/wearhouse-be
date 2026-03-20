@@ -67,7 +67,7 @@ class PaymentCommandServiceConfirmTest {
                 1L,
                 "O202603190001",
                 new BigDecimal("10000"),
-                "STABLEPAY",
+                "STABLE",
                 LocalDateTime.now().plusMinutes(30)
         );
         pending.bindStablepaySession("pay_key_1", null, null, null, null, null, null, null);
@@ -98,7 +98,7 @@ class PaymentCommandServiceConfirmTest {
                 1L,
                 "O202603190001",
                 new BigDecimal("10000"),
-                "STABLEPAY",
+                "STABLE",
                 LocalDateTime.now().plusMinutes(30)
         );
         when(paymentTransactionRepository.findByOrderId(1L)).thenReturn(Optional.of(pending));

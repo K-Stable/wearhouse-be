@@ -67,7 +67,7 @@ class PaymentCommandServiceStablepayTest {
         payload.put("orderId", 1L);
         payload.put("orderNo", "O202603190001");
         payload.put("amount", new BigDecimal("10000"));
-        payload.put("paymentMethod", "STABLEPAY");
+        payload.put("paymentMethod", "STABLE");
 
         paymentCommandService.handlePaymentPrepareRequested("evt_1", "topic", "1", "{}", payload);
 
@@ -76,7 +76,7 @@ class PaymentCommandServiceStablepayTest {
                 eq(1L),
                 eq("O202603190001"),
                 eq(new BigDecimal("10000")),
-                eq("STABLEPAY"),
+                eq("STABLE"),
                 any()
         );
         verify(paymentDomainEventPublisher, never()).publish(any());

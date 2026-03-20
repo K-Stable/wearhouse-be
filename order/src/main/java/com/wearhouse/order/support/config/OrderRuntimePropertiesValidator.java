@@ -1,43 +1,25 @@
 package com.wearhouse.order.support.config;
 
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class OrderRuntimePropertiesValidator {
 
-    private final String inventoryReserveTopic;
-    private final String inventoryCommandTopic;
-    private final String inventoryEventTopic;
-    private final String paymentPrepareTopic;
-    private final String paymentEventTopic;
-    private final String orderEventTopic;
+    private final OrderKafkaTopicsProperties kafkaTopicsProperties;
 
-    public OrderRuntimePropertiesValidator(
-            @Value("${wearhouse.kafka.inventory-reserve-topic:}") String inventoryReserveTopic,
-            @Value("${wearhouse.kafka.inventory-command-topic:}") String inventoryCommandTopic,
-            @Value("${wearhouse.kafka.inventory-event-topic:}") String inventoryEventTopic,
-            @Value("${wearhouse.kafka.payment-prepare-topic:}") String paymentPrepareTopic,
-            @Value("${wearhouse.kafka.payment-event-topic:}") String paymentEventTopic,
-            @Value("${wearhouse.kafka.order-event-topic:}") String orderEventTopic
-    ) {
-        this.inventoryReserveTopic = inventoryReserveTopic;
-        this.inventoryCommandTopic = inventoryCommandTopic;
-        this.inventoryEventTopic = inventoryEventTopic;
-        this.paymentPrepareTopic = paymentPrepareTopic;
-        this.paymentEventTopic = paymentEventTopic;
-        this.orderEventTopic = orderEventTopic;
+    public OrderRuntimePropertiesValidator(OrderKafkaTopicsProperties kafkaTopicsProperties) {
+        this.kafkaTopicsProperties = kafkaTopicsProperties;
     }
 
     @PostConstruct
     void validate() {
-        requireText("wearhouse.kafka.inventory-reserve-topic", inventoryReserveTopic);
-        requireText("wearhouse.kafka.inventory-command-topic", inventoryCommandTopic);
-        requireText("wearhouse.kafka.inventory-event-topic", inventoryEventTopic);
-        requireText("wearhouse.kafka.payment-prepare-topic", paymentPrepareTopic);
-        requireText("wearhouse.kafka.payment-event-topic", paymentEventTopic);
-        requireText("wearhouse.kafka.order-event-topic", orderEventTopic);
+        requireText("wearhouse.kafka.inventory-reserve-topic", kafkaTopicsProperties.getInventoryReserveTopic());
+        requireText("wearhouse.kafka.inventory-command-topic", kafkaTopicsProperties.getInventoryCommandTopic());
+        requireText("wearhouse.kafka.inventory-event-topic", kafkaTopicsProperties.getInventoryEventTopic());
+        requireText("wearhouse.kafka.payment-prepare-topic", kafkaTopicsProperties.getPaymentPrepareTopic());
+        requireText("wearhouse.kafka.payment-event-topic", kafkaTopicsProperties.getPaymentEventTopic());
+        requireText("wearhouse.kafka.order-event-topic", kafkaTopicsProperties.getOrderEventTopic());
     }
 
     private void requireText(String key, String value) {

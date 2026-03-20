@@ -14,8 +14,6 @@ public class InventoryOutboxRepository {
 
     public void saveReady(
             String eventId,
-            String aggregateType,
-            String aggregateId,
             String eventType,
             String topic,
             String partitionKey,
@@ -23,8 +21,6 @@ public class InventoryOutboxRepository {
     ) {
         InventoryOutboxEventEntity entity = InventoryOutboxEventEntity.ready(
                 eventId,
-                aggregateType,
-                aggregateId,
                 eventType,
                 topic,
                 partitionKey,
@@ -48,7 +44,7 @@ public class InventoryOutboxRepository {
     ) {
         inventoryOutboxEventRepository.findByEventId(eventId)
                 .ifPresent(entity -> {
-                    entity.markFailed(errorCode, errorMessage);
+                    entity.markFailed(errorMessage);
                     inventoryOutboxEventRepository.save(entity);
                 });
     }

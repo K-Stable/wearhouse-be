@@ -2,8 +2,7 @@ package com.wearhouse.inventory.infra.kafka.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.support.kafka.dto.KafkaMessageEnvelope;
-import com.wearhouse.inventory.domain.service.command.InventoryCommandService;
-import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
+import com.wearhouse.inventory.domain.service.buyer.command.BuyerInventoryCommandService;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
@@ -17,8 +16,7 @@ import org.springframework.stereotype.Component;
 public class InventoryCommandConsumer {
 
     private final ObjectMapper objectMapper;
-    private final InventoryCommandService inventoryCommandService;
-    private final InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics;
+    private final BuyerInventoryCommandService buyerInventoryCommandService;
 
 
     @KafkaListener(topics = "${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}")
@@ -36,20 +34,19 @@ public class InventoryCommandConsumer {
             Map<String, Object> payload = requirePayload(envelope.payload());
 
             if ("InventoryReserveRequested".equals(eventType)) {
-                inventoryCommandService.onReserveRequested(
+                buyerInventoryCommandService.onReserveRequested(
                         eventId,
                         topic,
                         key,
                         message,
                         payload
                 );
-                inventoryKafkaFlowMetrics.incrementConsumerHandled("inventory", eventType, topic, "success");
                 acknowledgment.acknowledge();
                 return;
             }
 
             if ("InventoryReleaseRequested".equals(eventType)) {
-                inventoryCommandService.onReleaseRequested(
+                buyerInventoryCommandService.onReleaseRequested(
                         eventId,
                         topic,
                         key,
@@ -57,10 +54,8 @@ public class InventoryCommandConsumer {
                         payload
                 );
             }
-            inventoryKafkaFlowMetrics.incrementConsumerHandled("inventory", eventType, topic, "success");
             acknowledgment.acknowledge();
         } catch (Exception exception) {
-            inventoryKafkaFlowMetrics.incrementConsumerHandled("inventory", eventType, topic, "failed");
             throw exception;
         }
     }

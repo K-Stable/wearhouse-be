@@ -15,6 +15,7 @@ import com.wearhouse.order.domain.entity.OrderInfo;
 import com.wearhouse.order.domain.entity.OrderSagaEntity;
 import com.wearhouse.order.domain.event.OrderDomainEvent;
 import com.wearhouse.order.domain.event.OrderDomainEventPublisher;
+import com.wearhouse.order.domain.event.OrderEventType;
 import com.wearhouse.order.domain.model.OrderItemStatus;
 import com.wearhouse.order.domain.model.PaymentMethod;
 import com.wearhouse.order.domain.model.OrderStatus;
@@ -22,6 +23,7 @@ import com.wearhouse.order.infra.jpa.repository.OrderInboxRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
+import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -55,15 +57,18 @@ class OrderSagaServiceFlowTest {
 
     @BeforeEach
     void setUp() {
+        OrderKafkaTopicsProperties topicsProperties = new OrderKafkaTopicsProperties();
+        topicsProperties.setPaymentPrepareTopic("wearhouse.payment.command.v1");
+        topicsProperties.setInventoryCommandTopic("wearhouse.inventory.command.v1");
+        topicsProperties.setOrderEventTopic("wearhouse.order.event.v1");
+
         orderSagaService = new OrderSagaService(
                 orderRepository,
                 orderSagaRepository,
                 orderStatusHistoryRepository,
                 orderInboxRepository,
                 orderDomainEventPublisher,
-                "wearhouse.payment.command.v1",
-                "wearhouse.inventory.command.v1",
-                "wearhouse.order.event.v1"
+                topicsProperties
         );
     }
 
@@ -74,8 +79,8 @@ class OrderSagaServiceFlowTest {
         stubCommon(order, saga);
 
         Map<String, Object> payload = payload(order.getId(), order.getOrderNo());
-        orderSagaService.onInventoryEvent("inv-evt-1", "StockReserved", "inventory-event", "1", "{}", payload);
-        orderSagaService.onPaymentEvent("pay-evt-1", "PaymentAuthorized", "payment-event", "1", "{}", payload);
+        orderSagaService.onInventoryEvent("inv-evt-1", OrderEventType.STOCK_RESERVED, "inventory-event", "1", "{}", order.getId(), payload);
+        orderSagaService.onPaymentEvent("pay-evt-1", OrderEventType.PAYMENT_AUTHORIZED, "payment-event", "1", "{}", order.getId(), payload);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(order.getConfirmedAt()).isNotNull();
@@ -86,7 +91,7 @@ class OrderSagaServiceFlowTest {
         List<String> eventTypes = eventCaptor.getAllValues().stream()
                 .map(OrderDomainEvent::getEventType)
                 .toList();
-        assertThat(eventTypes).containsExactly("PaymentPrepareRequested", "OrderConfirmed");
+        assertThat(eventTypes).containsExactly(OrderEventType.PAYMENT_PREPARE_REQUESTED, OrderEventType.ORDER_CONFIRMED);
 
         verify(orderStatusHistoryRepository, atLeast(2)).save(any());
         verify(orderInboxRepository).markProcessed("inv-evt-1", "order-inventory-consumer");
@@ -100,13 +105,13 @@ class OrderSagaServiceFlowTest {
         stubCommon(order, saga);
 
         Map<String, Object> payload = payload(order.getId(), order.getOrderNo());
-        orderSagaService.onInventoryEvent("inv-evt-2", "StockReserved", "inventory-event", "2", "{}", payload);
+        orderSagaService.onInventoryEvent("inv-evt-2", OrderEventType.STOCK_RESERVED, "inventory-event", "2", "{}", order.getId(), payload);
 
         Map<String, Object> paymentFailedPayload = payload(order.getId(), order.getOrderNo());
         paymentFailedPayload.put("reasonCode", "PAYMENT_FAILED");
-        orderSagaService.onPaymentEvent("pay-evt-2", "PaymentFailed", "payment-event", "2", "{}", paymentFailedPayload);
+        orderSagaService.onPaymentEvent("pay-evt-2", OrderEventType.PAYMENT_FAILED, "payment-event", "2", "{}", order.getId(), paymentFailedPayload);
 
-        orderSagaService.onInventoryEvent("inv-evt-3", "InventoryReleased", "inventory-event", "2", "{}", payload);
+        orderSagaService.onInventoryEvent("inv-evt-3", OrderEventType.INVENTORY_RELEASED, "inventory-event", "2", "{}", order.getId(), payload);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PAYMENT_FAILED);
         assertThat(order.getCancelledAt()).isNull();
@@ -118,8 +123,8 @@ class OrderSagaServiceFlowTest {
                 .map(OrderDomainEvent::getEventType)
                 .toList();
         assertThat(eventTypes).containsExactly(
-                "PaymentPrepareRequested",
-                "InventoryReleaseRequested"
+                OrderEventType.PAYMENT_PREPARE_REQUESTED,
+                OrderEventType.INVENTORY_RELEASE_REQUESTED
         );
 
         verify(orderStatusHistoryRepository, atLeast(2)).save(any());

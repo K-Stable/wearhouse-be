@@ -13,7 +13,6 @@ import com.wearhouse.order.domain.dto.response.OrderPaymentConfirmResponse;
 import com.wearhouse.order.domain.dto.response.OrderPreviewResponse;
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
 import com.wearhouse.order.domain.service.command.OrderCommandService;
-import com.wearhouse.order.domain.service.command.OrderCheckoutOrchestrationService;
 import com.wearhouse.order.domain.service.query.OrderQueryService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -33,14 +32,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
 
     private final OrderCommandService orderCommandService;
-    private final OrderCheckoutOrchestrationService orderCheckoutOrchestrationService;
     private final OrderQueryService orderQueryService;
 
 
 
     @PostMapping("/orders")
     public OrderCreateResponse createOrder(@Valid @RequestBody OrderCreateRequest request) {
-        return orderCheckoutOrchestrationService.createOrder(request);
+        return orderCommandService.createOrder(request);
     }
 
     @GetMapping("/orders/{orderNo}")
@@ -75,11 +73,11 @@ public class OrderController {
     }
 
     @PostMapping("/buyer/orders/{orderNo}/payments/confirm")
-    public OrderPaymentConfirmResponse confirmStablepayPayment(
+    public OrderPaymentConfirmResponse confirmPayment(
             @LoginBuyer LoginUser currentUser,
             @PathVariable String orderNo,
             @Valid @RequestBody OrderPaymentConfirmRequest request
     ) {
-        return orderCheckoutOrchestrationService.confirmStablepayPayment(currentUser.userId(), orderNo, request);
+        return orderCommandService.confirmPayment(currentUser.userId(), orderNo, request);
     }
 }

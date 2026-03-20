@@ -2,8 +2,7 @@ package com.wearhouse.inventory.infra.kafka.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.support.kafka.dto.KafkaMessageEnvelope;
-import com.wearhouse.inventory.domain.service.command.InventoryCommandService;
-import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
+import com.wearhouse.inventory.domain.service.buyer.command.BuyerInventoryCommandService;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
@@ -17,8 +16,7 @@ import org.springframework.stereotype.Component;
 public class InventoryOrderConsumer {
 
     private final ObjectMapper objectMapper;
-    private final InventoryCommandService inventoryCommandService;
-    private final InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics;
+    private final BuyerInventoryCommandService buyerInventoryCommandService;
 
 
     @KafkaListener(topics = "${wearhouse.kafka.order-event-topic:wearhouse.order.event.v1}")
@@ -36,7 +34,7 @@ public class InventoryOrderConsumer {
             Map<String, Object> payload = requirePayload(envelope.payload());
 
             if ("OrderConfirmed".equals(eventType)) {
-                inventoryCommandService.onOrderConfirmed(
+                buyerInventoryCommandService.onOrderConfirmed(
                         eventId,
                         topic,
                         key,
@@ -44,10 +42,8 @@ public class InventoryOrderConsumer {
                         payload
                 );
             }
-            inventoryKafkaFlowMetrics.incrementConsumerHandled("order", eventType, topic, "success");
             acknowledgment.acknowledge();
         } catch (Exception exception) {
-            inventoryKafkaFlowMetrics.incrementConsumerHandled("order", eventType, topic, "failed");
             throw exception;
         }
     }

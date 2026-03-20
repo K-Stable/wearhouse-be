@@ -2,6 +2,7 @@ package com.wearhouse.inventory.infra.redis;
 
 import com.wearhouse.inventory.domain.entity.InventoryStockEntity;
 import com.wearhouse.inventory.domain.repository.InventoryStockRepository;
+import com.wearhouse.inventory.support.config.InventoryProperties;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,24 +11,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class InventoryRedisStockCacheService {
 
     private static final DefaultRedisScript<Long> AVAILABILITY_CHECK_SCRIPT = availabilityCheckScript();
 
     private final StringRedisTemplate stringRedisTemplate;
     private final InventoryStockRepository inventoryStockRepository;
-    @Value("${wearhouse.inventory.cache.stock-ttl-seconds:30}")
-    private long stockCacheTtlSeconds;
-    @Value("${wearhouse.inventory.cache.stock-key-prefix:inventory:stock:available:}")
-    private String stockKeyPrefix;
+    private final long stockCacheTtlSeconds;
+    private final String stockKeyPrefix;
+
+    public InventoryRedisStockCacheService(
+            StringRedisTemplate stringRedisTemplate,
+            InventoryStockRepository inventoryStockRepository,
+            InventoryProperties inventoryProperties
+    ) {
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.inventoryStockRepository = inventoryStockRepository;
+        this.stockCacheTtlSeconds = inventoryProperties.getCache().getStockTtlSeconds();
+        this.stockKeyPrefix = inventoryProperties.getCache().getStockKeyPrefix();
+    }
 
     public AtomicAvailabilityCheckResult checkAvailabilityAtomically(Map<Long, Integer> requestedBySku) {
         if (requestedBySku == null || requestedBySku.isEmpty()) {

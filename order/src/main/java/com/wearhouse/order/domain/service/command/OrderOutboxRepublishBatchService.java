@@ -21,14 +21,16 @@ public class OrderOutboxRepublishBatchService {
     public int publishOutboxEvents() {
         List<OutboxCandidate> candidates = orderOutboxRepository.lockRepublishCandidates(outboxProperties.republishBatchSize());
         for (OutboxCandidate candidate : candidates) {
-            orderKafkaProducer.send(
-                    candidate.getEventId(),
-                    candidate.getEventType(),
-                    candidate.getTopic(),
-                    candidate.getPartitionKey(),
-                    candidate.getPayload(),
-                    "batch_republish"
-            );
+            try {
+                orderKafkaProducer.send(
+                        candidate.getTopic(),
+                        candidate.getPartitionKey(),
+                        candidate.getPayload()
+                );
+                orderOutboxRepository.markSuccess(candidate.getEventId());
+            } catch (Exception exception) {
+                orderOutboxRepository.markFail(candidate.getEventId(), "KAFKA_SEND_ERROR", exception.getMessage());
+            }
         }
         return candidates.size();
     }

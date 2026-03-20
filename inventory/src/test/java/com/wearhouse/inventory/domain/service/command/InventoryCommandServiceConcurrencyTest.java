@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -16,10 +17,13 @@ import com.wearhouse.inventory.domain.event.InventoryDomainEventPublisher;
 import com.wearhouse.inventory.domain.repository.InventoryInboxRepository;
 import com.wearhouse.inventory.domain.repository.InventoryReservationRepository;
 import com.wearhouse.inventory.domain.repository.InventoryStockRepository;
+import com.wearhouse.inventory.domain.service.buyer.command.BuyerInventoryCommandService;
 import com.wearhouse.inventory.infra.product.InventoryProductStatusClient;
 import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService;
+import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService.LockAcquireException;
 import com.wearhouse.inventory.infra.redis.InventoryRedisStockCacheService;
-import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
+import com.wearhouse.inventory.support.config.InventoryKafkaTopicsProperties;
+import com.wearhouse.inventory.support.config.InventoryProperties;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -27,13 +31,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class InventoryCommandServiceConcurrencyTest {
@@ -53,18 +57,17 @@ class InventoryCommandServiceConcurrencyTest {
     @Mock
     private InventoryProductStatusClient inventoryProductStatusClient;
     @Mock
-    private InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics;
-    @Mock
     private EntityManager entityManager;
 
     @Test
     void 핫SKU_락_획득_실패시_예약실패_이벤트를_발행한다() {
-        InventoryCommandService service = newService("101", 3);
+        BuyerInventoryCommandService service = newService("101", 3);
         Map<String, Object> payload = reservePayload(1L, "ORDER-1", 101L, 1);
 
         when(inventoryInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(true);
-        when(inventoryHotSkuLockService.acquire(eq(101L), anyString())).thenReturn(null);
+        when(inventoryHotSkuLockService.withHotSkuLocks(anySet(), anyString(), any()))
+                .thenThrow(new LockAcquireException("lock-fail"));
 
         service.onReserveRequested("evt-lock-fail", "inventory-command", "1", "{}", payload);
 
@@ -85,11 +88,13 @@ class InventoryCommandServiceConcurrencyTest {
 
     @Test
     void 낙관락_재시도_소진시_예약실패_이벤트를_발행한다() {
-        InventoryCommandService service = newService("999", 3);
+        BuyerInventoryCommandService service = newService("999", 3);
         Map<String, Object> payload = reservePayload(2L, "ORDER-2", 201L, 1);
 
         when(inventoryInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(true);
+        when(inventoryHotSkuLockService.withHotSkuLocks(anySet(), anyString(), any()))
+                .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(2)).get());
         when(inventoryStockRepository.findBySkuId(eq(201L)))
                 .thenAnswer(invocation -> Optional.of(InventoryStockEntity.create(
                         201L,
@@ -129,7 +134,7 @@ class InventoryCommandServiceConcurrencyTest {
 
     @Test
     void 핫SKU_미설정이면_모든SKU에_락을_획득한다() {
-        InventoryCommandService service = newService("", 3);
+        BuyerInventoryCommandService service = newService("", 3);
         Map<String, Object> payload = reservePayload(3L, "ORDER-3", 301L, 1);
         InventoryStockEntity stock = InventoryStockEntity.create(
                 301L,
@@ -147,20 +152,29 @@ class InventoryCommandServiceConcurrencyTest {
 
         when(inventoryInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(true);
-        when(inventoryHotSkuLockService.acquire(eq(301L), anyString()))
-                .thenReturn(new InventoryHotSkuLockService.SkuLockHandle("inventory:lock:sku:301", "owner", null));
+        when(inventoryHotSkuLockService.withHotSkuLocks(anySet(), anyString(), any()))
+                .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(2)).get());
         when(inventoryStockRepository.findBySkuId(301L)).thenReturn(Optional.of(stock));
         when(inventoryStockRepository.saveAndFlush(any(InventoryStockEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         service.onReserveRequested("evt-lock-all", "inventory-command", "3", "{}", payload);
 
-        verify(inventoryHotSkuLockService).acquire(eq(301L), anyString());
+        verify(inventoryHotSkuLockService).withHotSkuLocks(anySet(), anyString(), any());
         verify(inventoryInboxRepository).markProcessed("evt-lock-all", "inventory-command-consumer");
     }
 
-    private InventoryCommandService newService(String hotSkuRaw, int optimisticRetryCount) {
-        InventoryCommandService service = new InventoryCommandService(
+    private BuyerInventoryCommandService newService(String hotSkuRaw, int optimisticRetryCount) {
+        InventoryProperties inventoryProperties = new InventoryProperties();
+        inventoryProperties.setReservationHoldMinutes(15);
+        inventoryProperties.setOptimisticRetryCount(optimisticRetryCount);
+        inventoryProperties.setReservationExpireBatchSize(200);
+        inventoryProperties.setHotSkus(hotSkuRaw);
+
+        InventoryKafkaTopicsProperties inventoryKafkaTopicsProperties = new InventoryKafkaTopicsProperties();
+        inventoryKafkaTopicsProperties.setInventoryEventTopic("wearhouse.inventory.event.v1");
+
+        BuyerInventoryCommandService service = new BuyerInventoryCommandService(
                 inventoryStockRepository,
                 inventoryReservationRepository,
                 inventoryInboxRepository,
@@ -168,15 +182,10 @@ class InventoryCommandServiceConcurrencyTest {
                 inventoryHotSkuLockService,
                 inventoryRedisStockCacheService,
                 inventoryProductStatusClient,
-                inventoryKafkaFlowMetrics,
-                entityManager
+                entityManager,
+                inventoryProperties,
+                inventoryKafkaTopicsProperties
         );
-        ReflectionTestUtils.setField(service, "inventoryEventTopic", "wearhouse.inventory.event.v1");
-        ReflectionTestUtils.setField(service, "reservationHoldMinutes", 15);
-        ReflectionTestUtils.setField(service, "optimisticRetryCount", optimisticRetryCount);
-        ReflectionTestUtils.setField(service, "reservationExpireBatchSize", 200);
-        ReflectionTestUtils.setField(service, "hotSkuRaw", hotSkuRaw);
-        ReflectionTestUtils.invokeMethod(service, "initializeHotSkuIds");
         return service;
     }
 
