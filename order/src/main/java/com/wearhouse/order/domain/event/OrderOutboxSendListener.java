@@ -20,12 +20,14 @@ public class OrderOutboxSendListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendMessageHandler(OrderDomainEvent event) {
         try {
+            // DB 커밋 이후에만 Kafka로 전송한다. (Outbox + AFTER_COMMIT)
             String payload = objectMapper.writeValueAsString(event.toEnvelope());
             orderKafkaProducer.send(
                     event.getTopic(),
                     event.getPartitionKey(),
                     payload
             );
+            // 전송 성공 시 Outbox 상태를 SUCCESS로 마킹한다.
             orderOutboxRepository.markSuccess(event.getEventId());
         } catch (JsonProcessingException exception) {
             orderOutboxRepository.markFail(event.getEventId(), "SERIALIZE_ERROR", exception.getMessage());

@@ -82,6 +82,7 @@ public class OrderKafkaConsumer {
         Map<String, Object> payload = requirePayload(envelope.payload());
         Long orderId = requireOrderId(payload);
 
+        // 사가 처리(상태전이 + 이력 + 후속 이벤트)가 끝난 뒤에만 ack 한다.
         dispatcher.dispatch(
                 eventId,
                 eventType,

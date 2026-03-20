@@ -20,6 +20,7 @@ public class InventoryKafkaProducer{
     ) {
         String key = partitionKey == null || partitionKey.isBlank() ? null : partitionKey;
         try {
+            // outbox 재전송 판단을 위해 전송 결과를 timeout 내 동기 확인한다.
             kafkaTemplate.send(topic, key, payload).get(outboxProperties.sendTimeoutMs(), TimeUnit.MILLISECONDS);
         } catch (Exception exception) {
             throw new IllegalStateException("재고 Kafka 메시지 전송에 실패했습니다.", exception);

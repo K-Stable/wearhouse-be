@@ -41,6 +41,7 @@ public class InventoryCommandConsumer {
                         message,
                         payload
                 );
+                // reserve 처리 완료 이후 ack
                 acknowledgment.acknowledge();
                 return;
             }
@@ -54,6 +55,7 @@ public class InventoryCommandConsumer {
                         payload
                 );
             }
+            // release 또는 무시 이벤트도 파싱/핸들링 후 ack
             acknowledgment.acknowledge();
         } catch (Exception exception) {
             throw exception;

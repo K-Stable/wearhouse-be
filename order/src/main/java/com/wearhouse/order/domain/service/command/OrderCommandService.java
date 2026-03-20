@@ -62,6 +62,7 @@ public class OrderCommandService {
 
     @WriteTx
     public OrderCreateResponse createOrder(OrderCreateRequest request) {
+        // 주문 생성의 1차 트랜잭션: 주문/사가 생성 + 재고예약 이벤트 발행까지 처리하고 즉시 응답한다.
         OrderCreateContext context = prepareCreateContext(request);
         OrderEntity order = createOrderEntity(
                 request,
@@ -105,11 +106,13 @@ public class OrderCommandService {
         }
 
         PaymentMethod paymentMethod = resolvePaymentMethod(order);
+        // CARD는 외부 confirm API를 호출하지 않고 현재 주문 상태만 폴링해 최종 상태를 반환한다.
         if (paymentMethod != PaymentMethod.STABLE) {
             OrderStatus status = waitForConfirmResult(order.getId(), "PENDING");
             String reasonCode = orderRepository.findDetailById(order.getId()).map(OrderEntity::getFailReasonCode).orElse(null);
             return new OrderPaymentConfirmResponse(order.getId(), orderNo, status.name(), reasonCode);
         }
+        // STABLE은 paymentKey 기반으로 payment-service confirm API를 호출한다.
         validateStablePaymentConfirmRequest(request);
 
         ApiResponse<PaymentConfirmInternalResponse> confirmResponse = orderPaymentClient.confirmStablepayPayment(
@@ -153,12 +156,14 @@ public class OrderCommandService {
     }
 
     private OrderStatus waitForConfirmResult(Long orderId, String paymentStatus) {
+        // payment-service가 아직 PENDING이면 현재 order 상태를 즉시 반환한다.
         if ("PENDING".equalsIgnoreCase(paymentStatus)) {
             return orderRepository.findDetailById(orderId)
                     .map(OrderEntity::getStatus)
                     .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
         }
 
+        // 결제 이벤트 소비(saga) 결과가 DB 상태로 반영될 때까지 짧게 대기한다.
         long startedAt = System.currentTimeMillis();
         while ((System.currentTimeMillis() - startedAt) < orderProperties.getPaymentConfirmWaitTimeoutMs()) {
             Optional<OrderStatus> current = orderRepository.findDetailById(orderId).map(OrderEntity::getStatus);
@@ -279,11 +284,13 @@ public class OrderCommandService {
     }
 
     private void saveCreatedOrder(OrderEntity order, String eventId) {
+        // 주문 최초 상태를 이력과 함께 저장한다.
         orderRepository.save(order);
         saveStatusHistory(order, null, OrderStatus.PENDING_RESERVE, eventId, REASON_ORDER_CREATED);
     }
 
     private void startSaga(OrderEntity order, String eventId) {
+        // saga는 재고예약 결과를 기다리는 상태에서 시작한다.
         String sagaId = OrderIdGenerator.newSagaId();
         OrderSagaEntity saga = OrderSagaEntity.create(
                 order,
@@ -300,6 +307,7 @@ public class OrderCommandService {
             OrderCreateContext context,
             List<Map<String, Object>> payloadItems
     ) {
+        // 다음 단계(재고 서비스)가 처리할 커맨드 이벤트를 발행한다.
         Map<String, Object> payload = buildInventoryReservePayload(order, request, context, payloadItems);
         publishDomainEvent(
                 context.eventId(),
@@ -345,6 +353,7 @@ public class OrderCommandService {
             return;
         }
 
+        // 재고를 이미 예약한 상태에서만 보상(재고 해제) 이벤트를 보낸다.
         String releaseEventId = OrderIdGenerator.newEventId();
         Map<String, Object> releasePayload = new LinkedHashMap<>();
         releasePayload.put("orderId", order.getId());
@@ -402,6 +411,7 @@ public class OrderCommandService {
             String topic,
             Map<String, Object> payload
     ) {
+        // 실제 Kafka 전송은 Outbox Listener(AFTER_COMMIT)에서 수행된다.
         String aggregateId = String.valueOf(orderId);
         OrderDomainEvent event = OrderDomainEvent.builder()
                 .eventId(eventId)

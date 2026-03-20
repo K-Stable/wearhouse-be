@@ -42,6 +42,7 @@ public class InventoryOrderConsumer {
                         payload
                 );
             }
+            // order 확정 후 재고 차감 반영이 끝난 뒤 ack
             acknowledgment.acknowledge();
         } catch (Exception exception) {
             throw exception;

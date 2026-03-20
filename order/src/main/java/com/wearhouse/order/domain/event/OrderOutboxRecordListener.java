@@ -19,6 +19,7 @@ public class OrderOutboxRecordListener {
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void recordMessageHandler(OrderDomainEvent event) {
         try {
+            // 도메인 트랜잭션 안에서 Outbox를 먼저 기록해 유실 가능성을 줄인다.
             String payload = objectMapper.writeValueAsString(event.toEnvelope());
             orderOutboxRepository.saveReady(
                     event.getEventId(),

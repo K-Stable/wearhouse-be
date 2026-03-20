@@ -58,6 +58,7 @@ public class BuyerInventoryCommandService {
             String rawPayload,
             Map<String, Object> payload
     ) {
+        // Inbox로 중복 메시지를 차단한다. (동일 eventId 재수신은 무시)
         boolean received = inventoryInboxRepository.tryReceive(
                 eventId,
                 INVENTORY_COMMAND_CONSUMER,
@@ -73,10 +74,12 @@ public class BuyerInventoryCommandService {
         InventoryReserveCommand command = null;
         try {
             command = toReserveCommand(payload);
+            // 재고 예약은 hot SKU 락 구간에서 처리한다.
             List<ReservationLineResult> results = reserve(command, eventId);
             publishStockReserved(command, results);
             inventoryInboxRepository.markProcessed(eventId, INVENTORY_COMMAND_CONSUMER);
         } catch (ErrorException exception) {
+            // 비즈니스 실패는 실패 이벤트를 발행하고 메시지는 처리완료로 기록한다.
             Long fallbackOrderId = command == null ? asLong(payload.get("orderId")) : command.orderId();
             String fallbackOrderNo = command == null ? asString(payload.get("orderNo")) : command.orderNo();
             publishStockReserveFailed(
@@ -105,6 +108,7 @@ public class BuyerInventoryCommandService {
             String rawPayload,
             Map<String, Object> payload
     ) {
+        // 주문 보상/취소 시 재고 해제 이벤트를 처리한다.
         boolean received = inventoryInboxRepository.tryReceive(
                 eventId,
                 INVENTORY_COMMAND_CONSUMER,
@@ -141,6 +145,7 @@ public class BuyerInventoryCommandService {
             String rawPayload,
             Map<String, Object> payload
     ) {
+        // 주문 확정 이벤트 수신 시 RESERVED 수량을 최종 차감(CONFIRMED) 처리한다.
         boolean received = inventoryInboxRepository.tryReceive(
                 eventId,
                 INVENTORY_ORDER_CONSUMER,
@@ -196,6 +201,7 @@ public class BuyerInventoryCommandService {
         }
 
         try {
+            // 같은 SKU에 대한 동시 예약 경쟁을 막기 위해 SKU 단위 분산락을 획득한다.
             return inventoryHotSkuLockService.withHotSkuLocks(
                     quantitiesBySku.keySet(),
                     sourceEventId,
@@ -213,6 +219,7 @@ public class BuyerInventoryCommandService {
         );
 
         Map<Long, Integer> quantitiesBySku = aggregateQuantitiesBySku(reservations);
+        // 해제도 동일 SKU 락 구간에서 처리해 reserve/confirm과 경합하지 않도록 한다.
         return inventoryHotSkuLockService.withHotSkuLocks(
                 quantitiesBySku.keySet(),
                 "release:" + command.orderId() + ":" + InventoryIdGenerator.newEventId(),
@@ -227,6 +234,7 @@ public class BuyerInventoryCommandService {
         );
 
         Map<Long, Integer> quantitiesBySku = aggregateQuantitiesBySku(reservations);
+        // 확정 차감도 동일 SKU 락 구간에서 처리해 정합성을 유지한다.
         return inventoryHotSkuLockService.withHotSkuLocks(
                 quantitiesBySku.keySet(),
                 "confirm:" + command.orderId() + ":" + InventoryIdGenerator.newEventId(),
@@ -414,6 +422,7 @@ public class BuyerInventoryCommandService {
                 .partitionKey(String.valueOf(command.orderId()))
                 .payload(payload)
                 .build();
+        // 재고 예약 성공을 order saga로 전달한다.
         inventoryDomainEventPublisher.publish(event);
     }
 
@@ -437,6 +446,7 @@ public class BuyerInventoryCommandService {
                 .partitionKey(String.valueOf(orderId))
                 .payload(payload)
                 .build();
+        // 재고 예약 실패를 order saga로 전달한다.
         inventoryDomainEventPublisher.publish(event);
     }
 
@@ -457,6 +467,7 @@ public class BuyerInventoryCommandService {
                 .partitionKey(String.valueOf(command.orderId()))
                 .payload(payload)
                 .build();
+        // 보상 해제 완료를 order saga로 전달한다.
         inventoryDomainEventPublisher.publish(event);
     }
 

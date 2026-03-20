@@ -27,10 +27,12 @@ public class InventoryHotSkuLockService {
             String ownerToken,
             Supplier<T> action
     ) {
+        // deadlock 회피를 위해 정렬된 순서로 락을 획득하고, 실행 후 역순 해제한다.
         List<SkuLockHandle> lockHandles = acquireAll(skuIds, ownerToken);
         try {
             return action.get();
         } finally {
+            // 트랜잭션 경계와 맞춰 락을 해제한다.
             releaseAfterTransaction(lockHandles);
         }
     }
@@ -97,6 +99,7 @@ public class InventoryHotSkuLockService {
         if (skuIds == null || skuIds.isEmpty()) {
             return List.of();
         }
+        // hot SKU만 락 대상으로 제한해 락 오버헤드를 줄인다.
         Set<Long> hotSkuIds = parseHotSkuIds(inventoryProperties.getHotSkus());
         if (hotSkuIds.isEmpty()) {
             return skuIds.stream().sorted().toList();
@@ -136,6 +139,7 @@ public class InventoryHotSkuLockService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCompletion(int status) {
+                    // commit/rollback 후에 락을 풀어 DB 상태와 락 생명주기를 맞춘다.
                     releaseNow(releaseTargets);
                 }
             });

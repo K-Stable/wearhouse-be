@@ -112,6 +112,7 @@ public class OrderSagaService {
             Map<String, Object> payload,
             Map<String, SagaEventHandler> handlers
     ) {
+        // Inbox로 중복 소비를 차단한다. (이미 처리된 eventId는 즉시 무시)
         if (!orderInboxRepository.tryReceive(eventId, consumerName, eventType, topic, partitionKey, rawPayload)) {
             return;
         }
@@ -136,6 +137,7 @@ public class OrderSagaService {
     }
 
     private void handleStockReserved(OrderEntity order, OrderStatus currentStatus, String eventId) {
+        // 결제 실패 후 재고예약 이벤트가 지연 도착한 경우: 즉시 보상(해제)으로 수렴시킨다.
         if (currentStatus == OrderStatus.PAYMENT_FAILED) {
             order.markItemsReserved();
             publishInventoryReleaseRequested(order, asString(order.getFailReasonCode(), DEFAULT_PAYMENT_FAIL_REASON));
@@ -146,6 +148,7 @@ public class OrderSagaService {
             return;
         }
 
+        // 정상 경로: 예약 성공 -> RESERVED 전이 -> 결제 준비 이벤트 발행
         order.updateStatus(OrderStatus.RESERVED, null, null, null);
         order.markItemsReserved();
         saveStatusHistory(order, currentStatus, OrderStatus.RESERVED, eventId, "STOCK_RESERVED");
@@ -163,6 +166,7 @@ public class OrderSagaService {
             return;
         }
 
+        // 재고예약 실패는 주문을 RESERVE_FAILED로 종료한다.
         String reasonCode = asString(payload.get("reasonCode"), DEFAULT_STOCK_RESERVE_FAIL_REASON);
         order.updateStatus(OrderStatus.RESERVE_FAILED, reasonCode, null, null);
         saveStatusHistory(order, currentStatus, OrderStatus.RESERVE_FAILED, eventId, reasonCode);
@@ -183,6 +187,7 @@ public class OrderSagaService {
             return;
         }
 
+        // 결제 승인 성공 시 주문을 PAID -> CONFIRMED로 전이하고 후속 확정 이벤트를 발행한다.
         order.updateStatus(OrderStatus.PAID, null, null, null);
         saveStatusHistory(order, currentStatus, OrderStatus.PAID, eventId, "PAYMENT_AUTHORIZED");
 
@@ -205,6 +210,7 @@ public class OrderSagaService {
             return;
         }
 
+        // 결제 실패 시 PAYMENT_FAILED 전이 후, 재고가 이미 예약된 주문은 보상 흐름으로 보낸다.
         String reasonCode = asString(payload.get("reasonCode"), DEFAULT_PAYMENT_FAIL_REASON);
         order.updateStatus(OrderStatus.PAYMENT_FAILED, reasonCode, null, null);
         saveStatusHistory(order, currentStatus, OrderStatus.PAYMENT_FAILED, eventId, reasonCode);
@@ -268,6 +274,7 @@ public class OrderSagaService {
                 .build();
         orderDomainEventPublisher.publish(event);
 
+        // 결제 준비 요청 이벤트 발행 직후 상태를 PAYMENT_PENDING으로 전이한다.
         order.updateStatus(OrderStatus.PAYMENT_PENDING, null, null, null);
         saveStatusHistory(order, OrderStatus.RESERVED, OrderStatus.PAYMENT_PENDING, eventId, "PAYMENT_PREPARE_REQUESTED");
         transitionSaga(order.getId(), OrderSagaState.WAITING_PAYMENT_RESULT, eventId, null);
