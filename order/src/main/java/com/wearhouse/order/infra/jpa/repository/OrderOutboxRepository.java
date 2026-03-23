@@ -1,8 +1,6 @@
 package com.wearhouse.order.infra.jpa.repository;
 
 import com.wearhouse.order.domain.entity.OrderOutboxEventEntity;
-import com.wearhouse.order.domain.model.OrderOutboxStatus;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -16,8 +14,6 @@ public class OrderOutboxRepository {
 
     public void saveReady(
             String eventId,
-            String aggregateType,
-            String aggregateId,
             String eventType,
             String topic,
             String partitionKey,
@@ -25,8 +21,6 @@ public class OrderOutboxRepository {
     ) {
         OrderOutboxEventEntity entity = OrderOutboxEventEntity.ready(
                 eventId,
-                aggregateType,
-                aggregateId,
                 eventType,
                 topic,
                 partitionKey,
@@ -37,7 +31,10 @@ public class OrderOutboxRepository {
 
     public void markSuccess(String eventId) {
         orderOutboxEventRepository.findByEventId(eventId)
-                .ifPresent(OrderOutboxEventEntity::markSuccess);
+                .ifPresent(entity -> {
+                    entity.markSuccess();
+                    orderOutboxEventRepository.save(entity);
+                });
     }
 
     public void markFail(
@@ -46,22 +43,23 @@ public class OrderOutboxRepository {
             String errorMessage
     ) {
         orderOutboxEventRepository.findByEventId(eventId)
-                .ifPresent(entity -> entity.markFailed(errorCode, errorMessage));
+                .ifPresent(entity -> {
+                    entity.markFailed(errorMessage);
+                    orderOutboxEventRepository.save(entity);
+                });
     }
 
-    public List<OutboxCandidate> lockRepublishCandidates(LocalDateTime cutoffAt, int limit) {
-        List<OrderOutboxEventEntity> entities = orderOutboxEventRepository.lockRepublishCandidates(cutoffAt, limit);
+    public List<OutboxCandidate> lockRepublishCandidates(int limit) {
+        List<OrderOutboxEventEntity> entities = orderOutboxEventRepository.lockRepublishCandidates(limit);
         List<OutboxCandidate> candidates = new ArrayList<>();
         for (OrderOutboxEventEntity entity : entities) {
-            if (entity.getStatus() == OrderOutboxStatus.FAIL) {
-                candidates.add(new OutboxCandidate(
-                        entity.getEventId(),
-                        entity.getEventType(),
-                        entity.getTopic(),
-                        entity.getPartitionKey(),
-                        entity.getPayload()
-                ));
-            }
+            candidates.add(new OutboxCandidate(
+                    entity.getEventId(),
+                    entity.getEventType(),
+                    entity.getTopic(),
+                    entity.getPartitionKey(),
+                    entity.getPayload()
+            ));
         }
         return candidates;
     }

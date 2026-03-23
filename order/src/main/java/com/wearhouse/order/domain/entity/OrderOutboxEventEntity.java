@@ -29,12 +29,6 @@ public class OrderOutboxEventEntity extends BaseEntity {
     @Column(name = "event_id", nullable = false, unique = true, length = 26)
     private String eventId;
 
-    @Column(name = "aggregate_type", nullable = false, length = 50)
-    private String aggregateType;
-
-    @Column(name = "aggregate_id", nullable = false, length = 100)
-    private String aggregateId;
-
     @Column(name = "event_type", nullable = false, length = 100)
     private String eventType;
 
@@ -54,25 +48,18 @@ public class OrderOutboxEventEntity extends BaseEntity {
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
 
-    @Column(name = "fail_code", length = 50)
-    private String failCode;
-
     @Column(name = "fail_message", length = 255)
     private String failMessage;
 
     @Builder
     private OrderOutboxEventEntity(
             String eventId,
-            String aggregateType,
-            String aggregateId,
             String eventType,
             String topic,
             String partitionKey,
             String payload
     ) {
         this.eventId = eventId;
-        this.aggregateType = aggregateType;
-        this.aggregateId = aggregateId;
         this.eventType = eventType;
         this.topic = topic;
         this.partitionKey = partitionKey;
@@ -82,26 +69,22 @@ public class OrderOutboxEventEntity extends BaseEntity {
 
     public static OrderOutboxEventEntity ready(
             String eventId,
-            String aggregateType,
-            String aggregateId,
             String eventType,
             String topic,
             String partitionKey,
             String payload
     ) {
-        return new OrderOutboxEventEntity(eventId, aggregateType, aggregateId, eventType, topic, partitionKey, payload);
+        return new OrderOutboxEventEntity(eventId, eventType, topic, partitionKey, payload);
     }
 
     public void markSuccess() {
         this.status = OrderOutboxStatus.SUCCESS;
         this.sentAt = LocalDateTime.now();
-        this.failCode = null;
         this.failMessage = null;
     }
 
-    public void markFailed(String failCode, String failMessage) {
+    public void markFailed(String failMessage) {
         this.status = OrderOutboxStatus.FAIL;
-        this.failCode = failCode;
         this.failMessage = truncate(failMessage, 255);
     }
 
@@ -118,14 +101,6 @@ public class OrderOutboxEventEntity extends BaseEntity {
 
     public String getEventId() {
         return eventId;
-    }
-
-    public String getAggregateType() {
-        return aggregateType;
-    }
-
-    public String getAggregateId() {
-        return aggregateId;
     }
 
     public String getEventType() {
@@ -150,10 +125,6 @@ public class OrderOutboxEventEntity extends BaseEntity {
 
     public LocalDateTime getSentAt() {
         return sentAt;
-    }
-
-    public String getFailCode() {
-        return failCode;
     }
 
     public String getFailMessage() {

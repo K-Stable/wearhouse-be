@@ -31,3 +31,10 @@ wearhouse:
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:3000}
     stale-minutes: ${OUTBOX_STALE_MINUTES:10}
     republish-batch-size: ${OUTBOX_REPUBLISH_BATCH_SIZE:100}
+  order:
+    internal:
+      shared-secret: ${ORDER_INTERNAL_SHARED_SECRET:wearhouse-order-internal-secret}
+    reserve-wait-timeout-ms: ${ORDER_RESERVE_WAIT_TIMEOUT_MS:2000}
+    reserve-wait-interval-ms: ${ORDER_RESERVE_WAIT_INTERVAL_MS:100}
+    payment-confirm-wait-timeout-ms: ${ORDER_PAYMENT_CONFIRM_WAIT_TIMEOUT_MS:3000}
+    payment-confirm-wait-interval-ms: ${ORDER_PAYMENT_CONFIRM_WAIT_INTERVAL_MS:100}

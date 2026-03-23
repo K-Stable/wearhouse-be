@@ -23,11 +23,7 @@ public class OrderInboxRepository {
     ) {
         OrderInboxEventEntity entity = OrderInboxEventEntity.received(
                 eventId,
-                consumerName,
-                eventType,
-                topic,
-                partitionKey,
-                payload
+                consumerName
         );
         try {
             orderInboxEventRepository.saveAndFlush(entity);
@@ -44,6 +40,6 @@ public class OrderInboxRepository {
 
     public void markFailed(String eventId, String consumerName, String reasonCode, String reasonMessage) {
         orderInboxEventRepository.findByEventIdAndConsumerName(eventId, consumerName)
-                .ifPresent(entity -> entity.markFailed(reasonCode, reasonMessage));
+                .ifPresent(OrderInboxEventEntity::markFailed);
     }
 }

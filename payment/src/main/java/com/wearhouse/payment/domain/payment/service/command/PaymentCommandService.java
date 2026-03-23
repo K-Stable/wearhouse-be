@@ -1,13 +1,21 @@
 package com.wearhouse.payment.domain.payment.service.command;
 
+import com.wearhouse.common.global.error.CommonErrorCode;
+import com.wearhouse.common.global.error.ErrorException;
+import com.wearhouse.common.global.transactional.WriteTx;
+import com.wearhouse.common.support.lock.DistributedLock;
+import com.wearhouse.payment.domain.payment.dto.request.PaymentConfirmRequest;
+import com.wearhouse.payment.domain.payment.dto.response.PaymentConfirmResponse;
+import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
-import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
+import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
+import com.wearhouse.payment.infra.pay.PayConfirmGateway;
 import com.wearhouse.payment.support.PaymentIdGenerator;
-import com.wearhouse.common.support.lock.DistributedLock;
+import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
+import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -15,48 +23,144 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-import com.wearhouse.common.global.transactional.WriteTx;
 
 @Service
+@RequiredArgsConstructor
 public class PaymentCommandService {
 
     private static final String PAYMENT_COMMAND_CONSUMER = "payment-command-consumer";
     private static final String DEFAULT_REASON_CODE = "PAYMENT_FAILED";
     private static final String TIMEOUT_REASON_CODE = "PAYMENT_TIMEOUT";
+    private static final String STABLE_METHOD = "STABLE";
+    private static final String LEGACY_STABLEPAY_METHOD = "STABLEPAY";
 
     private final PaymentInboxRepository paymentInboxRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final PayConfirmGateway payConfirmGateway;
     private final PaymentDomainEventPublisher paymentDomainEventPublisher;
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
-    private final String paymentEventTopic;
-    private final int pendingTimeoutMinutes;
-    private final int timeoutBatchSize;
-    private final Set<String> failMethods;
-    private final Set<String> timeoutMethods;
+    @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
+    private String paymentEventTopic;
+    @Value("${wearhouse.payment.mock.pending-timeout-minutes:30}")
+    private int pendingTimeoutMinutes;
+    @Value("${wearhouse.payment.mock.timeout-batch-size:200}")
+    private int timeoutBatchSize;
+    @Value("${wearhouse.payment.mock.fail-methods:FAIL}")
+    private String failMethodsRaw;
+    @Value("${wearhouse.payment.mock.timeout-methods:TIMEOUT}")
+    private String timeoutMethodsRaw;
+    @Value("${wearhouse.order.internal.shared-secret:wearhouse-order-internal-secret}")
+    private String internalSharedSecret;
+    private Set<String> failMethods = Set.of();
+    private Set<String> timeoutMethods = Set.of();
 
-    public PaymentCommandService(
-            PaymentInboxRepository paymentInboxRepository,
-            PaymentTransactionRepository paymentTransactionRepository,
-            PaymentDomainEventPublisher paymentDomainEventPublisher,
-            PaymentKafkaFlowMetrics paymentKafkaFlowMetrics,
-            @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}") String paymentEventTopic,
-            @Value("${wearhouse.payment.mock.pending-timeout-minutes:30}") int pendingTimeoutMinutes,
-            @Value("${wearhouse.payment.mock.timeout-batch-size:200}") int timeoutBatchSize,
-            @Value("${wearhouse.payment.mock.fail-methods:FAIL}") String failMethods,
-            @Value("${wearhouse.payment.mock.timeout-methods:TIMEOUT}") String timeoutMethods
+    @PostConstruct
+    void init() {
+        this.failMethods = parseUpperCaseSet(failMethodsRaw);
+        this.timeoutMethods = parseUpperCaseSet(timeoutMethodsRaw);
+    }
+
+    @WriteTx
+    public PaymentConfirmResponse confirmStablepayPayment(
+            PaymentConfirmRequest request,
+            String internalSecret
     ) {
-        this.paymentInboxRepository = paymentInboxRepository;
-        this.paymentTransactionRepository = paymentTransactionRepository;
-        this.paymentDomainEventPublisher = paymentDomainEventPublisher;
-        this.paymentKafkaFlowMetrics = paymentKafkaFlowMetrics;
-        this.paymentEventTopic = paymentEventTopic;
-        this.pendingTimeoutMinutes = pendingTimeoutMinutes;
-        this.timeoutBatchSize = timeoutBatchSize;
-        this.failMethods = parseUpperCaseSet(failMethods);
-        this.timeoutMethods = parseUpperCaseSet(timeoutMethods);
+        assertInternalSecret(internalSecret);
+        validateConfirmRequest(request);
+
+        PaymentTransactionEntity transaction = paymentTransactionRepository.findByOrderId(request.orderId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 주문의 결제 정보를 찾을 수 없습니다."));
+        validateConfirmTarget(transaction, request);
+
+        if (transaction.getStatus() == PaymentStatus.AUTHORIZED) {
+            return new PaymentConfirmResponse(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    transaction.getPaymentId(),
+                    PaymentStatus.AUTHORIZED.name(),
+                    transaction.getCommandStatus(),
+                    null
+            );
+        }
+        if (transaction.getStatus() == PaymentStatus.FAILED) {
+            return new PaymentConfirmResponse(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    transaction.getPaymentId(),
+                    PaymentStatus.FAILED.name(),
+                    transaction.getCommandStatus(),
+                    transaction.getReasonCode()
+            );
+        }
+
+        PayConfirmGateway.PayConfirmResult result = payConfirmGateway.confirm(request);
+        LocalDateTime now = LocalDateTime.now();
+        if (result.resultType() == PayConfirmGateway.ResultType.AUTHORIZED) {
+            transaction.bindPaymentKey(request.paymentKey());
+            transaction.authorizeByWebhook(
+                    result.txHash(),
+                    result.commandId(),
+                    result.commandStatus(),
+                    now
+            );
+            paymentTransactionRepository.save(transaction);
+            publishPaymentAuthorized(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    resolvePaymentId(result.paymentId(), transaction.getPaymentId()),
+                    transaction.getAmount(),
+                    transaction.getPaymentMethod(),
+                    now
+            );
+            return new PaymentConfirmResponse(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    transaction.getPaymentId(),
+                    PaymentStatus.AUTHORIZED.name(),
+                    result.commandStatus(),
+                    null
+            );
+        }
+
+        if (result.resultType() == PayConfirmGateway.ResultType.FAILED) {
+            String reasonCode = resolveReasonCode(result.reasonCode());
+            transaction.failByWebhook(
+                    reasonCode,
+                    result.commandId(),
+                    result.commandStatus(),
+                    now
+            );
+            paymentTransactionRepository.save(transaction);
+            publishPaymentFailed(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    resolvePaymentId(result.paymentId(), transaction.getPaymentId()),
+                    reasonCode,
+                    "결제 승인에 실패했습니다.",
+                    now
+            );
+            return new PaymentConfirmResponse(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    transaction.getPaymentId(),
+                    PaymentStatus.FAILED.name(),
+                    result.commandStatus(),
+                    reasonCode
+            );
+        }
+
+        return new PaymentConfirmResponse(
+                transaction.getOrderId(),
+                transaction.getOrderNo(),
+                transaction.getPaymentId(),
+                PaymentStatus.PENDING.name(),
+                result.commandStatus(),
+                null
+        );
     }
 
     @WriteTx
@@ -135,6 +239,19 @@ public class PaymentCommandService {
         String normalizedMethod = normalizeMethod(command.paymentMethod());
 
         try {
+            if (isStableMethod(normalizedMethod)) {
+                paymentTransactionRepository.insertPending(
+                        paymentId,
+                        command.orderId(),
+                        command.orderNo(),
+                        command.amount(),
+                        command.paymentMethod(),
+                        now.plusMinutes(pendingTimeoutMinutes)
+                );
+                paymentKafkaFlowMetrics.incrementPaymentDecision("stablepay_pending");
+                return;
+            }
+
             if (timeoutMethods.contains(normalizedMethod)) {
                 paymentTransactionRepository.insertPending(
                         paymentId,
@@ -178,29 +295,36 @@ public class PaymentCommandService {
                     command.paymentMethod(),
                     now
             );
-            publishPaymentAuthorized(command, paymentId, now);
+            publishPaymentAuthorized(command.orderId(), command.orderNo(), paymentId, command.amount(), command.paymentMethod(), now);
             paymentKafkaFlowMetrics.incrementPaymentDecision("authorized");
         } catch (DuplicateKeyException ignored) {
             // order_id unique 충돌은 중복 요청으로 간주한다.
         }
     }
 
-    private void publishPaymentAuthorized(PaymentPrepareCommand command, String paymentId, LocalDateTime authorizedAt) {
+    private void publishPaymentAuthorized(
+            Long orderId,
+            String orderNo,
+            String paymentId,
+            BigDecimal amount,
+            String paymentMethod,
+            LocalDateTime authorizedAt
+    ) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", command.orderId());
-        payload.put("orderNo", command.orderNo());
+        payload.put("orderId", orderId);
+        payload.put("orderNo", orderNo);
         payload.put("paymentId", paymentId);
-        payload.put("amount", command.amount());
-        payload.put("method", command.paymentMethod());
+        payload.put("amount", amount);
+        payload.put("method", paymentMethod);
         payload.put("authorizedAt", authorizedAt);
 
         PaymentDomainEvent event = PaymentDomainEvent.builder()
                 .eventId(PaymentIdGenerator.newEventId())
                 .eventType("PaymentAuthorized")
                 .aggregateType("ORDER")
-                .aggregateId(String.valueOf(command.orderId()))
+                .aggregateId(String.valueOf(orderId))
                 .topic(paymentEventTopic)
-                .partitionKey(String.valueOf(command.orderId()))
+                .partitionKey(String.valueOf(orderId))
                 .payload(payload)
                 .build();
         paymentDomainEventPublisher.publish(event);
@@ -254,6 +378,52 @@ public class PaymentCommandService {
         return new PaymentPrepareCommand(orderId, orderNo, amount, paymentMethod);
     }
 
+    private void assertInternalSecret(String internalSecret) {
+        if (internalSecret == null || !internalSecret.equals(internalSharedSecret)) {
+            throw new ErrorException(CommonErrorCode.UNAUTHORIZED, "내부 인증이 유효하지 않습니다.");
+        }
+    }
+
+    private void validateConfirmRequest(PaymentConfirmRequest request) {
+        if (request == null || request.orderId() == null || request.orderNo() == null || request.orderNo().isBlank()) {
+            throw new IllegalArgumentException("order 정보가 올바르지 않습니다.");
+        }
+        if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("결제 금액이 올바르지 않습니다.");
+        }
+        if (request.paymentKey() == null || request.paymentKey().isBlank()) {
+            throw new IllegalArgumentException("paymentKey 값이 필요합니다.");
+        }
+    }
+
+    private void validateConfirmTarget(PaymentTransactionEntity transaction, PaymentConfirmRequest request) {
+        if (!request.orderNo().equals(transaction.getOrderNo())) {
+            throw new IllegalArgumentException("orderNo 값이 일치하지 않습니다.");
+        }
+        if (transaction.getAmount() == null || transaction.getAmount().compareTo(request.amount()) != 0) {
+            throw new IllegalArgumentException("결제 금액이 주문 금액과 일치하지 않습니다.");
+        }
+        if (transaction.getPaymentKey() != null
+                && !transaction.getPaymentKey().isBlank()
+                && !transaction.getPaymentKey().equals(request.paymentKey())) {
+            throw new IllegalArgumentException("paymentKey 값이 기존 결제 정보와 일치하지 않습니다.");
+        }
+    }
+
+    private String resolvePaymentId(String candidate, String fallback) {
+        if (candidate != null && !candidate.isBlank()) {
+            return candidate;
+        }
+        return fallback;
+    }
+
+    private String resolveReasonCode(String reasonCode) {
+        if (reasonCode == null || reasonCode.isBlank()) {
+            return DEFAULT_REASON_CODE;
+        }
+        return reasonCode;
+    }
+
     private Set<String> parseUpperCaseSet(String raw) {
         if (raw == null || raw.isBlank()) {
             return Set.of();
@@ -267,6 +437,10 @@ public class PaymentCommandService {
 
     private String normalizeMethod(String method) {
         return method == null ? "" : method.trim().toUpperCase();
+    }
+
+    private boolean isStableMethod(String normalizedMethod) {
+        return STABLE_METHOD.equals(normalizedMethod) || LEGACY_STABLEPAY_METHOD.equals(normalizedMethod);
     }
 
     private String asString(Object value) {

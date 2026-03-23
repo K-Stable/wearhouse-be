@@ -42,11 +42,13 @@ spring:
       auto-create: true
     listener:
       missing-topics-fatal: false
+      ack-mode: manual_immediate
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
     consumer:
       group-id: ${INVENTORY_KAFKA_CONSUMER_GROUP:inventory-service-group}
+      enable-auto-commit: false
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -54,12 +56,18 @@ spring:
 wearhouse:
   kafka:
     common-config-enabled: true
+    error-handler:
+      retry-interval-ms: ${KAFKA_RETRY_INTERVAL_MS:2000}
+      retry-attempts: ${KAFKA_RETRY_ATTEMPTS:3}
+      dlt-topic: ${KAFKA_DLT_TOPIC:wearhouse.kafka.failure.inventory.v1}
     inventory-command-topic: ${INVENTORY_COMMAND_TOPIC:wearhouse.inventory.command.v1}
     inventory-event-topic: ${INVENTORY_EVENT_TOPIC:wearhouse.inventory.event.v1}
     order-event-topic: ${ORDER_EVENT_TOPIC:wearhouse.order.event.v1}
   inventory:
     passport:
       shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
+    internal:
+      shared-secret: ${INVENTORY_INTERNAL_SHARED_SECRET:wearhouse-inventory-internal-secret}
     reservation-hold-minutes: ${INVENTORY_RESERVATION_HOLD_MINUTES:15}
     optimistic-retry-count: ${INVENTORY_OPTIMISTIC_RETRY_COUNT:3}
     reservation-expire-interval-ms: ${INVENTORY_RESERVATION_EXPIRE_INTERVAL_MS:30000}

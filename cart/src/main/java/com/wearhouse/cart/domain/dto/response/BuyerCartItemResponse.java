@@ -2,7 +2,7 @@ package com.wearhouse.cart.domain.dto.response;
 
 import java.math.BigDecimal;
 
-public record CartItemResponse(
+public record BuyerCartItemResponse(
         Long cartItemId,
         Long productId,
         Long optionId,

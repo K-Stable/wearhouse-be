@@ -2,8 +2,8 @@ package com.wearhouse.cart.domain.controller;
 
 import com.wearhouse.cart.domain.dto.request.CartItemQuantityUpdateRequest;
 import com.wearhouse.cart.domain.dto.request.CartItemUpsertRequest;
-import com.wearhouse.cart.domain.dto.response.CartItemResponse;
-import com.wearhouse.cart.domain.dto.response.CartItemsResponse;
+import com.wearhouse.cart.domain.dto.response.BuyerCartItemResponse;
+import com.wearhouse.cart.domain.dto.response.BuyerCartItemsResponse;
 import com.wearhouse.cart.domain.response.CartSuccessCode;
 import com.wearhouse.cart.domain.service.command.CartCommandService;
 import com.wearhouse.cart.domain.service.query.CartQueryService;
@@ -31,27 +31,27 @@ public class CartController {
     private final CartQueryService cartQueryService;
 
     @GetMapping
-    public ApiResponse<CartItemsResponse> getCartItems(@LoginBuyer LoginUser currentUser) {
-        CartItemsResponse response = cartQueryService.getCartItems(currentUser);
+    public ApiResponse<BuyerCartItemsResponse> getCartItems(@LoginBuyer LoginUser currentUser) {
+        BuyerCartItemsResponse response = cartQueryService.getBuyerCartItems(currentUser);
         return ApiResponse.success(CartSuccessCode.CART_ITEM_LIST_FETCHED, response);
     }
 
     @PostMapping
-    public ApiResponse<List<CartItemResponse>> upsertCartItems(
+    public ApiResponse<List<BuyerCartItemResponse>> upsertCartItems(
             @LoginBuyer LoginUser currentUser,
             @Valid @RequestBody CartItemUpsertRequest request
     ) {
-        List<CartItemResponse> response = cartCommandService.upsertCartItems(currentUser, request);
+        List<BuyerCartItemResponse> response = cartCommandService.upsertCartItems(currentUser, request);
         return ApiResponse.success(CartSuccessCode.CART_ITEM_UPSERTED, response);
     }
 
     @PatchMapping("/{cartItemId}")
-    public ApiResponse<CartItemResponse> updateCartItemQuantity(
+    public ApiResponse<BuyerCartItemResponse> updateCartItemQuantity(
             @LoginBuyer LoginUser currentUser,
             @PathVariable Long cartItemId,
             @Valid @RequestBody CartItemQuantityUpdateRequest request
     ) {
-        CartItemResponse response = cartCommandService.updateQuantity(currentUser, cartItemId, request);
+        BuyerCartItemResponse response = cartCommandService.updateQuantity(currentUser, cartItemId, request);
         return ApiResponse.success(CartSuccessCode.CART_ITEM_QUANTITY_UPDATED, response);
     }
 

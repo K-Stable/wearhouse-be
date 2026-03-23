@@ -3,6 +3,7 @@ package com.wearhouse.product.domain.service.seller;
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.common.security.current.LoginUser;
+import com.wearhouse.common.support.s3.S3StorageService;
 import com.wearhouse.product.domain.dto.request.ProductCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductOptionCreateRequest;
 import com.wearhouse.product.domain.dto.request.ProductSeasonCreateRequest;
@@ -36,6 +37,7 @@ public class SellerProductCommandService {
     private final ProductRepository productRepository;
     private final ProductSeasonRepository productSeasonRepository;
     private final ProductInventoryClient productInventoryClient;
+    private final S3StorageService s3StorageService;
 
     @WriteTx
     public void createProductSeason(LoginUser currentUser, ProductSeasonCreateRequest request) {
@@ -66,12 +68,12 @@ public class SellerProductCommandService {
     @WriteTx
     public void createProduct(LoginUser currentUser, Long seasonId, ProductCreateRequest request) {
         Long sellerId = getSellerId(currentUser);
-        String mainImageUrl = normalizeImageUrl(request.mainImageUrl());
+        String mainImageKey = normalizeImageKey(request.mainImageUrl());
         ProductSeasonEntity season = resolveSeason(sellerId, seasonId);
-        ProductEntity product = buildProduct(request, sellerId, mainImageUrl, season);
+        ProductEntity product = buildProduct(request, sellerId, mainImageKey, season);
 
         ProductEntity saved = productRepository.saveAndFlush(product);
-        upsertInventoryStocks(saved, mainImageUrl);
+        upsertInventoryStocks(saved, resolveImageUrl(mainImageKey));
     }
 
     @WriteTx
@@ -80,7 +82,7 @@ public class SellerProductCommandService {
         ProductEntity product = productRepository.findByIdAndSellerId(productId, sellerId)
                 .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_NOT_FOUND));
         product.updateStatus(status);
-        upsertInventoryStocks(product, resolveMainImageUrl(product));
+        upsertInventoryStocks(product, resolveImageUrl(resolveMainImageKey(product)));
     }
 
     @WriteTx
@@ -103,7 +105,7 @@ public class SellerProductCommandService {
 
         for (ProductEntity product : products) {
             product.updateStatus(status);
-            upsertInventoryStocks(product, resolveMainImageUrl(product));
+            upsertInventoryStocks(product, resolveImageUrl(resolveMainImageKey(product)));
         }
     }
 
@@ -130,7 +132,7 @@ public class SellerProductCommandService {
         List<ProductEntity> products = productRepository.findAllById(targetIds);
         for (ProductEntity product : products) {
             product.updateStatus(ProductStatus.SOLD_OUT);
-            upsertInventoryStocks(product, resolveMainImageUrl(product));
+            upsertInventoryStocks(product, resolveImageUrl(resolveMainImageKey(product)));
         }
     }
 
@@ -144,7 +146,7 @@ public class SellerProductCommandService {
     private ProductEntity buildProduct(
             ProductCreateRequest request,
             Long sellerId,
-            String mainImageUrl,
+            String mainImageKey,
             ProductSeasonEntity season
     ) {
         ProductEntity product = ProductEntity.create(
@@ -159,7 +161,7 @@ public class SellerProductCommandService {
                 season
         );
         addOptions(product, request.options());
-        product.addImage(ProductImageType.MAIN, mainImageUrl, 0);
+        product.addImage(ProductImageType.MAIN, mainImageKey, 0);
         addOptionalImages(product, ProductImageType.PREVIEW, request.previewImageUrls());
         addOptionalImages(product, ProductImageType.DETAIL, request.detailImageUrls());
         return product;
@@ -178,8 +180,8 @@ public class SellerProductCommandService {
         return name == null ? null : name.trim();
     }
 
-    private String normalizeImageUrl(String imageUrl) {
-        return imageUrl.trim();
+    private String normalizeImageKey(String imageKey) {
+        return imageKey.trim();
     }
 
     private void addOptions(ProductEntity product, List<ProductOptionCreateRequest> optionRequests) {
@@ -194,16 +196,16 @@ public class SellerProductCommandService {
         }
     }
 
-    private void addOptionalImages(ProductEntity product, ProductImageType imageType, List<String> imageUrls) {
-        if (imageUrls == null) {
+    private void addOptionalImages(ProductEntity product, ProductImageType imageType, List<String> imageKeys) {
+        if (imageKeys == null) {
             return;
         }
         int sortOrder = 0;
-        for (String imageUrl : imageUrls) {
-            if (imageUrl == null || imageUrl.isBlank()) {
+        for (String imageKey : imageKeys) {
+            if (imageKey == null || imageKey.isBlank()) {
                 continue;
             }
-            product.addImage(imageType, normalizeImageUrl(imageUrl), sortOrder++);
+            product.addImage(imageType, normalizeImageKey(imageKey), sortOrder++);
         }
     }
 
@@ -246,12 +248,16 @@ public class SellerProductCommandService {
         }
     }
 
-    private String resolveMainImageUrl(ProductEntity product) {
+    private String resolveMainImageKey(ProductEntity product) {
         return product.getImages().stream()
                 .filter(image -> image.getImageType() == ProductImageType.MAIN)
                 .sorted(Comparator.comparing(ProductImageEntity::getSortOrder).thenComparing(ProductImageEntity::getId))
                 .map(ProductImageEntity::getImageUrl)
                 .findFirst()
                 .orElseThrow(() -> new ErrorException(ProductErrorCode.INVENTORY_STOCK_SYNC_FAILED));
+    }
+
+    private String resolveImageUrl(String imageKey) {
+        return s3StorageService.getImageUrl(imageKey);
     }
 }

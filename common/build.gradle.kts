@@ -20,6 +20,7 @@ dependencies {
     api("org.springframework:spring-aop")
     api("org.aspectj:aspectjweaver")
     api("org.redisson:redisson:3.52.0")
+    implementation("software.amazon.awssdk:s3:2.31.67")
     api("com.fasterxml.jackson.core:jackson-databind")
     api("jakarta.persistence:jakarta.persistence-api")
     api("jakarta.validation:jakarta.validation-api")

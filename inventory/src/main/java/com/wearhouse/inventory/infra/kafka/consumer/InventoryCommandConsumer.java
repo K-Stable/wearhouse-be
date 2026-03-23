@@ -2,12 +2,12 @@ package com.wearhouse.inventory.infra.kafka.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.support.kafka.dto.KafkaMessageEnvelope;
-import com.wearhouse.inventory.domain.service.command.InventoryCommandService;
-import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
+import com.wearhouse.inventory.domain.service.buyer.command.BuyerInventoryCommandService;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
@@ -16,13 +16,13 @@ import org.springframework.stereotype.Component;
 public class InventoryCommandConsumer {
 
     private final ObjectMapper objectMapper;
-    private final InventoryCommandService inventoryCommandService;
-    private final InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics;
+    private final BuyerInventoryCommandService buyerInventoryCommandService;
 
 
     @KafkaListener(topics = "${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}")
     public void consume(
             String message,
+            Acknowledgment acknowledgment,
             @Header(name = "kafka_receivedTopic", required = false) String topic,
             @Header(name = "kafka_receivedMessageKey", required = false) String key
     ) throws Exception {
@@ -34,19 +34,20 @@ public class InventoryCommandConsumer {
             Map<String, Object> payload = requirePayload(envelope.payload());
 
             if ("InventoryReserveRequested".equals(eventType)) {
-                inventoryCommandService.onReserveRequested(
+                buyerInventoryCommandService.onReserveRequested(
                         eventId,
                         topic,
                         key,
                         message,
                         payload
                 );
-                inventoryKafkaFlowMetrics.incrementConsumerHandled("inventory", eventType, topic, "success");
+                // reserve 처리 완료 이후 ack
+                acknowledgment.acknowledge();
                 return;
             }
 
             if ("InventoryReleaseRequested".equals(eventType)) {
-                inventoryCommandService.onReleaseRequested(
+                buyerInventoryCommandService.onReleaseRequested(
                         eventId,
                         topic,
                         key,
@@ -54,9 +55,9 @@ public class InventoryCommandConsumer {
                         payload
                 );
             }
-            inventoryKafkaFlowMetrics.incrementConsumerHandled("inventory", eventType, topic, "success");
+            // release 또는 무시 이벤트도 파싱/핸들링 후 ack
+            acknowledgment.acknowledge();
         } catch (Exception exception) {
-            inventoryKafkaFlowMetrics.incrementConsumerHandled("inventory", eventType, topic, "failed");
             throw exception;
         }
     }

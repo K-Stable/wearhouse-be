@@ -22,6 +22,18 @@ public class PaymentTransactionRepository {
         return paymentTransactionJpaRepository.findByOrderId(orderId);
     }
 
+    public Optional<PaymentTransactionEntity> findByPaymentId(String paymentId) {
+        return paymentTransactionJpaRepository.findByPaymentId(paymentId);
+    }
+
+    public Optional<PaymentTransactionEntity> findByPaymentKey(String paymentKey) {
+        return paymentTransactionJpaRepository.findByPaymentKey(paymentKey);
+    }
+
+    public PaymentTransactionEntity save(PaymentTransactionEntity entity) {
+        return paymentTransactionJpaRepository.saveAndFlush(entity);
+    }
+
     public void insertPending(
             String paymentId,
             Long orderId,
@@ -98,4 +110,3 @@ public class PaymentTransactionRepository {
         }
     }
 }
-

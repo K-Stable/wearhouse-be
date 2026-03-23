@@ -4,16 +4,20 @@ import com.wearhouse.common.security.current.LoginBuyer;
 import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.order.domain.dto.request.OrderCancelRequest;
 import com.wearhouse.order.domain.dto.request.OrderCreateRequest;
+import com.wearhouse.order.domain.dto.request.OrderPaymentConfirmRequest;
 import com.wearhouse.order.domain.dto.request.OrderPreviewRequest;
 import com.wearhouse.order.domain.dto.response.OrderCancelResponse;
 import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
 import com.wearhouse.order.domain.dto.response.OrderDetailResponse;
+import com.wearhouse.order.domain.dto.response.OrderPaymentConfirmResponse;
 import com.wearhouse.order.domain.dto.response.OrderPreviewResponse;
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
 import com.wearhouse.order.domain.service.command.OrderCommandService;
 import com.wearhouse.order.domain.service.query.OrderQueryService;
 import jakarta.validation.Valid;
 import java.util.List;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,15 +28,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1")
+@RequiredArgsConstructor
 public class OrderController {
 
     private final OrderCommandService orderCommandService;
     private final OrderQueryService orderQueryService;
 
-    public OrderController(OrderCommandService orderCommandService, OrderQueryService orderQueryService) {
-        this.orderCommandService = orderCommandService;
-        this.orderQueryService = orderQueryService;
-    }
+
 
     @PostMapping("/orders")
     public OrderCreateResponse createOrder(@Valid @RequestBody OrderCreateRequest request) {
@@ -60,13 +62,22 @@ public class OrderController {
     @PostMapping("/buyer/orders/checkout")
     public OrderPreviewResponse buyerCheckout(
             @LoginBuyer LoginUser currentUser,
-            @Valid @RequestBody OrderCheckoutRequest request
+            @Valid @RequestBody OrderPreviewRequest request
     ) {
-        return orderQueryService.buyerCheckou(currentUser.userId(), request);
+        return orderQueryService.previewForBuyer(currentUser.userId(), request);
     }
 
     @PostMapping("/buyer/orders/guest-checkout")
     public OrderPreviewResponse guestCheckout(@Valid @RequestBody OrderPreviewRequest request) {
-        return orderQueryService.buyerCheckout(request);
+        return orderQueryService.previewForGuest(request);
+    }
+
+    @PostMapping("/buyer/orders/{orderNo}/payments/confirm")
+    public OrderPaymentConfirmResponse confirmPayment(
+            @LoginBuyer LoginUser currentUser,
+            @PathVariable String orderNo,
+            @Valid @RequestBody OrderPaymentConfirmRequest request
+    ) {
+        return orderCommandService.confirmPayment(currentUser.userId(), orderNo, request);
     }
 }

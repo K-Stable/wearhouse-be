@@ -1,6 +1,6 @@
 package com.wearhouse.cart.domain.service;
 
-import com.wearhouse.cart.domain.dto.response.CartItemResponse;
+import com.wearhouse.cart.domain.dto.response.BuyerCartItemResponse;
 import com.wearhouse.cart.domain.entity.CartItemEntity;
 import com.wearhouse.cart.domain.exception.CartErrorCode;
 import com.wearhouse.common.global.error.ErrorException;
@@ -21,9 +21,9 @@ public final class CartServiceSupport {
         return currentUser.userId();
     }
 
-    public static CartItemResponse toCartItemResponse(CartItemEntity cartItem) {
+    public static BuyerCartItemResponse toCartItemResponse(CartItemEntity cartItem) {
         BigDecimal subtotalPrice = cartItem.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
-        return new CartItemResponse(
+        return new BuyerCartItemResponse(
                 cartItem.getId(),
                 cartItem.getProductId(),
                 cartItem.getOptionId(),

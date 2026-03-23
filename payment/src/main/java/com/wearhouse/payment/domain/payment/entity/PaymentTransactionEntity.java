@@ -42,6 +42,39 @@ public class PaymentTransactionEntity extends BaseEntity {
     @Column(name = "payment_method", nullable = false, length = 30)
     private String paymentMethod;
 
+    @Column(name = "payment_key", length = 80, unique = true)
+    private String paymentKey;
+
+    @Column(name = "payment_session_id", length = 80)
+    private String paymentSessionId;
+
+    @Column(name = "merchant_key", length = 120)
+    private String merchantKey;
+
+    @Column(name = "nonce", length = 120)
+    private String nonce;
+
+    @Column(name = "deadline", length = 120)
+    private String deadline;
+
+    @Column(name = "payload_hash", length = 128)
+    private String payloadHash;
+
+    @Column(name = "payer_address", length = 100)
+    private String payerAddress;
+
+    @Column(name = "token_address", length = 100)
+    private String tokenAddress;
+
+    @Column(name = "command_id", length = 80)
+    private String commandId;
+
+    @Column(name = "command_status", length = 40)
+    private String commandStatus;
+
+    @Column(name = "tx_hash", length = 120)
+    private String txHash;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private PaymentStatus status;
@@ -65,6 +98,17 @@ public class PaymentTransactionEntity extends BaseEntity {
             String orderNo,
             BigDecimal amount,
             String paymentMethod,
+            String paymentKey,
+            String paymentSessionId,
+            String merchantKey,
+            String nonce,
+            String deadline,
+            String payloadHash,
+            String payerAddress,
+            String tokenAddress,
+            String commandId,
+            String commandStatus,
+            String txHash,
             PaymentStatus status,
             String reasonCode,
             LocalDateTime expiresAt,
@@ -76,6 +120,17 @@ public class PaymentTransactionEntity extends BaseEntity {
         this.orderNo = orderNo;
         this.amount = amount;
         this.paymentMethod = paymentMethod;
+        this.paymentKey = paymentKey;
+        this.paymentSessionId = paymentSessionId;
+        this.merchantKey = merchantKey;
+        this.nonce = nonce;
+        this.deadline = deadline;
+        this.payloadHash = payloadHash;
+        this.payerAddress = payerAddress;
+        this.tokenAddress = tokenAddress;
+        this.commandId = commandId;
+        this.commandStatus = commandStatus;
+        this.txHash = txHash;
         this.status = status;
         this.reasonCode = reasonCode;
         this.expiresAt = expiresAt;
@@ -141,5 +196,46 @@ public class PaymentTransactionEntity extends BaseEntity {
                 .failedAt(failedAt)
                 .build();
     }
-}
 
+    public void bindStablepaySession(
+            String paymentKey,
+            String paymentSessionId,
+            String merchantKey,
+            String nonce,
+            String deadline,
+            String payloadHash,
+            String payerAddress,
+            String tokenAddress
+    ) {
+        this.paymentKey = paymentKey;
+        this.paymentSessionId = paymentSessionId;
+        this.merchantKey = merchantKey;
+        this.nonce = nonce;
+        this.deadline = deadline;
+        this.payloadHash = payloadHash;
+        this.payerAddress = payerAddress;
+        this.tokenAddress = tokenAddress;
+    }
+
+    public void bindPaymentKey(String paymentKey) {
+        this.paymentKey = paymentKey;
+    }
+
+    public void authorizeByWebhook(String txHash, String commandId, String commandStatus, LocalDateTime authorizedAt) {
+        this.status = PaymentStatus.AUTHORIZED;
+        this.txHash = txHash;
+        this.commandId = commandId;
+        this.commandStatus = commandStatus;
+        this.reasonCode = null;
+        this.authorizedAt = authorizedAt;
+        this.failedAt = null;
+    }
+
+    public void failByWebhook(String reasonCode, String commandId, String commandStatus, LocalDateTime failedAt) {
+        this.status = PaymentStatus.FAILED;
+        this.reasonCode = reasonCode;
+        this.commandId = commandId;
+        this.commandStatus = commandStatus;
+        this.failedAt = failedAt;
+    }
+}

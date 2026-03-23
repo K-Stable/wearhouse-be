@@ -2,12 +2,12 @@ package com.wearhouse.inventory.infra.kafka.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.support.kafka.dto.KafkaMessageEnvelope;
-import com.wearhouse.inventory.domain.service.command.InventoryCommandService;
-import com.wearhouse.inventory.support.monitoring.InventoryKafkaFlowMetrics;
+import com.wearhouse.inventory.domain.service.buyer.command.BuyerInventoryCommandService;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
@@ -16,13 +16,13 @@ import org.springframework.stereotype.Component;
 public class InventoryOrderConsumer {
 
     private final ObjectMapper objectMapper;
-    private final InventoryCommandService inventoryCommandService;
-    private final InventoryKafkaFlowMetrics inventoryKafkaFlowMetrics;
+    private final BuyerInventoryCommandService buyerInventoryCommandService;
 
 
     @KafkaListener(topics = "${wearhouse.kafka.order-event-topic:wearhouse.order.event.v1}")
     public void consume(
             String message,
+            Acknowledgment acknowledgment,
             @Header(name = "kafka_receivedTopic", required = false) String topic,
             @Header(name = "kafka_receivedMessageKey", required = false) String key
     ) throws Exception {
@@ -34,7 +34,7 @@ public class InventoryOrderConsumer {
             Map<String, Object> payload = requirePayload(envelope.payload());
 
             if ("OrderConfirmed".equals(eventType)) {
-                inventoryCommandService.onOrderConfirmed(
+                buyerInventoryCommandService.onOrderConfirmed(
                         eventId,
                         topic,
                         key,
@@ -42,9 +42,9 @@ public class InventoryOrderConsumer {
                         payload
                 );
             }
-            inventoryKafkaFlowMetrics.incrementConsumerHandled("order", eventType, topic, "success");
+            // order 확정 후 재고 차감 반영이 끝난 뒤 ack
+            acknowledgment.acknowledge();
         } catch (Exception exception) {
-            inventoryKafkaFlowMetrics.incrementConsumerHandled("order", eventType, topic, "failed");
             throw exception;
         }
     }

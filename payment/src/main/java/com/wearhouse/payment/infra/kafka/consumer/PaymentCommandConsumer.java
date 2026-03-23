@@ -7,6 +7,7 @@ import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +22,7 @@ public class PaymentCommandConsumer {
     @KafkaListener(topics = "${wearhouse.kafka.payment-prepare-topic:wearhouse.payment.command.v1}")
     public void consume(
             String message,
+            Acknowledgment acknowledgment,
             @Header(name = "kafka_receivedTopic", required = false) String topic,
             @Header(name = "kafka_receivedMessageKey", required = false) String key
     ) throws Exception {
@@ -41,6 +43,7 @@ public class PaymentCommandConsumer {
                 );
             }
             paymentKafkaFlowMetrics.incrementConsumerHandled("payment", eventType, topic, "success");
+            acknowledgment.acknowledge();
         } catch (Exception exception) {
             paymentKafkaFlowMetrics.incrementConsumerHandled("payment", eventType, topic, "failed");
             throw exception;

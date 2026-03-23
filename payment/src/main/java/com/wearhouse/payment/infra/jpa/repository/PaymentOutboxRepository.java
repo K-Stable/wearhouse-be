@@ -1,8 +1,6 @@
 package com.wearhouse.payment.infra.jpa.repository;
 
 import com.wearhouse.payment.domain.payment.entity.PaymentOutboxEventEntity;
-import com.wearhouse.payment.domain.payment.model.PaymentOutboxStatus;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -55,19 +53,17 @@ public class PaymentOutboxRepository {
                 });
     }
 
-    public List<OutboxCandidate> lockRepublishCandidates(LocalDateTime cutoffAt, int limit) {
-        List<PaymentOutboxEventEntity> entities = paymentOutboxEventJpaRepository.lockRepublishCandidates(cutoffAt, limit);
+    public List<OutboxCandidate> lockRepublishCandidates(int limit) {
+        List<PaymentOutboxEventEntity> entities = paymentOutboxEventJpaRepository.lockRepublishCandidates(limit);
         List<OutboxCandidate> candidates = new ArrayList<>();
         for (PaymentOutboxEventEntity entity : entities) {
-            if (entity.getStatus() == PaymentOutboxStatus.FAIL) {
-                candidates.add(new OutboxCandidate(
-                        entity.getEventId(),
-                        entity.getEventType(),
-                        entity.getTopic(),
-                        entity.getPartitionKey(),
-                        entity.getPayload()
-                ));
-            }
+            candidates.add(new OutboxCandidate(
+                    entity.getEventId(),
+                    entity.getEventType(),
+                    entity.getTopic(),
+                    entity.getPartitionKey(),
+                    entity.getPayload()
+            ));
         }
         return candidates;
     }

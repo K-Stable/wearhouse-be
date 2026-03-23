@@ -15,6 +15,10 @@ public interface PaymentTransactionJpaRepository extends JpaRepository<PaymentTr
 
     Optional<PaymentTransactionEntity> findByOrderId(Long orderId);
 
+    Optional<PaymentTransactionEntity> findByPaymentId(String paymentId);
+
+    Optional<PaymentTransactionEntity> findByPaymentKey(String paymentKey);
+
     List<PaymentTransactionEntity> findByStatusAndExpiresAtIsNotNullAndExpiresAtLessThanEqualOrderByIdAsc(
             PaymentStatus status,
             LocalDateTime now,
@@ -36,4 +40,3 @@ public interface PaymentTransactionJpaRepository extends JpaRepository<PaymentTr
             @Param("failedAt") LocalDateTime failedAt
     );
 }
-

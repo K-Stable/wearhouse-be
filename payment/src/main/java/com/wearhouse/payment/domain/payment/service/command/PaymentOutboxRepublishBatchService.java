@@ -5,7 +5,6 @@ import com.wearhouse.common.support.config.OutboxProperties;
 import com.wearhouse.payment.infra.jpa.repository.PaymentOutboxRepository;
 import com.wearhouse.payment.infra.jpa.repository.PaymentOutboxRepository.OutboxCandidate;
 import com.wearhouse.payment.infra.kafka.producer.PaymentKafkaProducer;
-import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -19,12 +18,8 @@ public class PaymentOutboxRepublishBatchService {
     private final OutboxProperties outboxProperties;
 
     @WriteTx
-    public int republishFailedEvents() {
-        LocalDateTime cutoffAt = LocalDateTime.now().minusMinutes(outboxProperties.staleMinutes());
-        List<OutboxCandidate> candidates = paymentOutboxRepository.lockRepublishCandidates(
-                cutoffAt,
-                outboxProperties.republishBatchSize()
-        );
+    public int publishOutboxEvents() {
+        List<OutboxCandidate> candidates = paymentOutboxRepository.lockRepublishCandidates(outboxProperties.republishBatchSize());
         for (OutboxCandidate candidate : candidates) {
             paymentKafkaProducer.send(
                     candidate.getEventId(),

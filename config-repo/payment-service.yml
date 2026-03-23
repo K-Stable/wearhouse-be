@@ -31,6 +31,18 @@ wearhouse:
       timeout-batch-size: ${PAYMENT_MOCK_TIMEOUT_BATCH_SIZE:200}
       fail-methods: ${PAYMENT_MOCK_FAIL_METHODS:FAIL}
       timeout-methods: ${PAYMENT_MOCK_TIMEOUT_METHODS:TIMEOUT}
+  order:
+    internal:
+      shared-secret: ${ORDER_INTERNAL_SHARED_SECRET:wearhouse-order-internal-secret}
+  pay:
+    api-base-url: ${PAY_API_BASE_URL:http://localhost:8090}
+    merchant-id: ${PAY_MERCHANT_ID:merchant_demo}
+    access-key: ${PAY_ACCESS_KEY:pay_access_key}
+    secret-key: ${PAY_SECRET_KEY:pay_secret_key}
+    confirm-path: ${PAY_CONFIRM_PATH:/v1/payments/confirm}
+    webhook:
+      secret: ${PAY_WEBHOOK_SECRET:pay-webhook-secret}
+      allowed-skew-seconds: ${PAY_WEBHOOK_ALLOWED_SKEW_SECONDS:300}
 
 management:
   endpoints:

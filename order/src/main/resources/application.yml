@@ -42,11 +42,13 @@ spring:
       auto-create: true
     listener:
       missing-topics-fatal: false
+      ack-mode: manual_immediate
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
     consumer:
       group-id: ${ORDER_KAFKA_CONSUMER_GROUP:order-service-group}
+      enable-auto-commit: false
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -54,6 +56,10 @@ spring:
 wearhouse:
   kafka:
     common-config-enabled: true
+    error-handler:
+      retry-interval-ms: ${KAFKA_RETRY_INTERVAL_MS:2000}
+      retry-attempts: ${KAFKA_RETRY_ATTEMPTS:3}
+      dlt-topic: ${KAFKA_DLT_TOPIC:wearhouse.kafka.failure.order.v1}
     test-topic: ${KAFKA_TEST_TOPIC:wearhouse.test.topic}
     inventory-reserve-topic: ${INVENTORY_RESERVE_TOPIC:wearhouse.inventory.command.v1}
     inventory-command-topic: ${INVENTORY_COMMAND_TOPIC:wearhouse.inventory.command.v1}
@@ -64,6 +70,12 @@ wearhouse:
   order:
     passport:
       shared-secret: ${PASSPORT_SHARED_SECRET:wearhouse-passport-shared-secret}
+    internal:
+      shared-secret: ${ORDER_INTERNAL_SHARED_SECRET:wearhouse-order-internal-secret}
+    reserve-wait-timeout-ms: ${ORDER_RESERVE_WAIT_TIMEOUT_MS:2000}
+    reserve-wait-interval-ms: ${ORDER_RESERVE_WAIT_INTERVAL_MS:100}
+    payment-confirm-wait-timeout-ms: ${ORDER_PAYMENT_CONFIRM_WAIT_TIMEOUT_MS:3000}
+    payment-confirm-wait-interval-ms: ${ORDER_PAYMENT_CONFIRM_WAIT_INTERVAL_MS:100}
   outbox:
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:3000}
     stale-minutes: ${OUTBOX_STALE_MINUTES:10}

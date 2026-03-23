@@ -2,7 +2,7 @@ package com.wearhouse.cart.domain.service.command;
 
 import com.wearhouse.cart.domain.dto.request.CartItemQuantityUpdateRequest;
 import com.wearhouse.cart.domain.dto.request.CartItemUpsertRequest;
-import com.wearhouse.cart.domain.dto.response.CartItemResponse;
+import com.wearhouse.cart.domain.dto.response.BuyerCartItemResponse;
 import com.wearhouse.cart.domain.entity.CartItemEntity;
 import com.wearhouse.cart.domain.exception.CartErrorCode;
 import com.wearhouse.cart.domain.repository.CartItemRepository;
@@ -23,7 +23,7 @@ public class CartCommandService {
     private final CartItemRepository cartItemRepository;
 
     @WriteTx
-    public List<CartItemResponse> upsertCartItems(LoginUser currentUser, CartItemUpsertRequest request) {
+    public List<BuyerCartItemResponse> upsertCartItems(LoginUser currentUser, CartItemUpsertRequest request) {
         Long buyerId = CartServiceSupport.extractBuyerId(currentUser);
         List<CartItemUpsertRequest.CartOptionRequest> mergedItems = mergeOptionItems(request.items());
         return mergedItems.stream()
@@ -32,7 +32,7 @@ public class CartCommandService {
     }
 
     @WriteTx
-    public CartItemResponse updateQuantity(
+    public BuyerCartItemResponse updateQuantity(
             LoginUser currentUser,
             Long cartItemId,
             CartItemQuantityUpdateRequest request
@@ -58,7 +58,7 @@ public class CartCommandService {
         cartItemRepository.deleteAllByBuyerId(buyerId);
     }
 
-    private CartItemResponse upsertCartItem(
+    private BuyerCartItemResponse upsertCartItem(
             Long buyerId,
             CartItemUpsertRequest request,
             CartItemUpsertRequest.CartOptionRequest item

@@ -32,30 +32,9 @@ public class OrderInboxEventEntity extends BaseEntity {
     @Column(name = "consumer_name", nullable = false, length = 80)
     private String consumerName;
 
-    @Column(name = "event_type", nullable = false, length = 100)
-    private String eventType;
-
-    @Column(name = "topic", nullable = false, length = 120)
-    private String topic;
-
-    @Column(name = "partition_key", length = 100)
-    private String partitionKey;
-
-    @Column(name = "payload", nullable = false, columnDefinition = "json")
-    private String payload;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private OrderInboxStatus status;
-
-    @Column(name = "fail_count", nullable = false)
-    private Integer failCount;
-
-    @Column(name = "fail_reason_code", length = 50)
-    private String failReasonCode;
-
-    @Column(name = "fail_reason_message", length = 255)
-    private String failReasonMessage;
 
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
@@ -63,31 +42,18 @@ public class OrderInboxEventEntity extends BaseEntity {
     @Builder
     private OrderInboxEventEntity(
             String eventId,
-            String consumerName,
-            String eventType,
-            String topic,
-            String partitionKey,
-            String payload
+            String consumerName
     ) {
         this.eventId = eventId;
         this.consumerName = consumerName;
-        this.eventType = eventType;
-        this.topic = topic;
-        this.partitionKey = partitionKey;
-        this.payload = payload;
         this.status = OrderInboxStatus.RECEIVED;
-        this.failCount = 0;
     }
 
     public static OrderInboxEventEntity received(
             String eventId,
-            String consumerName,
-            String eventType,
-            String topic,
-            String partitionKey,
-            String payload
+            String consumerName
     ) {
-        return new OrderInboxEventEntity(eventId, consumerName, eventType, topic, partitionKey, payload);
+        return new OrderInboxEventEntity(eventId, consumerName);
     }
 
     public void markProcessed() {
@@ -95,18 +61,8 @@ public class OrderInboxEventEntity extends BaseEntity {
         this.processedAt = LocalDateTime.now();
     }
 
-    public void markFailed(String reasonCode, String reasonMessage) {
+    public void markFailed() {
         this.status = OrderInboxStatus.FAILED;
-        this.failCount = this.failCount + 1;
-        this.failReasonCode = reasonCode;
-        this.failReasonMessage = truncate(reasonMessage, 255);
-    }
-
-    private String truncate(String value, int maxLength) {
-        if (value == null || value.length() <= maxLength) {
-            return value;
-        }
-        return value.substring(0, maxLength);
     }
 
     public Long getId() {
@@ -121,36 +77,8 @@ public class OrderInboxEventEntity extends BaseEntity {
         return consumerName;
     }
 
-    public String getEventType() {
-        return eventType;
-    }
-
-    public String getTopic() {
-        return topic;
-    }
-
-    public String getPartitionKey() {
-        return partitionKey;
-    }
-
-    public String getPayload() {
-        return payload;
-    }
-
     public OrderInboxStatus getStatus() {
         return status;
-    }
-
-    public Integer getFailCount() {
-        return failCount;
-    }
-
-    public String getFailReasonCode() {
-        return failReasonCode;
-    }
-
-    public String getFailReasonMessage() {
-        return failReasonMessage;
     }
 
     public LocalDateTime getProcessedAt() {

@@ -40,11 +40,13 @@ spring:
       auto-create: true
     listener:
       missing-topics-fatal: false
+      ack-mode: manual_immediate
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
     consumer:
       group-id: ${PAYMENT_KAFKA_CONSUMER_GROUP:payment-service-group}
+      enable-auto-commit: false
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -52,6 +54,10 @@ spring:
 wearhouse:
   kafka:
     common-config-enabled: true
+    error-handler:
+      retry-interval-ms: ${KAFKA_RETRY_INTERVAL_MS:2000}
+      retry-attempts: ${KAFKA_RETRY_ATTEMPTS:3}
+      dlt-topic: ${KAFKA_DLT_TOPIC:wearhouse.kafka.failure.payment.v1}
     payment-prepare-topic: ${PAYMENT_PREPARE_TOPIC:wearhouse.payment.command.v1}
     payment-event-topic: ${PAYMENT_EVENT_TOPIC:wearhouse.payment.event.v1}
   payment:
@@ -65,6 +71,18 @@ wearhouse:
       timeout-batch-size: ${PAYMENT_MOCK_TIMEOUT_BATCH_SIZE:200}
       fail-methods: ${PAYMENT_MOCK_FAIL_METHODS:FAIL}
       timeout-methods: ${PAYMENT_MOCK_TIMEOUT_METHODS:TIMEOUT}
+  order:
+    internal:
+      shared-secret: ${ORDER_INTERNAL_SHARED_SECRET:wearhouse-order-internal-secret}
+  pay:
+    api-base-url: ${PAY_API_BASE_URL:http://localhost:8090}
+    merchant-id: ${PAY_MERCHANT_ID:merchant_demo}
+    access-key: ${PAY_ACCESS_KEY:pay_access_key}
+    secret-key: ${PAY_SECRET_KEY:pay_secret_key}
+    confirm-path: ${PAY_CONFIRM_PATH:/v1/payments/confirm}
+    webhook:
+      secret: ${PAY_WEBHOOK_SECRET:pay-webhook-secret}
+      allowed-skew-seconds: ${PAY_WEBHOOK_ALLOWED_SKEW_SECONDS:300}
   outbox:
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:3000}
     stale-minutes: ${OUTBOX_STALE_MINUTES:10}

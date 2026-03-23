@@ -5,7 +5,6 @@ import com.wearhouse.common.support.config.OutboxProperties;
 import com.wearhouse.order.infra.jpa.repository.OrderOutboxRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderOutboxRepository.OutboxCandidate;
 import com.wearhouse.order.infra.kafka.producer.OrderKafkaProducer;
-import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -19,21 +18,19 @@ public class OrderOutboxRepublishBatchService {
     private final OutboxProperties outboxProperties;
 
     @WriteTx
-    public int republishFailedEvents() {
-        LocalDateTime cutoffAt = LocalDateTime.now().minusMinutes(outboxProperties.staleMinutes());
-        List<OutboxCandidate> candidates = orderOutboxRepository.lockRepublishCandidates(
-                cutoffAt,
-                outboxProperties.republishBatchSize()
-        );
+    public int publishOutboxEvents() {
+        List<OutboxCandidate> candidates = orderOutboxRepository.lockRepublishCandidates(outboxProperties.republishBatchSize());
         for (OutboxCandidate candidate : candidates) {
-            orderKafkaProducer.send(
-                    candidate.getEventId(),
-                    candidate.getEventType(),
-                    candidate.getTopic(),
-                    candidate.getPartitionKey(),
-                    candidate.getPayload(),
-                    "batch_republish"
-            );
+            try {
+                orderKafkaProducer.send(
+                        candidate.getTopic(),
+                        candidate.getPartitionKey(),
+                        candidate.getPayload()
+                );
+                orderOutboxRepository.markSuccess(candidate.getEventId());
+            } catch (Exception exception) {
+                orderOutboxRepository.markFail(candidate.getEventId(), "KAFKA_SEND_ERROR", exception.getMessage());
+            }
         }
         return candidates.size();
     }

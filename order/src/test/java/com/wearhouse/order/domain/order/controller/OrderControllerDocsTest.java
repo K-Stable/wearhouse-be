@@ -27,6 +27,7 @@ import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
 import com.wearhouse.order.domain.dto.response.OrderDetailResponse;
 import com.wearhouse.order.domain.dto.response.OrderDetailResponse.OrderItemDetailResponse;
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
+import com.wearhouse.order.domain.model.PaymentMethod;
 import com.wearhouse.order.domain.service.command.OrderCommandService;
 import com.wearhouse.order.domain.service.query.OrderQueryService;
 import java.math.BigDecimal;
@@ -67,7 +68,7 @@ class OrderControllerDocsTest {
     void createOrder() throws Exception {
         OrderCreateRequest request = OrderCreateRequest.builder()
                 .buyerId(1L)
-                .paymentMethod("CARD")
+                .paymentMethod(PaymentMethod.CARD)
                 .recipientName("홍길동")
                 .recipientPhone("01012345678")
                 .zipCode("06236")
@@ -89,13 +90,10 @@ class OrderControllerDocsTest {
                 .build();
 
         OrderCreateResponse response = OrderCreateResponse.builder()
-                .orderId(10L)
                 .orderNo("O202603060001")
-                .status("PENDING_RESERVE")
+                .customerId("11111111-1111-1111-1111-111111111111")
+                .customerName("홍길동")
                 .payAmount(new BigDecimal("60000"))
-                .sagaId("SAGA01TEST0123456789012345")
-                .outboxEventId("OUTB01TEST0123456789012345")
-                .orderedAt(LocalDateTime.of(2026, 3, 6, 12, 0, 0))
                 .build();
         given(orderCommandService.createOrder(any(OrderCreateRequest.class))).willReturn(response);
 
@@ -130,13 +128,10 @@ class OrderControllerDocsTest {
                                 fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("성공 여부"),
                                 fieldWithPath("code").type(JsonFieldType.STRING).description("응답 코드"),
                                 fieldWithPath("message").type(JsonFieldType.STRING).description("응답 메시지"),
-                                fieldWithPath("data.orderId").type(JsonFieldType.NUMBER).description("주문 ID"),
                                 fieldWithPath("data.orderNo").type(JsonFieldType.STRING).description("주문 번호"),
-                                fieldWithPath("data.status").type(JsonFieldType.STRING).description("주문 상태"),
+                                fieldWithPath("data.customerId").type(JsonFieldType.STRING).description("SDK용 고객 식별자"),
+                                fieldWithPath("data.customerName").type(JsonFieldType.STRING).description("고객명"),
                                 fieldWithPath("data.payAmount").type(JsonFieldType.NUMBER).description("결제 금액"),
-                                fieldWithPath("data.sagaId").type(JsonFieldType.STRING).description("Saga ID"),
-                                fieldWithPath("data.outboxEventId").type(JsonFieldType.STRING).description("Outbox 이벤트 ID"),
-                                fieldWithPath("data.orderedAt").type(JsonFieldType.STRING).description("주문 시각"),
                                 fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
                         )
                 ));
