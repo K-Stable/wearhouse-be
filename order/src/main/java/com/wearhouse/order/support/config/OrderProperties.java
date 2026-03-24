@@ -22,6 +22,18 @@ public class OrderProperties {
     @Positive
     private long paymentConfirmWaitIntervalMs = 100L;
 
+    @Positive
+    private long paymentPrepareWaitTimeoutMs = 3000L;
+
+    @Positive
+    private long paymentPrepareWaitIntervalMs = 100L;
+
+    @NotBlank
+    private String paymentPrepareSuccessUrlTemplate = "https://mall.wearhouse.com/orders/{orderNo}/payments/success";
+
+    @NotBlank
+    private String paymentPrepareFailUrlTemplate = "https://mall.wearhouse.com/orders/{orderNo}/payments/fail";
+
     @Valid
     private Internal internal = new Internal();
 

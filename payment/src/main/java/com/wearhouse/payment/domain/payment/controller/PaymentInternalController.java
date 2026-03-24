@@ -1,7 +1,9 @@
 package com.wearhouse.payment.domain.payment.controller;
 
 import com.wearhouse.payment.domain.payment.dto.request.PaymentConfirmRequest;
+import com.wearhouse.payment.domain.payment.dto.request.PaymentPrepareRequest;
 import com.wearhouse.payment.domain.payment.dto.response.PaymentConfirmResponse;
+import com.wearhouse.payment.domain.payment.dto.response.PaymentPrepareResponse;
 import com.wearhouse.payment.domain.payment.service.command.PaymentCommandService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,5 +26,13 @@ public class PaymentInternalController {
             @Valid @RequestBody PaymentConfirmRequest request
     ) {
         return paymentCommandService.confirmStablepayPayment(request, internalSecret);
+    }
+
+    @PostMapping("/prepare")
+    public PaymentPrepareResponse preparePayment(
+            @RequestHeader("X-Internal-Secret") String internalSecret,
+            @Valid @RequestBody PaymentPrepareRequest request
+    ) {
+        return paymentCommandService.prepareStablepayPayment(request, internalSecret);
     }
 }

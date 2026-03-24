@@ -11,5 +11,8 @@ management:
       exposure:
         include: health,info,prometheus
   metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
     tags:
       application: product-service

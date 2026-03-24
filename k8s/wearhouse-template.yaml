@@ -1,0 +1,766 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wearhouse-env
+  namespace: wearhouse
+data:
+  MYSQL_HOST: mysql
+  MYSQL_PORT: "3306"
+  AUTH_DB_NAME: wearhouse_auth
+  USER_DB_NAME: wearhouse_user
+  PRODUCT_DB_NAME: wearhouse_product
+  CART_DB_NAME: wearhouse_cart
+  ORDER_DB_NAME: wearhouse_order
+  PAYMENT_DB_NAME: wearhouse_payment
+  INVENTORY_DB_NAME: wearhouse_inventory
+  SETTLEMENT_DB_NAME: wearhouse_settlement
+  REDIS_HOST: redis-auth
+  REDIS_PORT: "6379"
+  AUTH_REDIS_PORT: "6379"
+  ORDER_REDIS_PORT: "6379"
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  KAFKA_TEST_TOPIC: wearhouse.test.topic
+  EUREKA_SERVER_PORT: "8761"
+  EUREKA_DEFAULT_ZONE: http://service-discovery:8761/eureka
+  CONFIG_SERVER_PORT: "8888"
+  SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+  CONFIG_REPO_LOCATIONS: file:/config-repo
+  API_GATEWAY_SERVER_PORT: "8000"
+  API_GATEWAY_ALLOWED_ORIGINS: http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002
+  API_GATEWAY_SELLER_ORIGINS: http://localhost:3002,http://127.0.0.1:3002
+  GATEWAY_AUTH_VALIDATE_URL: http://auth-service:8101/api/v1/internal/auth/validate
+  AUTH_SERVER_PORT: "8101"
+  USER_SERVER_PORT: "8102"
+  USER_AUTH_BUYER_SIGNUP_URL: http://auth-service:8101/api/v1/internal/auth/buyers/signup
+  USER_AUTH_SELLER_SIGNUP_URL: http://auth-service:8101/api/v1/internal/auth/sellers/signup
+  USER_AUTH_INTERNAL_SHARED_SECRET: wearhouse-internal-shared-secret
+  PRODUCT_SERVER_PORT: "8103"
+  CART_SERVER_PORT: "8108"
+  ORDER_SERVER_PORT: "8104"
+  PAYMENT_SERVER_PORT: "8105"
+  INVENTORY_SERVER_PORT: "8106"
+  SETTLEMENT_SERVER_PORT: "8107"
+  ORDER_KAFKA_CONSUMER_GROUP: order-service-group
+  PAYMENT_KAFKA_CONSUMER_GROUP: payment-service-group
+  INVENTORY_KAFKA_CONSUMER_GROUP: inventory-service-group
+  AUTH_JWT_ISSUER: wearhouse-auth
+  AUTH_ACCESS_TOKEN_MINUTES: "30"
+  AUTH_REFRESH_TOKEN_TTL_DAYS: "14"
+  AUTH_COOKIE_BUYER_ACCESS_NAME: buyer_access_token
+  AUTH_COOKIE_SELLER_ACCESS_NAME: seller_access_token
+  AUTH_COOKIE_BUYER_REFRESH_NAME: buyer_refresh_token
+  AUTH_COOKIE_SELLER_REFRESH_NAME: seller_refresh_token
+  AUTH_COOKIE_SECURE: "false"
+  AUTH_COOKIE_SAME_SITE: Lax
+  AUTH_USER_CHANGED_CHANNEL: wearhouse.auth.user-changed.v1
+  PASSPORT_CACHE_TTL_SECONDS: "60"
+  PASSPORT_USER_INDEX_TTL_SECONDS: "1800"
+  SPRING_MAIL_HOST: smtp.gmail.com
+  SPRING_MAIL_PORT: "587"
+  SPRING_MAIL_SMTP_AUTH: "true"
+  SPRING_MAIL_SMTP_STARTTLS_ENABLE: "true"
+  S3_ENABLED: "false"
+  S3_REGION: ap-northeast-2
+  S3_BUCKET: wearhouse-231629457117
+  S3_PUBLIC_BASE_URL: ""
+  S3_PRESIGNED_PUT_EXPIRE_SECONDS: "300"
+  PRODUCT_IMAGE_KEY_PREFIX: dev
+  ORDER_INTERNAL_SHARED_SECRET: wearhouse-order-internal-secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0.41
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_DATABASE
+          value: mysql
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wearhouse-secrets
+              key: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: wearhouse-secrets
+              key: MYSQL_USER
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wearhouse-secrets
+              key: MYSQL_PASSWORD
+        - name: AUTH_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: wearhouse-env
+              key: AUTH_DB_NAME
+        - name: USER_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: wearhouse-env
+              key: USER_DB_NAME
+        - name: PRODUCT_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: wearhouse-env
+              key: PRODUCT_DB_NAME
+        - name: CART_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: wearhouse-env
+              key: CART_DB_NAME
+        - name: ORDER_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: wearhouse-env
+              key: ORDER_DB_NAME
+        - name: PAYMENT_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: wearhouse-env
+              key: PAYMENT_DB_NAME
+        - name: INVENTORY_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: wearhouse-env
+              key: INVENTORY_DB_NAME
+        - name: SETTLEMENT_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: wearhouse-env
+              key: SETTLEMENT_DB_NAME
+        args:
+        - --default-authentication-plugin=mysql_native_password
+        - --character-set-server=utf8mb4
+        - --collation-server=utf8mb4_unicode_ci
+        volumeMounts:
+        - name: mysql-init
+          mountPath: /docker-entrypoint-initdb.d/01-init-databases.sh
+          subPath: 01-init-databases.sh
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-init
+        configMap:
+          name: wearhouse-mysql-init
+          defaultMode: 0755
+      - name: mysql-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: wearhouse
+spec:
+  selector:
+    app: mysql
+  ports:
+  - name: mysql
+    port: 3306
+    targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-auth
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-auth
+  template:
+    metadata:
+      labels:
+        app: redis-auth
+    spec:
+      containers:
+      - name: redis
+        image: redis:7.4.2
+        args: ["redis-server", "--appendonly", "yes"]
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-auth
+  namespace: wearhouse
+spec:
+  selector:
+    app: redis-auth
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-order
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-order
+  template:
+    metadata:
+      labels:
+        app: redis-order
+    spec:
+      containers:
+      - name: redis
+        image: redis:7.4.2
+        args: ["redis-server", "--appendonly", "yes"]
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-order
+  namespace: wearhouse
+spec:
+  selector:
+    app: redis-order
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zookeeper
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zookeeper
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+    spec:
+      containers:
+      - name: zookeeper
+        image: confluentinc/cp-zookeeper:7.6.1
+        env:
+        - name: ZOOKEEPER_CLIENT_PORT
+          value: "2181"
+        - name: ZOOKEEPER_TICK_TIME
+          value: "2000"
+        ports:
+        - containerPort: 2181
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  namespace: wearhouse
+spec:
+  selector:
+    app: zookeeper
+  ports:
+  - name: zookeeper
+    port: 2181
+    targetPort: 2181
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+      - name: kafka
+        image: confluentinc/cp-kafka:7.6.1
+        env:
+        - name: KAFKA_BROKER_ID
+          value: "1"
+        - name: KAFKA_ZOOKEEPER_CONNECT
+          value: zookeeper:2181
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: PLAINTEXT:PLAINTEXT
+        - name: KAFKA_LISTENERS
+          value: PLAINTEXT://0.0.0.0:9092
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: PLAINTEXT://kafka:9092
+        - name: KAFKA_INTER_BROKER_LISTENER_NAME
+          value: PLAINTEXT
+        - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+          value: "1"
+        - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+          value: "false"
+        ports:
+        - containerPort: 9092
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: wearhouse
+spec:
+  selector:
+    app: kafka
+  ports:
+  - name: kafka
+    port: 9092
+    targetPort: 9092
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-discovery
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-discovery
+  template:
+    metadata:
+      labels:
+        app: service-discovery
+    spec:
+      containers:
+      - name: service-discovery
+        image: __ECR_REGISTRY__/wearhouse/service-discovery:__IMAGE_TAG__
+        ports:
+        - containerPort: 8761
+        envFrom:
+        - configMapRef:
+            name: wearhouse-env
+        - secretRef:
+            name: wearhouse-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-discovery
+  namespace: wearhouse
+spec:
+  selector:
+    app: service-discovery
+  ports:
+  - name: http
+    port: 8761
+    targetPort: 8761
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-server
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-server
+  template:
+    metadata:
+      labels:
+        app: config-server
+    spec:
+      containers:
+      - name: config-server
+        image: __ECR_REGISTRY__/wearhouse/config-server:__IMAGE_TAG__
+        ports:
+        - containerPort: 8888
+        envFrom:
+        - configMapRef:
+            name: wearhouse-env
+        - secretRef:
+            name: wearhouse-secrets
+        volumeMounts:
+        - name: config-repo
+          mountPath: /config-repo
+      volumes:
+      - name: config-repo
+        configMap:
+          name: wearhouse-config-repo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-server
+  namespace: wearhouse
+spec:
+  selector:
+    app: config-server
+  ports:
+  - name: http
+    port: 8888
+    targetPort: 8888
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+      - name: auth-service
+        image: __ECR_REGISTRY__/wearhouse/auth:__IMAGE_TAG__
+        ports:
+        - containerPort: 8101
+        envFrom:
+        - configMapRef:
+            name: wearhouse-env
+        - secretRef:
+            name: wearhouse-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: wearhouse
+spec:
+  selector:
+    app: auth-service
+  ports:
+  - name: http
+    port: 8101
+    targetPort: 8101
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: __ECR_REGISTRY__/wearhouse/user:__IMAGE_TAG__
+        ports:
+        - containerPort: 8102
+        envFrom:
+        - configMapRef:
+            name: wearhouse-env
+        - secretRef:
+            name: wearhouse-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: wearhouse
+spec:
+  selector:
+    app: user-service
+  ports:
+  - name: http
+    port: 8102
+    targetPort: 8102
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+    spec:
+      containers:
+      - name: product-service
+        image: __ECR_REGISTRY__/wearhouse/product:__IMAGE_TAG__
+        ports:
+        - containerPort: 8103
+        envFrom:
+        - configMapRef:
+            name: wearhouse-env
+        - secretRef:
+            name: wearhouse-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  namespace: wearhouse
+spec:
+  selector:
+    app: product-service
+  ports:
+  - name: http
+    port: 8103
+    targetPort: 8103
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart-service
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cart-service
+  template:
+    metadata:
+      labels:
+        app: cart-service
+    spec:
+      containers:
+      - name: cart-service
+        image: __ECR_REGISTRY__/wearhouse/cart:__IMAGE_TAG__
+        ports:
+        - containerPort: 8108
+        envFrom:
+        - configMapRef:
+            name: wearhouse-env
+        - secretRef:
+            name: wearhouse-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cart-service
+  namespace: wearhouse
+spec:
+  selector:
+    app: cart-service
+  ports:
+  - name: http
+    port: 8108
+    targetPort: 8108
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+      - name: order-service
+        image: __ECR_REGISTRY__/wearhouse/order:__IMAGE_TAG__
+        ports:
+        - containerPort: 8104
+        envFrom:
+        - configMapRef:
+            name: wearhouse-env
+        - secretRef:
+            name: wearhouse-secrets
+        env:
+        - name: REDIS_HOST
+          value: redis-order
+        - name: REDIS_PORT
+          value: "6379"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: wearhouse
+spec:
+  selector:
+    app: order-service
+  ports:
+  - name: http
+    port: 8104
+    targetPort: 8104
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      containers:
+      - name: payment-service
+        image: __ECR_REGISTRY__/wearhouse/payment:__IMAGE_TAG__
+        ports:
+        - containerPort: 8105
+        envFrom:
+        - configMapRef:
+            name: wearhouse-env
+        - secretRef:
+            name: wearhouse-secrets
+        env:
+        - name: REDIS_HOST
+          value: redis-order
+        - name: REDIS_PORT
+          value: "6379"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: wearhouse
+spec:
+  selector:
+    app: payment-service
+  ports:
+  - name: http
+    port: 8105
+    targetPort: 8105
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+    spec:
+      containers:
+      - name: inventory-service
+        image: __ECR_REGISTRY__/wearhouse/inventory:__IMAGE_TAG__
+        ports:
+        - containerPort: 8106
+        envFrom:
+        - configMapRef:
+            name: wearhouse-env
+        - secretRef:
+            name: wearhouse-secrets
+        env:
+        - name: REDIS_HOST
+          value: redis-order
+        - name: REDIS_PORT
+          value: "6379"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  namespace: wearhouse
+spec:
+  selector:
+    app: inventory-service
+  ports:
+  - name: http
+    port: 8106
+    targetPort: 8106
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: wearhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: __ECR_REGISTRY__/wearhouse/api-gateway:__IMAGE_TAG__
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: wearhouse-env
+        - secretRef:
+            name: wearhouse-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: wearhouse
+spec:
+  type: LoadBalancer
+  selector:
+    app: api-gateway
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000

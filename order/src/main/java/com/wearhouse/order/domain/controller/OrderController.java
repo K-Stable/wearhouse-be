@@ -10,6 +10,7 @@ import com.wearhouse.order.domain.dto.response.OrderCancelResponse;
 import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
 import com.wearhouse.order.domain.dto.response.OrderDetailResponse;
 import com.wearhouse.order.domain.dto.response.OrderPaymentConfirmResponse;
+import com.wearhouse.order.domain.dto.response.OrderPaymentPrepareResponse;
 import com.wearhouse.order.domain.dto.response.OrderPreviewResponse;
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
 import com.wearhouse.order.domain.service.command.OrderCommandService;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -79,5 +81,14 @@ public class OrderController {
             @Valid @RequestBody OrderPaymentConfirmRequest request
     ) {
         return orderCommandService.confirmPayment(currentUser.userId(), orderNo, request);
+    }
+
+    @PostMapping("/buyer/orders/{orderNo}/payments/prepare")
+    public OrderPaymentPrepareResponse preparePayment(
+            @LoginBuyer LoginUser currentUser,
+            @PathVariable String orderNo,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
+    ) {
+        return orderCommandService.preparePayment(currentUser.userId(), orderNo, idempotencyKey);
     }
 }

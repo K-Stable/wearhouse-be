@@ -3,6 +3,8 @@ package com.wearhouse.order.infra.payment;
 import com.wearhouse.common.global.response.ApiResponse;
 import com.wearhouse.order.infra.payment.dto.PaymentConfirmInternalRequest;
 import com.wearhouse.order.infra.payment.dto.PaymentConfirmInternalResponse;
+import com.wearhouse.order.infra.payment.dto.PaymentPrepareInternalRequest;
+import com.wearhouse.order.infra.payment.dto.PaymentPrepareInternalResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,5 +17,11 @@ public interface OrderPaymentClient {
     ApiResponse<PaymentConfirmInternalResponse> confirmStablepayPayment(
             @RequestHeader("X-Internal-Secret") String internalSecret,
             @RequestBody PaymentConfirmInternalRequest request
+    );
+
+    @PostMapping("/prepare")
+    ApiResponse<PaymentPrepareInternalResponse> prepareStablepayPayment(
+            @RequestHeader("X-Internal-Secret") String internalSecret,
+            @RequestBody PaymentPrepareInternalRequest request
     );
 }

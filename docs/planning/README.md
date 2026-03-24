@@ -17,6 +17,7 @@
 11. `musinsa-reference-notes.md`
 12. `traffic-mode-strategy.md`
 13. `infra-runbook.md`
+14. `image-platform-mismatch-troubleshooting.md`
 
 ## 작성 규칙
 
