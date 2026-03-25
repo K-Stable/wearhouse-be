@@ -1,4 +1,4 @@
-package com.wearhouse.order.domain.controller;
+package com.wearhouse.order.domain.order.controller;
 
 import static com.wearhouse.order.support.restdocs.ApiDocumentUtils.getDocumentRequest;
 import static com.wearhouse.order.support.restdocs.ApiDocumentUtils.getDocumentResponse;
@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.global.error.GlobalExceptionHandler;
 import com.wearhouse.common.global.response.GlobalResponseBodyAdvice;
+import com.wearhouse.order.domain.controller.OrderController;
 import com.wearhouse.order.domain.dto.request.OrderCancelRequest;
 import com.wearhouse.order.domain.dto.request.OrderCreateRequest;
 import com.wearhouse.order.domain.dto.request.OrderCreateRequest.OrderCreateItemRequest;

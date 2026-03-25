@@ -87,10 +87,11 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/9092'"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 300s
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -108,7 +109,9 @@ services:
     image: danielqsj/kafka-exporter:v1.8.0
     container_name: wearhouse-kafka-exporter
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
     command:
       - --kafka.server=kafka:29092
       - --web.listen-address=:9308
@@ -367,6 +370,9 @@ services:
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       PAYMENT_KAFKA_CONSUMER_GROUP: ${PAYMENT_KAFKA_CONSUMER_GROUP:-payment-service-group}
+      PAY_MERCHANT_ID: ${PAY_MERCHANT_ID}
+      PAY_ACCESS_KEY: ${PAY_ACCESS_KEY}
+      PAY_SECRET_KEY: ${PAY_SECRET_KEY}
     ports:
       - "${PAYMENT_SERVER_PORT:-8105}:8105"
 
@@ -417,7 +423,7 @@ services:
       - redis-auth
     environment:
       API_GATEWAY_SERVER_PORT: ${API_GATEWAY_SERVER_PORT:-8000}
-      API_GATEWAY_ALLOWED_ORIGINS: "${API_GATEWAY_ALLOWED_ORIGINS:-http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}"
+      API_GATEWAY_ALLOWED_ORIGINS: "${API_GATEWAY_ALLOWED_ORIGINS:-https://wear-house.shop,https://www.wear-house.shop,https://seller.wear-house.shop,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}"
       API_GATEWAY_SELLER_ORIGINS: "${API_GATEWAY_SELLER_ORIGINS:-http://localhost:3002,http://127.0.0.1:3002}"
       EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
       SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI:-http://config-server:8888}

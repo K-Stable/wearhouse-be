@@ -9,6 +9,7 @@ import com.wearhouse.order.domain.dto.request.OrderPaymentConfirmRequest;
 import com.wearhouse.order.domain.dto.response.OrderCancelResponse;
 import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
 import com.wearhouse.order.domain.dto.response.OrderPaymentConfirmResponse;
+import com.wearhouse.order.domain.dto.response.OrderPaymentPrepareResponse;
 import com.wearhouse.order.domain.entity.OrderEntity;
 import com.wearhouse.order.domain.entity.OrderInfo;
 import com.wearhouse.order.domain.entity.OrderSagaEntity;
@@ -26,6 +27,8 @@ import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.infra.payment.OrderPaymentClient;
 import com.wearhouse.order.infra.payment.dto.PaymentConfirmInternalRequest;
 import com.wearhouse.order.infra.payment.dto.PaymentConfirmInternalResponse;
+import com.wearhouse.order.infra.payment.dto.PaymentPrepareInternalRequest;
+import com.wearhouse.order.infra.payment.dto.PaymentPrepareInternalResponse;
 import com.wearhouse.order.support.OrderIdGenerator;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import com.wearhouse.order.support.config.OrderProperties;
@@ -132,6 +135,57 @@ public class OrderCommandService {
         return new OrderPaymentConfirmResponse(order.getId(), orderNo, status.name(), reasonCode);
     }
 
+    public OrderPaymentPrepareResponse preparePayment(
+            Long buyerId,
+            String orderNo,
+            String idempotencyKey
+    ) {
+        OrderEntity order = orderRepository.findDetailByOrderNo(orderNo)
+                .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
+        validatePrepareOrder(order, buyerId);
+
+        OrderEntity prepareTarget = waitForPrepareTarget(order);
+        validatePrepareTargetStatus(prepareTarget.getStatus());
+        if (prepareTarget.getStatus() == OrderStatus.PAYMENT_FAILED) {
+            return new OrderPaymentPrepareResponse(
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        validateStablePrepareTarget(prepareTarget);
+        String customerKey = resolveCustomerKey(prepareTarget.getBuyerId(), prepareTarget.getOrderNo());
+        String customerId = UUID.nameUUIDFromBytes(customerKey.getBytes(StandardCharsets.UTF_8)).toString();
+
+        ApiResponse<PaymentPrepareInternalResponse> prepareResponse = orderPaymentClient.prepareStablepayPayment(
+                orderProperties.getInternal().getSharedSecret(),
+                new PaymentPrepareInternalRequest(
+                        prepareTarget.getId(),
+                        prepareTarget.getOrderNo(),
+                        customerId,
+                        resolveOrderName(prepareTarget),
+                        prepareTarget.getTotalAmount(),
+                        buildPaymentPrepareSuccessUrl(prepareTarget.getOrderNo()),
+                        buildPaymentPrepareFailUrl(prepareTarget.getOrderNo()),
+                        idempotencyKey
+                )
+        );
+
+        PaymentPrepareInternalResponse data = prepareResponse == null ? null : prepareResponse.data();
+        if (data == null) {
+            throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "결제 준비 응답이 비어 있습니다.");
+        }
+
+        return new OrderPaymentPrepareResponse(
+                data.checkoutSessionId(),
+                data.checkoutUrl(),
+                data.appLaunchUrl(),
+                data.checkoutExpiresAt()
+        );
+    }
+
     @WriteTx
     public OrderCancelResponse cancelOrder(String orderNo, OrderCancelRequest request) {
         OrderEntity order = orderRepository.findDetailByOrderNo(orderNo)
@@ -181,6 +235,21 @@ public class OrderCommandService {
                 .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
     }
 
+    private OrderEntity waitForPrepareTarget(OrderEntity order) {
+        OrderEntity current = order;
+        long startedAt = System.currentTimeMillis();
+        while ((System.currentTimeMillis() - startedAt) < orderProperties.getPaymentPrepareWaitTimeoutMs()) {
+            if (!OrderStatusPolicy.PAYMENT_PREPARE_WAIT_STATUSES.contains(current.getStatus())) {
+                return current;
+            }
+            pause(orderProperties.getPaymentPrepareWaitIntervalMs());
+            current = orderRepository.findDetailById(order.getId())
+                    .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
+        }
+        return orderRepository.findDetailById(order.getId())
+                .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
+    }
+
     private void validateConfirmOrder(OrderEntity order, Long buyerId, OrderPaymentConfirmRequest request) {
         if (order.getBuyerId() == null || !order.getBuyerId().equals(buyerId)) {
             throw new ErrorException(OrderErrorCode.ORDER_NOT_FOUND);
@@ -199,13 +268,54 @@ public class OrderCommandService {
         }
     }
 
+    private void validatePrepareOrder(OrderEntity order, Long buyerId) {
+        if (order.getBuyerId() == null || !order.getBuyerId().equals(buyerId)) {
+            throw new ErrorException(OrderErrorCode.ORDER_NOT_FOUND);
+        }
+    }
+
+    private void validatePrepareTargetStatus(OrderStatus status) {
+        if (!OrderStatusPolicy.PAYMENT_PREPARABLE_STATUSES.contains(status)) {
+            throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "결제 준비 요청 가능한 주문 상태가 아닙니다.");
+        }
+    }
+
+    private void validateStablePrepareTarget(OrderEntity order) {
+        PaymentMethod paymentMethod = resolvePaymentMethod(order);
+        if (paymentMethod != PaymentMethod.STABLE) {
+            throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "STABLE 결제만 prepare 요청이 가능합니다.");
+        }
+    }
+
     private void pause(long intervalMs) {
         try {
             Thread.sleep(Math.max(10, intervalMs));
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new ErrorException(OrderErrorCode.INVENTORY_PREVIEW_UNAVAILABLE, "결제 확인 대기 중 인터럽트가 발생했습니다.");
+            throw new ErrorException(OrderErrorCode.INVENTORY_PREVIEW_UNAVAILABLE, "주문 상태 대기 중 인터럽트가 발생했습니다.");
         }
+    }
+
+    private String buildPaymentPrepareSuccessUrl(String orderNo) {
+        return replaceOrderNoTemplate(orderProperties.getPaymentPrepareSuccessUrlTemplate(), orderNo);
+    }
+
+    private String buildPaymentPrepareFailUrl(String orderNo) {
+        return replaceOrderNoTemplate(orderProperties.getPaymentPrepareFailUrlTemplate(), orderNo);
+    }
+
+    private String replaceOrderNoTemplate(String template, String orderNo) {
+        if (template == null) {
+            return "";
+        }
+        return template.replace("{orderNo}", orderNo);
+    }
+
+    private String resolveOrderName(OrderEntity order) {
+        if (order.getOrderInfo() != null && !isBlank(order.getOrderInfo().getRecipientName())) {
+            return order.getOrderInfo().getRecipientName();
+        }
+        return order.getOrderNo();
     }
 
     private OrderAmountSummary calculateAmountSummary(OrderCreateRequest request) {
@@ -520,6 +630,17 @@ public class OrderCommandService {
         );
 
         private static final Set<OrderStatus> PAYMENT_CONFIRMABLE_STATUSES = Set.of(
+                OrderStatus.PAYMENT_PENDING,
+                OrderStatus.PAYMENT_FAILED,
+                OrderStatus.CONFIRMED
+        );
+
+        private static final Set<OrderStatus> PAYMENT_PREPARE_WAIT_STATUSES = Set.of(
+                OrderStatus.PENDING_RESERVE,
+                OrderStatus.RESERVED
+        );
+
+        private static final Set<OrderStatus> PAYMENT_PREPARABLE_STATUSES = Set.of(
                 OrderStatus.PAYMENT_PENDING,
                 OrderStatus.PAYMENT_FAILED,
                 OrderStatus.CONFIRMED

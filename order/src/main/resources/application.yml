@@ -76,6 +76,10 @@ wearhouse:
     reserve-wait-interval-ms: ${ORDER_RESERVE_WAIT_INTERVAL_MS:100}
     payment-confirm-wait-timeout-ms: ${ORDER_PAYMENT_CONFIRM_WAIT_TIMEOUT_MS:3000}
     payment-confirm-wait-interval-ms: ${ORDER_PAYMENT_CONFIRM_WAIT_INTERVAL_MS:100}
+    payment-prepare-wait-timeout-ms: ${ORDER_PAYMENT_PREPARE_WAIT_TIMEOUT_MS:3000}
+    payment-prepare-wait-interval-ms: ${ORDER_PAYMENT_PREPARE_WAIT_INTERVAL_MS:100}
+    payment-prepare-success-url-template: ${ORDER_PAYMENT_PREPARE_SUCCESS_URL_TEMPLATE:https://mall.wearhouse.com/orders/{orderNo}/payments/success}
+    payment-prepare-fail-url-template: ${ORDER_PAYMENT_PREPARE_FAIL_URL_TEMPLATE:https://mall.wearhouse.com/orders/{orderNo}/payments/fail}
   outbox:
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:3000}
     stale-minutes: ${OUTBOX_STALE_MINUTES:10}

@@ -12,11 +12,18 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class ApiGatewayCorsConfig implements WebMvcConfigurer {
 
     private final String[] allowedOrigins;
+    private final String[] allowedOriginPatterns;
 
     public ApiGatewayCorsConfig(
-            @Value("${wearhouse.cors.allowed-origins:}") String allowedOriginsProperty
+            @Value("${wearhouse.cors.allowed-origins:}") String allowedOriginsProperty,
+            @Value("${wearhouse.cors.allowed-origin-patterns:}") String allowedOriginPatternsProperty
     ) {
-        this.allowedOrigins = Arrays.stream(allowedOriginsProperty.split(","))
+        this.allowedOrigins = splitCsv(allowedOriginsProperty);
+        this.allowedOriginPatterns = splitCsv(allowedOriginPatternsProperty);
+    }
+
+    private String[] splitCsv(String rawValue) {
+        return Arrays.stream(rawValue.split(","))
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .toArray(String[]::new);
@@ -24,8 +31,14 @@ public class ApiGatewayCorsConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOrigins(allowedOrigins)
+        var registration = registry.addMapping("/**");
+        if (allowedOrigins.length > 0) {
+            registration.allowedOrigins(allowedOrigins);
+        }
+        if (allowedOriginPatterns.length > 0) {
+            registration.allowedOriginPatterns(allowedOriginPatterns);
+        }
+        registration
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .exposedHeaders(HttpHeaders.AUTHORIZATION, PassportHeaders.VERIFIED)

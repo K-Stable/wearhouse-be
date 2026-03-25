@@ -13,6 +13,7 @@ import com.wearhouse.order.domain.dto.request.OrderCreateRequest;
 import com.wearhouse.order.domain.dto.request.OrderPaymentConfirmRequest;
 import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
 import com.wearhouse.order.domain.dto.response.OrderPaymentConfirmResponse;
+import com.wearhouse.order.domain.dto.response.OrderPaymentPrepareResponse;
 import com.wearhouse.order.domain.entity.OrderEntity;
 import com.wearhouse.order.domain.entity.OrderInfo;
 import com.wearhouse.order.domain.event.OrderDomainEventPublisher;
@@ -23,6 +24,7 @@ import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.infra.payment.OrderPaymentClient;
 import com.wearhouse.order.infra.payment.dto.PaymentConfirmInternalResponse;
+import com.wearhouse.order.infra.payment.dto.PaymentPrepareInternalResponse;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import com.wearhouse.order.support.config.OrderProperties;
 import java.math.BigDecimal;
@@ -153,6 +155,35 @@ class OrderCommandServiceOrchestrationTest {
         verify(orderPaymentClient, never()).confirmStablepayPayment(any(), any());
     }
 
+    @Test
+    void stable_prepare는_payment_prepare_internal_api를_호출하고_checkout_url을_반환한다() {
+        OrderEntity paymentPending = mock(OrderEntity.class);
+        given(paymentPending.getStatus()).willReturn(OrderStatus.PAYMENT_PENDING);
+        given(paymentPending.getId()).willReturn(3L);
+        given(paymentPending.getOrderNo()).willReturn("O202603190003");
+        given(paymentPending.getBuyerId()).willReturn(1L);
+        given(paymentPending.getTotalAmount()).willReturn(new BigDecimal("10000"));
+        OrderInfo stableInfo = mock(OrderInfo.class);
+        given(stableInfo.getPaymentMethod()).willReturn(PaymentMethod.STABLE);
+        given(stableInfo.getRecipientName()).willReturn("tester");
+        given(paymentPending.getOrderInfo()).willReturn(stableInfo);
+
+        given(orderRepository.findDetailByOrderNo("O202603190003")).willReturn(Optional.of(paymentPending));
+        given(orderPaymentClient.prepareStablepayPayment(eq("internal-secret"), any()))
+                .willReturn(ApiResponse.success(new PaymentPrepareInternalResponse(
+                        "cs_3",
+                        "https://wallet.example/checkout/cs_3",
+                        "wallet://checkout/cs_3",
+                        null
+                )));
+
+        OrderPaymentPrepareResponse response = orderCommandService.preparePayment(1L, "O202603190003", "idem-3");
+
+        assertThat(response.checkoutSessionId()).isEqualTo("cs_3");
+        assertThat(response.checkoutUrl()).isEqualTo("https://wallet.example/checkout/cs_3");
+        verify(orderPaymentClient).prepareStablepayPayment(eq("internal-secret"), any());
+    }
+
     private OrderCreateRequest sampleRequest(PaymentMethod paymentMethod) {
         return OrderCreateRequest.builder()
                 .buyerId(1L)
@@ -178,9 +209,4 @@ class OrderCommandServiceOrchestrationTest {
                 .build();
     }
 
-    private OrderEntity statusOrder(OrderStatus status) {
-        OrderEntity order = mock(OrderEntity.class);
-        given(order.getStatus()).willReturn(status);
-        return order;
-    }
 }

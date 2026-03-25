@@ -5,7 +5,9 @@ import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.common.support.lock.DistributedLock;
 import com.wearhouse.payment.domain.payment.dto.request.PaymentConfirmRequest;
+import com.wearhouse.payment.domain.payment.dto.request.PaymentPrepareRequest;
 import com.wearhouse.payment.domain.payment.dto.response.PaymentConfirmResponse;
+import com.wearhouse.payment.domain.payment.dto.response.PaymentPrepareResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
@@ -13,6 +15,7 @@ import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
 import com.wearhouse.payment.infra.pay.PayConfirmGateway;
+import com.wearhouse.payment.infra.pay.PayPrepareGateway;
 import com.wearhouse.payment.support.PaymentIdGenerator;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import jakarta.annotation.PostConstruct;
@@ -41,6 +44,7 @@ public class PaymentCommandService {
     private final PaymentInboxRepository paymentInboxRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final PayConfirmGateway payConfirmGateway;
+    private final PayPrepareGateway payPrepareGateway;
     private final PaymentDomainEventPublisher paymentDomainEventPublisher;
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
     @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
@@ -160,6 +164,95 @@ public class PaymentCommandService {
                 PaymentStatus.PENDING.name(),
                 result.commandStatus(),
                 null
+        );
+    }
+
+    @WriteTx
+    public PaymentPrepareResponse prepareStablepayPayment(
+            PaymentPrepareRequest request,
+            String internalSecret
+    ) {
+        assertInternalSecret(internalSecret);
+        validatePrepareRequest(request);
+
+        PaymentTransactionEntity transaction = paymentTransactionRepository.findByOrderId(request.orderId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 주문의 결제 정보를 찾을 수 없습니다."));
+        validatePrepareTarget(transaction);
+
+        if (transaction.getStatus() == PaymentStatus.AUTHORIZED) {
+            return new PaymentPrepareResponse(
+                    transaction.getPaymentSessionId(),
+                    null,
+                    null,
+                    null
+            );
+        }
+        if (transaction.getStatus() == PaymentStatus.FAILED) {
+            return new PaymentPrepareResponse(
+                    transaction.getPaymentSessionId(),
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        PaymentPrepareRequest walletPrepareRequest = new PaymentPrepareRequest(
+                transaction.getOrderId(),
+                transaction.getOrderNo(),
+                request.customerId(),
+                request.orderName(),
+                transaction.getAmount(),
+                request.successUrl(),
+                request.failUrl(),
+                request.idempotencyKey()
+        );
+        String idempotencyKey = resolvePrepareIdempotencyKey(request.idempotencyKey(), request.orderId());
+        PayPrepareGateway.PayPrepareResult result = payPrepareGateway.prepare(walletPrepareRequest, idempotencyKey);
+        LocalDateTime now = LocalDateTime.now();
+
+        String paymentStatus = normalizePrepareStatus(result.paymentStatus());
+        if ("FAILED".equals(paymentStatus)) {
+            String reasonCode = resolveReasonCode(result.reasonCode());
+            transaction.failByWebhook(
+                    reasonCode,
+                    result.checkoutSessionId(),
+                    result.commandStatus(),
+                    now
+            );
+            paymentTransactionRepository.save(transaction);
+            publishPaymentFailed(
+                    transaction.getOrderId(),
+                    transaction.getOrderNo(),
+                    transaction.getPaymentId(),
+                    reasonCode,
+                    asString(result.reasonMessage()),
+                    now
+            );
+            return new PaymentPrepareResponse(
+                    coalesce(result.checkoutSessionId(), transaction.getPaymentSessionId()),
+                    result.checkoutUrl(),
+                    result.appLaunchUrl(),
+                    result.checkoutExpiresAt()
+            );
+        }
+
+        transaction.bindStablepaySession(
+                coalesce(result.paymentKey(), transaction.getPaymentKey()),
+                coalesce(result.checkoutSessionId(), transaction.getPaymentSessionId()),
+                coalesce(result.merchantKey(), transaction.getMerchantKey()),
+                coalesce(result.nonce(), transaction.getNonce()),
+                coalesce(result.deadline(), transaction.getDeadline()),
+                coalesce(result.payloadHash(), transaction.getPayloadHash()),
+                transaction.getPayerAddress(),
+                transaction.getTokenAddress()
+        );
+        paymentTransactionRepository.save(transaction);
+
+        return new PaymentPrepareResponse(
+                transaction.getPaymentSessionId(),
+                result.checkoutUrl(),
+                result.appLaunchUrl(),
+                result.checkoutExpiresAt()
         );
     }
 
@@ -396,6 +489,22 @@ public class PaymentCommandService {
         }
     }
 
+    private void validatePrepareRequest(PaymentPrepareRequest request) {
+        if (request == null || request.orderId() == null) {
+            throw new IllegalArgumentException("order 정보가 올바르지 않습니다.");
+        }
+        if (request.customerId() == null || request.customerId().isBlank()) {
+            throw new IllegalArgumentException("customerKey 값이 필요합니다.");
+        }
+        if (request.orderName() == null || request.orderName().isBlank()) {
+            throw new IllegalArgumentException("orderName 값이 필요합니다.");
+        }
+        if (request.successUrl() == null || request.successUrl().isBlank()
+                || request.failUrl() == null || request.failUrl().isBlank()) {
+            throw new IllegalArgumentException("successUrl/failUrl 값이 필요합니다.");
+        }
+    }
+
     private void validateConfirmTarget(PaymentTransactionEntity transaction, PaymentConfirmRequest request) {
         if (!request.orderNo().equals(transaction.getOrderNo())) {
             throw new IllegalArgumentException("orderNo 값이 일치하지 않습니다.");
@@ -407,6 +516,12 @@ public class PaymentCommandService {
                 && !transaction.getPaymentKey().isBlank()
                 && !transaction.getPaymentKey().equals(request.paymentKey())) {
             throw new IllegalArgumentException("paymentKey 값이 기존 결제 정보와 일치하지 않습니다.");
+        }
+    }
+
+    private void validatePrepareTarget(PaymentTransactionEntity transaction) {
+        if (!isStableMethod(normalizeMethod(transaction.getPaymentMethod()))) {
+            throw new IllegalArgumentException("STABLE 결제에 대해서만 prepare 요청이 가능합니다.");
         }
     }
 
@@ -422,6 +537,13 @@ public class PaymentCommandService {
             return DEFAULT_REASON_CODE;
         }
         return reasonCode;
+    }
+
+    private String resolvePrepareIdempotencyKey(String idempotencyKey, Long orderId) {
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            return idempotencyKey;
+        }
+        return "prepare:" + orderId;
     }
 
     private Set<String> parseUpperCaseSet(String raw) {
@@ -441,6 +563,20 @@ public class PaymentCommandService {
 
     private boolean isStableMethod(String normalizedMethod) {
         return STABLE_METHOD.equals(normalizedMethod) || LEGACY_STABLEPAY_METHOD.equals(normalizedMethod);
+    }
+
+    private String normalizePrepareStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return "READY";
+        }
+        return status.trim().toUpperCase();
+    }
+
+    private String coalesce(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        return value;
     }
 
     private String asString(Object value) {

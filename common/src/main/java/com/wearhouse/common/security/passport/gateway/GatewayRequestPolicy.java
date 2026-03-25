@@ -11,8 +11,20 @@ public final class GatewayRequestPolicy {
             "/auth-service/api/v1/auth/sellers/login",
             "/api/v1/users/buyers/signup",
             "/api/v1/users/sellers/signup",
+            "/api/v1/users/buyers/email-code/send",
+            "/api/v1/users/buyers/email-code/verify",
+            "/api/v1/users/sellers/email-code/send",
+            "/api/v1/users/sellers/email-code/verify",
+            "/api/v1/users/buyers/login-id/availability",
+            "/api/v1/users/sellers/login-id/availability",
             "/user-service/api/v1/users/buyers/signup",
-            "/user-service/api/v1/users/sellers/signup"
+            "/user-service/api/v1/users/sellers/signup",
+            "/user-service/api/v1/users/buyers/email-code/send",
+            "/user-service/api/v1/users/buyers/email-code/verify",
+            "/user-service/api/v1/users/sellers/email-code/send",
+            "/user-service/api/v1/users/sellers/email-code/verify",
+            "/user-service/api/v1/users/buyers/login-id/availability",
+            "/user-service/api/v1/users/sellers/login-id/availability"
     };
 
     public static final String BUYER_PATTERN = "/api/v1/buyer/**";
@@ -42,7 +54,13 @@ public final class GatewayRequestPolicy {
         return "/api/v1/auth/buyers/login".equals(normalized)
                 || "/api/v1/auth/sellers/login".equals(normalized)
                 || "/api/v1/users/buyers/signup".equals(normalized)
-                || "/api/v1/users/sellers/signup".equals(normalized);
+                || "/api/v1/users/sellers/signup".equals(normalized)
+                || "/api/v1/users/buyers/email-code/send".equals(normalized)
+                || "/api/v1/users/buyers/email-code/verify".equals(normalized)
+                || "/api/v1/users/sellers/email-code/send".equals(normalized)
+                || "/api/v1/users/sellers/email-code/verify".equals(normalized)
+                || "/api/v1/users/buyers/login-id/availability".equals(normalized)
+                || "/api/v1/users/sellers/login-id/availability".equals(normalized);
     }
 
     public static boolean isPublicBuyerPath(String path) {

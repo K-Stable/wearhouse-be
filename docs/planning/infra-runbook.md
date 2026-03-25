@@ -181,6 +181,9 @@ curl -i -X POST "http://localhost:8000/auth-service/api/v1/auth/buyers/login" \
 
 ## 5. 트러블슈팅
 
+- 이미지 pull 실패(`ImagePullBackOff`, `no match for platform in manifest`) 상세 대응:
+  - `image-platform-mismatch-troubleshooting.md` 참고
+
 MySQL 컨테이너가 바로 종료될 때:
 
 - 원인: `MYSQL_USER=root` 설정

@@ -230,11 +230,7 @@ public class JwtProvider {
 
     public void clearRefreshToken(HttpServletResponse response, String userType) {
         String cookieName = resolveRefreshCookieName(userType);
-        ResponseCookie cookie = ResponseCookie.from(cookieName, "")
-                .httpOnly(true)
-                .secure(jwtProperties.cookieSecure())
-                .sameSite(jwtProperties.cookieSameSite())
-                .path(jwtProperties.cookiePath())
+        ResponseCookie cookie = applyCookiePolicy(ResponseCookie.from(cookieName, ""))
                 .maxAge(0)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
@@ -247,14 +243,22 @@ public class JwtProvider {
 
     private void putRefreshToken(HttpServletResponse response, String userType, String refreshToken) {
         String cookieName = resolveRefreshCookieName(userType);
-        ResponseCookie cookie = ResponseCookie.from(cookieName, refreshToken)
-                .httpOnly(true)
-                .secure(jwtProperties.cookieSecure())
-                .sameSite(jwtProperties.cookieSameSite())
-                .path(jwtProperties.cookiePath())
+        ResponseCookie cookie = applyCookiePolicy(ResponseCookie.from(cookieName, refreshToken))
                 .maxAge(jwtProperties.refreshTokenDays() * 24L * 60L * 60L)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    private ResponseCookie.ResponseCookieBuilder applyCookiePolicy(ResponseCookie.ResponseCookieBuilder builder) {
+        builder.httpOnly(true)
+                .secure(jwtProperties.cookieSecure())
+                .sameSite(jwtProperties.cookieSameSite())
+                .path(jwtProperties.cookiePath());
+        String cookieDomain = jwtProperties.cookieDomain();
+        if (cookieDomain != null && !cookieDomain.isBlank()) {
+            builder.domain(cookieDomain);
+        }
+        return builder;
     }
 
     private String resolveRefreshCookieName(String userType) {

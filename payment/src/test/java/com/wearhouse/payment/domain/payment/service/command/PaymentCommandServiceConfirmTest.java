@@ -3,7 +3,6 @@ package com.wearhouse.payment.domain.payment.service.command;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,6 +14,7 @@ import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
 import com.wearhouse.payment.infra.pay.PayConfirmGateway;
+import com.wearhouse.payment.infra.pay.PayPrepareGateway;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -36,6 +36,8 @@ class PaymentCommandServiceConfirmTest {
     @Mock
     private PayConfirmGateway payConfirmGateway;
     @Mock
+    private PayPrepareGateway payPrepareGateway;
+    @Mock
     private PaymentDomainEventPublisher paymentDomainEventPublisher;
     @Mock
     private PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
@@ -48,6 +50,7 @@ class PaymentCommandServiceConfirmTest {
                 paymentInboxRepository,
                 paymentTransactionRepository,
                 payConfirmGateway,
+                payPrepareGateway,
                 paymentDomainEventPublisher,
                 paymentKafkaFlowMetrics
         );

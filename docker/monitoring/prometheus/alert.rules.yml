@@ -141,3 +141,32 @@ groups:
         annotations:
           summary: "Payment 타임아웃 실패 증가"
           description: "payment timeout 실패 건수가 15분 평균 0.2건/초를 초과했습니다."
+
+  - name: buyer-product-http-alerts
+    rules:
+      - alert: BuyerProductGatewayP95LatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job="api-gateway",uri=~"/api/v1/buyer/products.*"}[5m]))) > 1.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "구매자 상품 조회 지연 증가 (Gateway)"
+          description: "api-gateway 구매자 상품 API의 p95 지연이 1.2초를 10분 이상 초과했습니다."
+
+      - alert: BuyerProductServiceP95LatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job="product-service",uri=~"/api/v1/buyer/products.*"}[5m]))) > 1.0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "구매자 상품 조회 지연 증가 (Product)"
+          description: "product-service 구매자 상품 API의 p95 지연이 1초를 10분 이상 초과했습니다."
+
+      - alert: BuyerProductGateway5xxRateHigh
+        expr: sum(rate(http_server_requests_seconds_count{job="api-gateway",uri=~"/api/v1/buyer/products.*",status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job="api-gateway",uri=~"/api/v1/buyer/products.*"}[5m])), 0.0001) > 0.02
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "구매자 상품 조회 5xx 비율 증가"
+          description: "api-gateway 구매자 상품 API 5xx 비율이 2%를 10분 이상 초과했습니다."

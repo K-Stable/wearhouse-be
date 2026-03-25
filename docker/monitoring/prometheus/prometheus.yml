@@ -39,3 +39,15 @@ scrape_configs:
     static_configs:
       - targets:
           - inventory-service:8106
+
+  - job_name: product-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - product-service:8103
+
+  - job_name: api-gateway
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - api-gateway:8000
