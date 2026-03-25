@@ -423,7 +423,7 @@ services:
       - redis-auth
     environment:
       API_GATEWAY_SERVER_PORT: ${API_GATEWAY_SERVER_PORT:-8000}
-      API_GATEWAY_ALLOWED_ORIGINS: "${API_GATEWAY_ALLOWED_ORIGINS:-http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}"
+      API_GATEWAY_ALLOWED_ORIGINS: "${API_GATEWAY_ALLOWED_ORIGINS:-https://wear-house.shop,https://www.wear-house.shop,https://seller.wear-house.shop,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}"
       API_GATEWAY_SELLER_ORIGINS: "${API_GATEWAY_SELLER_ORIGINS:-http://localhost:3002,http://127.0.0.1:3002}"
       EUREKA_DEFAULT_ZONE: ${EUREKA_DEFAULT_ZONE:-http://service-discovery:8761/eureka}
       SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI:-http://config-server:8888}

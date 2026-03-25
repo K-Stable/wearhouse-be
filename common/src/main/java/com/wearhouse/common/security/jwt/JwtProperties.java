@@ -15,6 +15,7 @@ public record JwtProperties(
         @Value("${wearhouse.auth.cookie.seller-refresh-name:seller_refresh_token}") String sellerRefreshCookieName,
         @Value("${wearhouse.auth.cookie.secure:false}") boolean cookieSecure,
         @Value("${wearhouse.auth.cookie.same-site:Lax}") String cookieSameSite,
-        @Value("${wearhouse.auth.cookie.path:/}") String cookiePath
+        @Value("${wearhouse.auth.cookie.path:/}") String cookiePath,
+        @Value("${wearhouse.auth.cookie.domain:}") String cookieDomain
 ) {
 }

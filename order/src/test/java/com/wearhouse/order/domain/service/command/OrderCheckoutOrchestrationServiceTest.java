@@ -209,9 +209,4 @@ class OrderCommandServiceOrchestrationTest {
                 .build();
     }
 
-    private OrderEntity statusOrder(OrderStatus status) {
-        OrderEntity order = mock(OrderEntity.class);
-        given(order.getStatus()).willReturn(status);
-        return order;
-    }
 }

@@ -16,16 +16,21 @@ wearhouse:
       secure: ${AUTH_COOKIE_SECURE:false}
       same-site: ${AUTH_COOKIE_SAME_SITE:Lax}
       path: ${AUTH_COOKIE_PATH:/}
+      domain: ${AUTH_COOKIE_DOMAIN:}
 
 spring:
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}
-    username: ${SPRING_MAIL_USERNAME:mooneydeevy@gmail.com}
-    password: ${SPRING_MAIL_PASSWORD:jlbs hhhg isye kmfz}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
           auth: ${SPRING_MAIL_SMTP_AUTH:${MAIL_SMTP_AUTH:true}}
           starttls:
             enable: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:${MAIL_SMTP_STARTTLS_ENABLE:true}}
+            required: ${SPRING_MAIL_SMTP_STARTTLS_REQUIRED:${MAIL_SMTP_STARTTLS_REQUIRED:true}}
+          connectiontimeout: ${SPRING_MAIL_SMTP_CONNECTION_TIMEOUT:${MAIL_SMTP_CONNECTION_TIMEOUT:5000}}
+          timeout: ${SPRING_MAIL_SMTP_TIMEOUT:${MAIL_SMTP_TIMEOUT:5000}}
+          writetimeout: ${SPRING_MAIL_SMTP_WRITE_TIMEOUT:${MAIL_SMTP_WRITE_TIMEOUT:5000}}

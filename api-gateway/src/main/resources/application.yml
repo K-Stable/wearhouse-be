@@ -89,6 +89,7 @@ wearhouse:
       secret: ${AUTH_JWT_SECRET:wearhouse-local-jwt-secret-key-change-me-please-1234567890}
   cors:
     allowed-origins: ${API_GATEWAY_ALLOWED_ORIGINS:http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002}
+    allowed-origin-patterns: ${API_GATEWAY_ALLOWED_ORIGIN_PATTERNS:}
   gateway:
     auth:
       internal-shared-secret: ${GATEWAY_AUTH_INTERNAL_SHARED_SECRET:wearhouse-internal-shared-secret}

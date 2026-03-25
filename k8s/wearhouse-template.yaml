@@ -26,7 +26,8 @@ data:
   SPRING_CLOUD_CONFIG_URI: http://config-server:8888
   CONFIG_REPO_LOCATIONS: file:/config-repo
   API_GATEWAY_SERVER_PORT: "8000"
-  API_GATEWAY_ALLOWED_ORIGINS: http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002
+  API_GATEWAY_ALLOWED_ORIGINS: https://wear-house.shop,https://www.wear-house.shop,https://seller.wear-house.shop,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002
+  API_GATEWAY_ALLOWED_ORIGIN_PATTERNS: https://*.vercel.app
   API_GATEWAY_SELLER_ORIGINS: http://localhost:3002,http://127.0.0.1:3002
   GATEWAY_AUTH_VALIDATE_URL: http://auth-service:8101/api/v1/internal/auth/validate
   AUTH_SERVER_PORT: "8101"
@@ -50,8 +51,9 @@ data:
   AUTH_COOKIE_SELLER_ACCESS_NAME: seller_access_token
   AUTH_COOKIE_BUYER_REFRESH_NAME: buyer_refresh_token
   AUTH_COOKIE_SELLER_REFRESH_NAME: seller_refresh_token
-  AUTH_COOKIE_SECURE: "false"
-  AUTH_COOKIE_SAME_SITE: Lax
+  AUTH_COOKIE_SECURE: "true"
+  AUTH_COOKIE_SAME_SITE: None
+  AUTH_COOKIE_DOMAIN: .wear-house.shop
   AUTH_USER_CHANGED_CHANNEL: wearhouse.auth.user-changed.v1
   PASSPORT_CACHE_TTL_SECONDS: "60"
   PASSPORT_USER_INDEX_TTL_SECONDS: "1800"
@@ -59,6 +61,10 @@ data:
   SPRING_MAIL_PORT: "587"
   SPRING_MAIL_SMTP_AUTH: "true"
   SPRING_MAIL_SMTP_STARTTLS_ENABLE: "true"
+  SPRING_MAIL_SMTP_STARTTLS_REQUIRED: "true"
+  SPRING_MAIL_SMTP_CONNECTION_TIMEOUT: "5000"
+  SPRING_MAIL_SMTP_TIMEOUT: "5000"
+  SPRING_MAIL_SMTP_WRITE_TIMEOUT: "5000"
   S3_ENABLED: "false"
   S3_REGION: ap-northeast-2
   S3_BUCKET: wearhouse-231629457117
@@ -312,6 +318,7 @@ spec:
       labels:
         app: kafka
     spec:
+      enableServiceLinks: false
       containers:
       - name: kafka
         image: confluentinc/cp-kafka:7.6.1
@@ -336,8 +343,17 @@ spec:
           value: "1"
         - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
           value: "false"
+        - name: KAFKA_HEAP_OPTS
+          value: "-Xms256m -Xmx512m"
         ports:
         - containerPort: 9092
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
 ---
 apiVersion: v1
 kind: Service
@@ -757,10 +773,37 @@ metadata:
   name: api-gateway
   namespace: wearhouse
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: api-gateway
   ports:
   - name: http
     port: 80
     targetPort: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-gateway
+  namespace: wearhouse
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:231629457117:certificate/c6cb0edb-45a7-4133-8184-80cd19d943b8
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health
+spec:
+  ingressClassName: alb
+  rules:
+  - host: api.wear-house.shop
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway
+            port:
+              number: 80

@@ -1,0 +1,48 @@
+profile      = "eks-role"
+region       = "ap-northeast-2"
+project_name = "wearhouse"
+environment  = "prod"
+cluster_name = "wearhouse-eks"
+
+vpc_cidr             = "10.30.0.0/16"
+azs                  = ["ap-northeast-2a", "ap-northeast-2b", "ap-northeast-2c"]
+public_subnet_cidrs  = ["10.30.0.0/20", "10.30.16.0/20", "10.30.32.0/20"]
+private_subnet_cidrs = ["10.30.64.0/20", "10.30.80.0/20", "10.30.96.0/20"]
+data_subnet_cidrs    = ["10.30.128.0/20", "10.30.144.0/20", "10.30.160.0/20"]
+
+node_instance_types = ["t3.large"]
+node_desired_size   = 2
+node_min_size       = 2
+node_max_size       = 4
+
+# Required
+# 민감정보는 실제 값으로 교체 후 git 추적 제외 권장
+# db_password = "replace-me"
+
+service_names = [
+  "service-discovery",
+  "config-server",
+  "auth",
+  "user",
+  "product",
+  "cart",
+  "order",
+  "payment",
+  "inventory",
+  "api-gateway"
+]
+
+extra_tags = {
+  Owner = "wearhouse-team"
+}
+
+# 예시: /wearhouse/prod/db/password 형태로 생성됨
+ssm_secure_parameters = {
+  "db/password"                 = "replace-me"
+  "auth/jwt-secret"             = "replace-me"
+  "auth/internal-shared-secret" = "replace-me"
+}
+
+ssm_plain_parameters = {
+  "app/profile" = "prod"
+}

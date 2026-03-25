@@ -1,0 +1,6 @@
+bucket         = "wearhouse-terraform-state-apne2"
+key            = "wearhouse/prod/terraform.tfstate"
+region         = "ap-northeast-2"
+profile        = "eks-role"
+encrypt        = true
+dynamodb_table = "wearhouse-terraform-locks"
