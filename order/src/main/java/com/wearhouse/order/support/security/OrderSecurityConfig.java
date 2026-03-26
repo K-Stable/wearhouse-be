@@ -31,6 +31,8 @@ public class OrderSecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders/").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/orders/**").hasRole("BUYER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/seller/orders/**").hasRole("SELLER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/seller/orders/**").hasRole("SELLER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/seller/orders/**").hasRole("SELLER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders/**").hasRole("BUYER")
                         .anyRequest().denyAll()
                 )

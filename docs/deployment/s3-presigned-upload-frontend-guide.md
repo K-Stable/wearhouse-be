@@ -91,3 +91,48 @@ await fetch(uploadUrl, {
 - `contentType` must start with `image/` (e.g. `image/png`, `image/jpeg`, `image/webp`).
 - Presigned URL expiration is controlled by `S3_PRESIGNED_PUT_EXPIRE_SECONDS`.
 - Browser upload requires S3 CORS configuration (already set for production domains).
+
+## Buyer Read Endpoints
+- Buyer product list and detail APIs already return image URLs resolved from S3 keys.
+- Base URL: `https://api.wear-house.shop`
+
+### 1) Product List
+- Method/Path: `GET /api/v1/buyer/products`
+- Query:
+  - `category` (optional)
+  - `sort` (optional, default `LATEST`)
+  - `cursorId` (optional)
+  - `limit` (optional, default `20`)
+- Response payload (`data.content[]`):
+  - `productId`
+  - `name`
+  - `price`
+  - `mainImageUrl`
+
+Example:
+
+```http
+GET /api/v1/buyer/products?sort=LATEST&limit=20
+```
+
+### 2) Product Detail
+- Method/Path: `GET /api/v1/buyer/products/{productId}`
+- Response payload (`data`):
+  - `productId`
+  - `name`
+  - `price`
+  - `category`
+  - `description`
+  - `sizeGuide`
+  - `shipping`
+  - `mainImageUrl`
+  - `previewImageUrls[]`
+  - `detailImageUrls[]`
+  - `options[]`
+  - `similarItems[]` (optional)
+
+Example:
+
+```http
+GET /api/v1/buyer/products/101
+```

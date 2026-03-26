@@ -62,6 +62,7 @@ public class OrderCommandService {
     private final OrderPaymentClient orderPaymentClient;
     private final OrderKafkaTopicsProperties kafkaTopicsProperties;
     private final OrderProperties orderProperties;
+    private final DeliveryCommandService deliveryCommandService;
 
     @WriteTx
     public OrderCreateResponse createOrder(OrderCreateRequest request) {
@@ -192,6 +193,7 @@ public class OrderCommandService {
                 .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
         OrderStatus currentStatus = order.getStatus();
 
+        validateNotInDelivery(order.getId());
         validateCancellableStatus(currentStatus);
 
         String cancelReasonCode = resolveCancelReason(request);
@@ -438,6 +440,12 @@ public class OrderCommandService {
     private void validateCancellableStatus(OrderStatus currentStatus) {
         if (!OrderStatusPolicy.CANCELLABLE_STATUSES.contains(currentStatus)) {
             throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE);
+        }
+    }
+
+    private void validateNotInDelivery(Long orderId) {
+        if (deliveryCommandService.isCancelBlockedByDelivery(orderId)) {
+            throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "배송이 시작된 주문은 취소할 수 없습니다.");
         }
     }
 

@@ -2,6 +2,7 @@ package com.wearhouse.order.infra.jpa.repository;
 
 import com.wearhouse.order.domain.entity.OrderEntity;
 import com.wearhouse.order.domain.model.OrderStatus;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -24,6 +25,10 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     Optional<OrderEntity> findDetailById(@Param("orderId") Long orderId);
 
     List<OrderEntity> findByBuyerIdOrderByIdDesc(Long buyerId, Pageable pageable);
+
+    @EntityGraph(attributePaths = "items")
+    @Query("select distinct o from OrderEntity o where o.id in :orderIds")
+    List<OrderEntity> findDetailsByIdIn(@Param("orderIds") Collection<Long> orderIds);
 
     @EntityGraph(attributePaths = "items")
     @Query(

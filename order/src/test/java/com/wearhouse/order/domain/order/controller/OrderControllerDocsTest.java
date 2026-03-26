@@ -29,6 +29,7 @@ import com.wearhouse.order.domain.dto.response.OrderDetailResponse;
 import com.wearhouse.order.domain.dto.response.OrderDetailResponse.OrderItemDetailResponse;
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
 import com.wearhouse.order.domain.model.PaymentMethod;
+import com.wearhouse.order.domain.service.command.DeliveryCommandService;
 import com.wearhouse.order.domain.service.command.OrderCommandService;
 import com.wearhouse.order.domain.service.query.OrderQueryService;
 import java.math.BigDecimal;
@@ -60,6 +61,9 @@ class OrderControllerDocsTest {
 
     @MockitoBean
     private OrderCommandService orderCommandService;
+
+    @MockitoBean
+    private DeliveryCommandService deliveryCommandService;
 
     @MockitoBean
     private OrderQueryService orderQueryService;

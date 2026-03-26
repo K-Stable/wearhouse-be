@@ -57,6 +57,16 @@ spring:
               uri: lb://order-service
               predicates:
                 - Path=/api/v1/orders/**
+            - id: order-service-seller
+              uri: lb://order-service
+              predicates:
+                - Path=/api/v1/seller/orders/**
+            - id: order-service-compat
+              uri: lb://order-service
+              predicates:
+                - Path=/order-service/api/v1/orders/**,/order-service/api/v1/seller/orders/**
+              filters:
+                - StripPrefix=1
             - id: order-service-internal
               uri: lb://order-service
               predicates:

@@ -26,4 +26,6 @@
 "BUYER","order-service","GET","/api/v1/orders/{orderNo}","/order-service/api/v1/orders/{orderNo}","ROLE_BUYER + Passport헤더","PathVariable(orderNo)","OrderDetailResponse","-","200","주문 상세 조회"
 "BUYER","order-service","GET","/api/v1/orders","/order-service/api/v1/orders?buyerId=&limit=","ROLE_BUYER + Passport헤더","QueryParam(buyerId|limit)","List<OrderSummaryResponse>","-","200","구매자 주문 목록 조회"
 "SELLER","order-service","GET","/api/v1/seller/orders","/order-service/api/v1/seller/orders?keyword=&status=&page=&size=","ROLE_SELLER + Passport헤더","QueryParam(keyword|status|page|size)","SellerOrderListPageResponse","-","200","판매자 주문 목록 조회(페이지네이션)"
+"SELLER","order-service","POST","/api/v1/seller/orders/deliveries","/order-service/api/v1/seller/orders/deliveries","ROLE_SELLER + Passport헤더","DeliveryRegisterRequest","DeliveryBatchUpdateResponse","-","200","판매자 송장 일괄 등록(status=IN_DELIVERY)"
+"SELLER","order-service","PATCH","/api/v1/seller/orders/deliveries/delivered","/order-service/api/v1/seller/orders/deliveries/delivered","ROLE_SELLER + Passport헤더","DeliveryDeliveredRequest","DeliveryBatchUpdateResponse","-","200","배송완료 처리(status=DELIVERED) 후 D+7 자동 구매확정 대상"
 "BUYER","order-service","POST","/api/v1/orders/{orderNo}/cancel","/order-service/api/v1/orders/{orderNo}/cancel","ROLE_BUYER + Passport헤더","OrderCancelRequest(optional)","OrderCancelResponse","-","200","주문 취소"

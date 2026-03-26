@@ -28,6 +28,12 @@ public class OrderProperties {
     @Positive
     private long paymentPrepareWaitIntervalMs = 100L;
 
+    @Positive
+    private long deliveryPurchaseConfirmDelayDays = 7L;
+
+    @Positive
+    private long deliveryPurchaseConfirmSchedulerIntervalMs = 60000L;
+
     @NotBlank
     private String paymentPrepareSuccessUrlTemplate = "https://mall.wearhouse.com/orders/{orderNo}/payments/success";
 

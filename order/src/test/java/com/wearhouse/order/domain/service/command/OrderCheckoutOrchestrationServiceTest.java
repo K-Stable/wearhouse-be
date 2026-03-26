@@ -50,6 +50,8 @@ class OrderCommandServiceOrchestrationTest {
     private OrderStatusHistoryRepository orderStatusHistoryRepository;
     @Mock
     private OrderDomainEventPublisher orderDomainEventPublisher;
+    @Mock
+    private DeliveryCommandService deliveryCommandService;
 
     private OrderCommandService orderCommandService;
 
@@ -71,7 +73,8 @@ class OrderCommandServiceOrchestrationTest {
                 orderDomainEventPublisher,
                 orderPaymentClient,
                 topicsProperties,
-                orderProperties
+                orderProperties,
+                deliveryCommandService
         );
     }
 
