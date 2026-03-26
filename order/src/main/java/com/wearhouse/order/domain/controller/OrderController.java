@@ -1,11 +1,15 @@
 package com.wearhouse.order.domain.controller;
 
 import com.wearhouse.common.security.current.LoginBuyer;
+import com.wearhouse.common.security.current.LoginSeller;
 import com.wearhouse.common.security.current.LoginUser;
+import com.wearhouse.order.domain.dto.request.DeliveryDeliveredRequest;
+import com.wearhouse.order.domain.dto.request.DeliveryRegisterRequest;
 import com.wearhouse.order.domain.dto.request.OrderCancelRequest;
 import com.wearhouse.order.domain.dto.request.OrderCreateRequest;
 import com.wearhouse.order.domain.dto.request.OrderPaymentConfirmRequest;
 import com.wearhouse.order.domain.dto.request.OrderPreviewRequest;
+import com.wearhouse.order.domain.dto.response.DeliveryBatchUpdateResponse;
 import com.wearhouse.order.domain.dto.response.OrderCancelResponse;
 import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
 import com.wearhouse.order.domain.dto.response.OrderDetailResponse;
@@ -13,6 +17,9 @@ import com.wearhouse.order.domain.dto.response.OrderPaymentConfirmResponse;
 import com.wearhouse.order.domain.dto.response.OrderPaymentPrepareResponse;
 import com.wearhouse.order.domain.dto.response.OrderPreviewResponse;
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
+import com.wearhouse.order.domain.dto.response.SellerOrderListPageResponse;
+import com.wearhouse.order.domain.model.OrderStatus;
+import com.wearhouse.order.domain.service.command.DeliveryCommandService;
 import com.wearhouse.order.domain.service.command.OrderCommandService;
 import com.wearhouse.order.domain.service.query.OrderQueryService;
 import jakarta.validation.Valid;
@@ -20,6 +27,7 @@ import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,6 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
 
     private final OrderCommandService orderCommandService;
+    private final DeliveryCommandService deliveryCommandService;
     private final OrderQueryService orderQueryService;
 
 
@@ -54,6 +63,33 @@ public class OrderController {
             @RequestParam(defaultValue = "20") int limit
     ) {
         return orderQueryService.getBuyerOrders(buyerId, limit);
+    }
+
+    @GetMapping("/seller/orders")
+    public SellerOrderListPageResponse getSellerOrders(
+            @LoginSeller LoginUser currentUser,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "20") Integer size
+    ) {
+        return orderQueryService.getSellerOrders(currentUser, keyword, status, page, size);
+    }
+
+    @PostMapping("/seller/orders/deliveries")
+    public DeliveryBatchUpdateResponse registerDeliveries(
+            @LoginSeller LoginUser currentUser,
+            @Valid @RequestBody DeliveryRegisterRequest request
+    ) {
+        return deliveryCommandService.registerDeliveries(currentUser, request);
+    }
+
+    @PatchMapping("/seller/orders/deliveries/delivered")
+    public DeliveryBatchUpdateResponse markDeliveriesDelivered(
+            @LoginSeller LoginUser currentUser,
+            @Valid @RequestBody DeliveryDeliveredRequest request
+    ) {
+        return deliveryCommandService.markDelivered(currentUser, request);
     }
 
     @PostMapping("/orders/{orderNo}/cancel")

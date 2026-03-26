@@ -5,6 +5,8 @@ import org.springframework.http.HttpStatus;
 
 public enum OrderErrorCode implements ErrorCode {
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_404_001", "주문 정보를 찾을 수 없습니다."),
+    DELIVERY_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_404_002", "배송 정보를 찾을 수 없습니다."),
+    FORBIDDEN_ORDER_ACCESS(HttpStatus.FORBIDDEN, "ORDER_403_001", "주문 접근 권한이 없습니다."),
     ORDER_ITEM_EMPTY(HttpStatus.BAD_REQUEST, "ORDER_400_001", "주문 상품은 최소 1개 이상이어야 합니다."),
     INVALID_ORDER_AMOUNT(HttpStatus.BAD_REQUEST, "ORDER_400_002", "주문 금액이 올바르지 않습니다."),
     INVALID_ORDER_STATE(HttpStatus.CONFLICT, "ORDER_409_001", "현재 주문 상태에서는 처리할 수 없습니다."),

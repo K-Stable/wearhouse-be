@@ -7,8 +7,12 @@ public final class GatewayRequestPolicy {
             "/error",
             "/api/v1/auth/buyers/login",
             "/api/v1/auth/sellers/login",
+            "/api/v1/auth/buyers/refresh",
+            "/api/v1/auth/sellers/refresh",
             "/auth-service/api/v1/auth/buyers/login",
             "/auth-service/api/v1/auth/sellers/login",
+            "/auth-service/api/v1/auth/buyers/refresh",
+            "/auth-service/api/v1/auth/sellers/refresh",
             "/api/v1/users/buyers/signup",
             "/api/v1/users/sellers/signup",
             "/api/v1/users/buyers/email-code/send",
@@ -53,6 +57,8 @@ public final class GatewayRequestPolicy {
         String normalized = normalizeServicePrefixedPath(path);
         return "/api/v1/auth/buyers/login".equals(normalized)
                 || "/api/v1/auth/sellers/login".equals(normalized)
+                || "/api/v1/auth/buyers/refresh".equals(normalized)
+                || "/api/v1/auth/sellers/refresh".equals(normalized)
                 || "/api/v1/users/buyers/signup".equals(normalized)
                 || "/api/v1/users/sellers/signup".equals(normalized)
                 || "/api/v1/users/buyers/email-code/send".equals(normalized)
