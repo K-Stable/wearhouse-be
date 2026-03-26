@@ -1,6 +1,7 @@
 package com.wearhouse.order.domain.controller;
 
 import com.wearhouse.common.security.current.LoginBuyer;
+import com.wearhouse.common.security.current.LoginSeller;
 import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.order.domain.dto.request.OrderCancelRequest;
 import com.wearhouse.order.domain.dto.request.OrderCreateRequest;
@@ -13,6 +14,8 @@ import com.wearhouse.order.domain.dto.response.OrderPaymentConfirmResponse;
 import com.wearhouse.order.domain.dto.response.OrderPaymentPrepareResponse;
 import com.wearhouse.order.domain.dto.response.OrderPreviewResponse;
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
+import com.wearhouse.order.domain.dto.response.SellerOrderListPageResponse;
+import com.wearhouse.order.domain.model.OrderStatus;
 import com.wearhouse.order.domain.service.command.OrderCommandService;
 import com.wearhouse.order.domain.service.query.OrderQueryService;
 import jakarta.validation.Valid;
@@ -54,6 +57,17 @@ public class OrderController {
             @RequestParam(defaultValue = "20") int limit
     ) {
         return orderQueryService.getBuyerOrders(buyerId, limit);
+    }
+
+    @GetMapping("/seller/orders")
+    public SellerOrderListPageResponse getSellerOrders(
+            @LoginSeller LoginUser currentUser,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "20") Integer size
+    ) {
+        return orderQueryService.getSellerOrders(currentUser, keyword, status, page, size);
     }
 
     @PostMapping("/orders/{orderNo}/cancel")

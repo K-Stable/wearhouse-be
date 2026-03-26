@@ -7,6 +7,7 @@ import com.wearhouse.common.support.s3.S3StorageService;
 import com.wearhouse.product.domain.dto.request.ProductImagePresignedUploadRequest;
 import com.wearhouse.product.domain.dto.response.ProductImagePresignedUploadResponse;
 import com.wearhouse.product.domain.exception.ProductErrorCode;
+import com.wearhouse.product.domain.model.ProductImageType;
 import com.wearhouse.product.support.config.ProductImageStorageProperties;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -20,7 +21,6 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class SellerProductImageService {
 
-    private static final String SELLER_USER_TYPE = "SELLER";
     private static final ZoneId SEOUL_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     private final S3StorageService s3StorageService;
@@ -31,7 +31,8 @@ public class SellerProductImageService {
             ProductImagePresignedUploadRequest request
     ) {
         Long sellerId = requireSellerId(currentUser);
-        String imageKey = buildImageKey(sellerId, request.fileName(), request.imageType().name());
+        validateContentType(request.contentType());
+        String imageKey = buildImageKey(sellerId, request.fileName(), request.imageType());
         S3PresignedUploadResult presignedUploadResult =
                 s3StorageService.uploadImage(imageKey, request.contentType().trim());
         String imageUrl = s3StorageService.getImageUrl(imageKey);
@@ -43,27 +44,41 @@ public class SellerProductImageService {
     }
 
     private Long requireSellerId(LoginUser currentUser) {
-        if (currentUser == null || currentUser.userId() == null || !SELLER_USER_TYPE.equalsIgnoreCase(currentUser.userType())) {
+        if (currentUser == null || currentUser.userId() == null || !currentUser.isSeller()) {
             throw new ErrorException(ProductErrorCode.FORBIDDEN_PRODUCT_ACCESS);
         }
         return currentUser.userId();
     }
 
-    private String buildImageKey(Long sellerId, String fileName, String imageType) {
+    private String buildImageKey(Long sellerId, String fileName, ProductImageType imageType) {
         LocalDate today = LocalDate.now(SEOUL_ZONE_ID);
         String extension = extractExtension(fileName);
         String normalizedPrefix = productImageStorageProperties.getKeyPrefix();
-        String normalizedType = imageType.toLowerCase(Locale.ROOT);
+        String normalizedTypeFolder = resolveImageTypeFolder(imageType);
         return "%s/products/seller-%d/%s/%d/%02d/%02d/%s%s".formatted(
                 normalizedPrefix,
                 sellerId,
-                normalizedType,
+                normalizedTypeFolder,
                 today.getYear(),
                 today.getMonthValue(),
                 today.getDayOfMonth(),
                 UUID.randomUUID(),
                 extension
         );
+    }
+
+    private String resolveImageTypeFolder(ProductImageType imageType) {
+        return switch (imageType) {
+            case MAIN -> "main";
+            case PREVIEW -> "previews";
+            case DETAIL -> "details";
+        };
+    }
+
+    private void validateContentType(String contentType) {
+        if (!StringUtils.hasText(contentType) || !contentType.trim().toLowerCase(Locale.ROOT).startsWith("image/")) {
+            throw new ErrorException(ProductErrorCode.PRODUCT_IMAGE_INVALID);
+        }
     }
 
     private String extractExtension(String fileName) {

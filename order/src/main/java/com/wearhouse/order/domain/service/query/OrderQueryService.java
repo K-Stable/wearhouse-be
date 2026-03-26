@@ -3,6 +3,7 @@ package com.wearhouse.order.domain.service.query;
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.response.ApiResponse;
 import com.wearhouse.common.global.transactional.ReadTx;
+import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.common.infra.feign.inventory.InventoryStockFeignClient;
 import com.wearhouse.common.infra.feign.inventory.dto.InventoryOrderPreviewRequest;
 import com.wearhouse.common.infra.feign.inventory.dto.InventoryOrderPreviewRequest.InventoryOrderPreviewItemRequest;
@@ -20,6 +21,8 @@ import com.wearhouse.order.domain.dto.response.OrderPreviewResponse.DefaultAddre
 import com.wearhouse.order.domain.dto.response.OrderPreviewResponse.OrderableItem;
 import com.wearhouse.order.domain.dto.response.OrderPreviewResponse.UnavailableItem;
 import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
+import com.wearhouse.order.domain.dto.response.SellerOrderListItemResponse;
+import com.wearhouse.order.domain.dto.response.SellerOrderListPageResponse;
 import com.wearhouse.order.domain.entity.OrderEntity;
 import com.wearhouse.order.domain.entity.OrderItemEntity;
 import com.wearhouse.order.domain.entity.OrderInfo;
@@ -35,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -42,6 +46,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class OrderQueryService {
 
+    private static final int DEFAULT_PAGE_SIZE = 20;
     private static final String NEXT_ACTION_VIEW_ORDER = "VIEW_ORDER";
     private static final String NEXT_ACTION_RETURN_TO_CHECKOUT = "RETURN_TO_CHECKOUT";
     private static final Set<OrderStatus> RETRYABLE_STATUSES = Set.of(
@@ -103,6 +108,39 @@ public class OrderQueryService {
                     .build());
         }
         return responses;
+    }
+
+    @ReadTx
+    public SellerOrderListPageResponse getSellerOrders(
+            LoginUser currentUser,
+            String keyword,
+            OrderStatus status,
+            Integer page,
+            Integer size
+    ) {
+        Long sellerId = requireSeller(currentUser);
+        int pageNumber = resolvePage(page);
+        int pageSize = resolveSize(size);
+        Page<OrderEntity> orders = orderRepository.findSellerOrders(
+                sellerId,
+                normalizeKeyword(keyword),
+                status,
+                PageRequest.of(pageNumber, pageSize)
+        );
+
+        List<SellerOrderListItemResponse> content = orders.getContent().stream()
+                .map(order -> toSellerOrderListItem(order, sellerId))
+                .toList();
+
+        return new SellerOrderListPageResponse(
+                content,
+                orders.getNumber(),
+                orders.getSize(),
+                orders.getTotalElements(),
+                orders.getTotalPages(),
+                orders.hasNext(),
+                orders.hasPrevious()
+        );
     }
 
     @ReadTx
@@ -301,6 +339,50 @@ public class OrderQueryService {
             return "";
         }
         return value.trim();
+    }
+
+    private SellerOrderListItemResponse toSellerOrderListItem(OrderEntity order, Long sellerId) {
+        int sellerQuantity = order.getItems().stream()
+                .filter(item -> sellerId.equals(item.getSellerId()))
+                .mapToInt(OrderItemEntity::getQuantity)
+                .sum();
+        OrderInfo info = order.getOrderInfo();
+        return new SellerOrderListItemResponse(
+                order.getOrderNo(),
+                order.getBuyerId(),
+                sellerQuantity,
+                info == null || info.getPaymentMethod() == null ? null : info.getPaymentMethod().name(),
+                order.getOrderedAt() == null ? null : order.getOrderedAt().toLocalDate(),
+                order.getStatus() == null ? null : order.getStatus().name()
+        );
+    }
+
+    private Long requireSeller(LoginUser currentUser) {
+        if (currentUser == null || currentUser.userId() == null || !currentUser.isSeller()) {
+            throw new ErrorException(OrderErrorCode.FORBIDDEN_ORDER_ACCESS);
+        }
+        return currentUser.userId();
+    }
+
+    private int resolvePage(Integer page) {
+        if (page == null || page < 0) {
+            return 0;
+        }
+        return page;
+    }
+
+    private int resolveSize(Integer size) {
+        if (size == null || size <= 0) {
+            return DEFAULT_PAGE_SIZE;
+        }
+        return size;
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return keyword.trim();
     }
 
     private record AggregatedPreviewItem(
