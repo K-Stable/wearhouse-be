@@ -35,12 +35,10 @@ wearhouse:
     internal:
       shared-secret: ${ORDER_INTERNAL_SHARED_SECRET:wearhouse-order-internal-secret}
   pay:
-    api-base-url: ${PAY_API_BASE_URL:${WALLET_API_BASE_URL:http://localhost:8090}}
-    merchant-id: ${PAY_MERCHANT_ID:${WALLET_MERCHANT_ID:merchant_demo}}
-    access-key: ${PAY_ACCESS_KEY:${WALLET_CLIENT_KEY:pay_access_key}}
-    secret-key: ${PAY_SECRET_KEY:${WALLET_SECRET_KEY:pay_secret_key}}
-    confirm-path: ${PAY_CONFIRM_PATH:/v1/payments/confirm}
-    prepare-path: ${PAY_PREPARE_PATH:/api/v1/payments/checkout/prepare}
+    api-base-url: ${PAY_API_BASE_URL:${WALLET_API_BASE_URL:https://api.kst-wallet.xyz}}
+    secret-key: ${PAY_SECRET_KEY:${WALLET_SECRET_KEY:${WALLET_CLIENT_KEY:pay_secret_key}}}
+    confirm-path: ${PAY_CONFIRM_PATH:/api/v1/merchant/payments/confirm}
+    prepare-path: ${PAY_PREPARE_PATH:/api/v1/merchant/checkout-sessions}
     webhook:
       secret: ${PAY_WEBHOOK_SECRET:pay-webhook-secret}
       allowed-skew-seconds: ${PAY_WEBHOOK_ALLOWED_SKEW_SECONDS:300}

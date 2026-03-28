@@ -35,39 +35,36 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
             value = """
                     select o
                     from OrderEntity o
-                    where exists (
-                        select 1
-                        from OrderItemEntity oi
-                        where oi.order = o
-                          and oi.sellerId = :sellerId
-                          and (
-                                :keyword is null
-                                or lower(o.orderNo) like lower(concat('%', :keyword, '%'))
-                                or lower(oi.productNameSnapshot) like lower(concat('%', :keyword, '%'))
-                          )
+                    where (
+                        :keyword is null
+                        or lower(o.orderNo) like lower(concat('%', :keyword, '%'))
+                        or exists (
+                            select 1
+                            from OrderItemEntity oi
+                            where oi.order = o
+                              and lower(oi.productNameSnapshot) like lower(concat('%', :keyword, '%'))
+                        )
                     )
-                      and (:status is null or o.status = :status)
+                    and (:status is null or o.status = :status)
                     order by o.id desc
                     """,
             countQuery = """
                     select count(o)
                     from OrderEntity o
-                    where exists (
-                        select 1
-                        from OrderItemEntity oi
-                        where oi.order = o
-                          and oi.sellerId = :sellerId
-                          and (
-                                :keyword is null
-                                or lower(o.orderNo) like lower(concat('%', :keyword, '%'))
-                                or lower(oi.productNameSnapshot) like lower(concat('%', :keyword, '%'))
-                          )
+                    where (
+                        :keyword is null
+                        or lower(o.orderNo) like lower(concat('%', :keyword, '%'))
+                        or exists (
+                            select 1
+                            from OrderItemEntity oi
+                            where oi.order = o
+                              and lower(oi.productNameSnapshot) like lower(concat('%', :keyword, '%'))
+                        )
                     )
-                      and (:status is null or o.status = :status)
+                    and (:status is null or o.status = :status)
                     """
     )
-    Page<OrderEntity> findSellerOrders(
-            @Param("sellerId") Long sellerId,
+    Page<OrderEntity> findOrdersForSellerDashboard(
             @Param("keyword") String keyword,
             @Param("status") OrderStatus status,
             Pageable pageable

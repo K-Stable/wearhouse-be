@@ -6,10 +6,13 @@ import com.wearhouse.inventory.domain.dto.request.InventoryAvailabilityCheckRequ
 import com.wearhouse.inventory.domain.dto.request.InventoryAvailabilityCheckRequest.InventoryAvailabilityLineRequest;
 import com.wearhouse.inventory.domain.dto.request.InventoryOrderPreviewRequest;
 import com.wearhouse.inventory.domain.dto.request.InventoryOrderPreviewRequest.InventoryOrderPreviewItemRequest;
+import com.wearhouse.inventory.domain.dto.request.InventorySellerResolveRequest;
 import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse;
 import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse.InventoryAvailabilityLineResponse;
 import com.wearhouse.inventory.domain.dto.response.InventoryOrderPreviewResponse;
 import com.wearhouse.inventory.domain.dto.response.InventoryOrderPreviewResponse.InventoryOrderPreviewLineResponse;
+import com.wearhouse.inventory.domain.dto.response.InventorySellerResolveResponse;
+import com.wearhouse.inventory.domain.dto.response.InventorySellerResolveResponse.InventorySkuSellerLineResponse;
 import com.wearhouse.inventory.domain.entity.InventoryStockEntity;
 import com.wearhouse.inventory.domain.exception.InventoryErrorCode;
 import com.wearhouse.inventory.domain.model.InventoryProductStatus;
@@ -128,6 +131,25 @@ public class BuyerInventoryQueryService {
             ));
         }
         return new InventoryOrderPreviewResponse(lines);
+    }
+
+    @ReadTx
+    public InventorySellerResolveResponse resolveSellers(InventorySellerResolveRequest request) {
+        if (request == null || request.skuIds() == null || request.skuIds().isEmpty()) {
+            throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
+        }
+
+        List<Long> skuIds = request.skuIds().stream().distinct().toList();
+        Map<Long, Long> sellerBySku = new LinkedHashMap<>();
+        for (InventoryStockEntity stock : inventoryStockRepository.findAllBySkuIdIn(skuIds)) {
+            sellerBySku.put(stock.getSkuId(), stock.getSellerId());
+        }
+
+        List<InventorySkuSellerLineResponse> items = new ArrayList<>(skuIds.size());
+        for (Long skuId : skuIds) {
+            items.add(new InventorySkuSellerLineResponse(skuId, sellerBySku.get(skuId)));
+        }
+        return new InventorySellerResolveResponse(items);
     }
 
     private Map<Long, Integer> aggregateRequestedBySku(List<InventoryAvailabilityLineRequest> items) {

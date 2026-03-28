@@ -86,7 +86,6 @@ class OrderControllerDocsTest {
                 .items(List.of(OrderCreateItemRequest.builder()
                         .productId(1001L)
                         .optionId(2001L)
-                        .sellerId(3001L)
                         .productName("오프화이트 티셔츠")
                         .optionName("BLACK / L")
                         .unitPrice(new BigDecimal("29000"))
@@ -99,6 +98,10 @@ class OrderControllerDocsTest {
                 .customerId("11111111-1111-1111-1111-111111111111")
                 .customerName("홍길동")
                 .payAmount(new BigDecimal("60000"))
+                .checkoutSessionId("cs_test_1")
+                .checkoutUrl("https://wallet.example/checkout/cs_test_1")
+                .appLaunchUrl("wallet://checkout/cs_test_1")
+                .checkoutExpiresAt("2026-03-06T12:30:00Z")
                 .build();
         given(orderCommandService.createOrder(any(OrderCreateRequest.class))).willReturn(response);
 
@@ -123,7 +126,6 @@ class OrderControllerDocsTest {
                                 fieldWithPath("pointUsedAmount").type(JsonFieldType.NUMBER).optional().description("포인트 사용 금액"),
                                 fieldWithPath("items[].productId").type(JsonFieldType.NUMBER).description("상품 ID"),
                                 fieldWithPath("items[].optionId").type(JsonFieldType.NUMBER).optional().description("옵션 ID"),
-                                fieldWithPath("items[].sellerId").type(JsonFieldType.NUMBER).description("판매자 ID"),
                                 fieldWithPath("items[].productName").type(JsonFieldType.STRING).description("상품명 스냅샷"),
                                 fieldWithPath("items[].optionName").type(JsonFieldType.STRING).optional().description("옵션명 스냅샷"),
                                 fieldWithPath("items[].unitPrice").type(JsonFieldType.NUMBER).description("단가"),
@@ -137,6 +139,10 @@ class OrderControllerDocsTest {
                                 fieldWithPath("data.customerId").type(JsonFieldType.STRING).description("SDK용 고객 식별자"),
                                 fieldWithPath("data.customerName").type(JsonFieldType.STRING).description("고객명"),
                                 fieldWithPath("data.payAmount").type(JsonFieldType.NUMBER).description("결제 금액"),
+                                fieldWithPath("data.checkoutSessionId").type(JsonFieldType.STRING).optional().description("결제 세션 ID(STABLE 결제 시)"),
+                                fieldWithPath("data.checkoutUrl").type(JsonFieldType.STRING).optional().description("결제 진행 URL(STABLE 결제 시)"),
+                                fieldWithPath("data.appLaunchUrl").type(JsonFieldType.STRING).optional().description("앱 실행 URL(STABLE 결제 시)"),
+                                fieldWithPath("data.checkoutExpiresAt").type(JsonFieldType.STRING).optional().description("결제 세션 만료 시각(STABLE 결제 시)"),
                                 fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
                         )
                 ));

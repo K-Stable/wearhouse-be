@@ -17,21 +17,18 @@ public class PayPrepareGateway {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
-    private final String accessKey;
     private final String secretKey;
     private final String preparePath;
 
     public PayPrepareGateway(
             RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper,
-            @Value("${wearhouse.pay.api-base-url:http://localhost:8090}") String apiBaseUrl,
-            @Value("${wearhouse.pay.access-key:pay_access_key}") String accessKey,
+            @Value("${wearhouse.pay.api-base-url:https://api.kst-wallet.xyz}") String apiBaseUrl,
             @Value("${wearhouse.pay.secret-key:pay_secret_key}") String secretKey,
-            @Value("${wearhouse.pay.prepare-path:/api/v1/payments/checkout/prepare}") String preparePath
+            @Value("${wearhouse.pay.prepare-path:/api/v1/merchant/checkout-sessions}") String preparePath
     ) {
         this.restClient = restClientBuilder.baseUrl(apiBaseUrl).build();
         this.objectMapper = objectMapper;
-        this.accessKey = accessKey;
         this.secretKey = secretKey;
         this.preparePath = preparePath;
     }
@@ -39,7 +36,6 @@ public class PayPrepareGateway {
     public PayPrepareResult prepare(PaymentPrepareRequest request, String idempotencyKey) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("orderId", String.valueOf(request.orderId()));
-        body.put("customerKey", request.customerId());
         body.put("orderName", request.orderName());
         body.put("amount", toAmountInt(request.amount()));
         body.put("successUrl", request.successUrl());
@@ -48,10 +44,9 @@ public class PayPrepareGateway {
         RestClient.RequestBodySpec requestSpec = restClient.post()
                 .uri(preparePath)
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("X-Merchant-Access-Key", accessKey)
-                .header("X-Merchant-Secret-Key", secretKey);
+                .header("x-secret-key", secretKey);
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
-            requestSpec.header("Idempotency-Key", idempotencyKey);
+            requestSpec.header("idempotency-key", idempotencyKey);
         }
 
         String responseBody = requestSpec

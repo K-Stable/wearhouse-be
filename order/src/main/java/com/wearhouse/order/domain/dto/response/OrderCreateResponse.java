@@ -8,6 +8,10 @@ public record OrderCreateResponse(
         String orderNo,
         String customerId,
         String customerName,
-        BigDecimal payAmount
+        BigDecimal payAmount,
+        String checkoutSessionId,
+        String checkoutUrl,
+        String appLaunchUrl,
+        String checkoutExpiresAt
 ) {
 }

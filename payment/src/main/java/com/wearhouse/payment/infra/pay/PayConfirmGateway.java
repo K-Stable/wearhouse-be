@@ -17,21 +17,18 @@ public class PayConfirmGateway {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
-    private final String accessKey;
     private final String secretKey;
     private final String confirmPath;
 
     public PayConfirmGateway(
             RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper,
-            @Value("${wearhouse.pay.api-base-url:http://localhost:8090}") String apiBaseUrl,
-            @Value("${wearhouse.pay.access-key:pay_access_key}") String accessKey,
+            @Value("${wearhouse.pay.api-base-url:https://api.kst-wallet.xyz}") String apiBaseUrl,
             @Value("${wearhouse.pay.secret-key:pay_secret_key}") String secretKey,
-            @Value("${wearhouse.pay.confirm-path:/v1/payments/confirm}") String confirmPath
+            @Value("${wearhouse.pay.confirm-path:/api/v1/merchant/payments/confirm}") String confirmPath
     ) {
         this.restClient = restClientBuilder.baseUrl(apiBaseUrl).build();
         this.objectMapper = objectMapper;
-        this.accessKey = accessKey;
         this.secretKey = secretKey;
         this.confirmPath = confirmPath;
     }
@@ -39,14 +36,13 @@ public class PayConfirmGateway {
     public PayConfirmResult confirm(PaymentConfirmRequest request) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("paymentKey", request.paymentKey());
-        body.put("amount", toAmountString(request.amount()));
+        body.put("amount", toAmountInt(request.amount()));
         body.put("orderId", String.valueOf(request.orderId()));
 
         String responseBody = restClient.post()
                 .uri(confirmPath)
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("X-Merchant-Access-Key", accessKey)
-                .header("X-Merchant-Secret-Key", secretKey)
+                .header("x-secret-key", secretKey)
                 .body(body)
                 .retrieve()
                 .body(String.class);
@@ -103,8 +99,8 @@ public class PayConfirmGateway {
         return (value == null || value.isBlank()) ? null : value;
     }
 
-    private String toAmountString(BigDecimal amount) {
-        return amount.stripTrailingZeros().toPlainString();
+    private int toAmountInt(BigDecimal amount) {
+        return amount.intValueExact();
     }
 
     public record PayConfirmResult(

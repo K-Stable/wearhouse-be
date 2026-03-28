@@ -175,8 +175,7 @@ public class PaymentCommandService {
         assertInternalSecret(internalSecret);
         validatePrepareRequest(request);
 
-        PaymentTransactionEntity transaction = paymentTransactionRepository.findByOrderId(request.orderId())
-                .orElseThrow(() -> new IllegalArgumentException("해당 주문의 결제 정보를 찾을 수 없습니다."));
+        PaymentTransactionEntity transaction = loadOrCreateStablePendingTransaction(request);
         validatePrepareTarget(transaction);
 
         if (transaction.getStatus() == PaymentStatus.AUTHORIZED) {
@@ -254,6 +253,29 @@ public class PaymentCommandService {
                 result.appLaunchUrl(),
                 result.checkoutExpiresAt()
         );
+    }
+
+    private PaymentTransactionEntity loadOrCreateStablePendingTransaction(PaymentPrepareRequest request) {
+        Optional<PaymentTransactionEntity> existing = paymentTransactionRepository.findByOrderId(request.orderId());
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        try {
+            paymentTransactionRepository.insertPending(
+                    PaymentIdGenerator.newPaymentId(),
+                    request.orderId(),
+                    request.orderNo(),
+                    request.amount(),
+                    STABLE_METHOD,
+                    LocalDateTime.now().plusMinutes(pendingTimeoutMinutes)
+            );
+        } catch (DuplicateKeyException ignored) {
+            // 동시 요청에서 중복 생성된 경우, 아래 재조회로 진행한다.
+        }
+
+        return paymentTransactionRepository.findByOrderId(request.orderId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 주문의 결제 정보를 찾을 수 없습니다."));
     }
 
     @WriteTx

@@ -44,7 +44,9 @@ public class InventoryPassportAuthenticationFilter extends OncePerRequestFilter 
         }
         String path = request.getRequestURI();
         return path.startsWith("/actuator")
-                || path.startsWith("/error");
+                || path.startsWith("/error")
+                || path.equals("/api/v1/internal/inventory/orders/preview")
+                || path.equals("/api/v1/internal/inventory/stocks/sellers/resolve");
     }
 
     @Override
