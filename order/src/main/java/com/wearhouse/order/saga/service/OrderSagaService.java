@@ -9,6 +9,8 @@ import com.wearhouse.order.common.event.OrderEventType;
 import com.wearhouse.order.common.exception.OrderErrorCode;
 import com.wearhouse.order.domain.model.OrderSagaState;
 import com.wearhouse.order.domain.model.OrderStatus;
+import com.wearhouse.order.kafka.dto.InventoryEventPayload;
+import com.wearhouse.order.kafka.dto.PaymentEventPayload;
 import com.wearhouse.order.infra.jpa.repository.OrderInboxRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
@@ -39,7 +41,7 @@ public class OrderSagaService {
     private final OrderInboxRepository orderInboxRepository;
     private final OrderDomainEventPublisher orderDomainEventPublisher;
     private final OrderKafkaTopicsProperties kafkaTopicsProperties;
-    private final Map<String, SagaEventHandler> inventoryEventHandlers = Map.of(
+    private final Map<String, SagaEventHandler<?>> inventoryEventHandlers = Map.of(
             OrderEventType.STOCK_RESERVED,
             this::handleStockReservedEvent,
             OrderEventType.STOCK_RESERVE_FAILED,
@@ -47,7 +49,7 @@ public class OrderSagaService {
             OrderEventType.INVENTORY_RELEASED,
             this::handleInventoryReleasedEvent
     );
-    private final Map<String, SagaEventHandler> paymentEventHandlers = Map.of(
+    private final Map<String, SagaEventHandler<?>> paymentEventHandlers = Map.of(
             OrderEventType.PAYMENT_AUTHORIZED,
             this::handlePaymentAuthorizedEvent,
             OrderEventType.PAYMENT_FAILED,
@@ -62,8 +64,7 @@ public class OrderSagaService {
             String topic,
             String partitionKey,
             String rawPayload,
-            Long orderId,
-            Map<String, Object> payload
+            InventoryEventPayload payload
     ) {
         processEvent(
                 INVENTORY_CONSUMER,
@@ -72,7 +73,7 @@ public class OrderSagaService {
                 topic,
                 partitionKey,
                 rawPayload,
-                orderId,
+                payload.orderId(),
                 payload,
                 inventoryEventHandlers
         );
@@ -85,8 +86,7 @@ public class OrderSagaService {
             String topic,
             String partitionKey,
             String rawPayload,
-            Long orderId,
-            Map<String, Object> payload
+            PaymentEventPayload payload
     ) {
         processEvent(
                 PAYMENT_CONSUMER,
@@ -95,7 +95,7 @@ public class OrderSagaService {
                 topic,
                 partitionKey,
                 rawPayload,
-                orderId,
+                payload.orderId(),
                 payload,
                 paymentEventHandlers
         );
@@ -109,8 +109,8 @@ public class OrderSagaService {
             String partitionKey,
             String rawPayload,
             Long orderId,
-            Map<String, Object> payload,
-            Map<String, SagaEventHandler> handlers
+            Object payload,
+            Map<String, SagaEventHandler<?>> handlers
     ) {
         // Inbox로 중복 소비를 차단한다. (이미 처리된 eventId는 즉시 무시)
         if (!orderInboxRepository.tryReceive(eventId, consumerName, eventType, topic, partitionKey, rawPayload)) {
@@ -140,7 +140,7 @@ public class OrderSagaService {
         // 결제 실패 후 재고예약 이벤트가 지연 도착한 경우: 즉시 보상(해제)으로 수렴시킨다.
         if (currentStatus == OrderStatus.PAYMENT_FAILED) {
             order.markItemsReserved();
-            publishInventoryReleaseRequested(order, asString(order.getFailReasonCode(), DEFAULT_PAYMENT_FAIL_REASON));
+            publishInventoryReleaseRequested(order, resolveReasonCode(order.getFailReasonCode(), DEFAULT_PAYMENT_FAIL_REASON));
             transitionSaga(order.getId(), OrderSagaState.COMPENSATING, eventId, order.getFailReasonCode());
             return;
         }
@@ -160,14 +160,14 @@ public class OrderSagaService {
             OrderEntity order,
             OrderStatus currentStatus,
             String eventId,
-            Map<String, Object> payload
+            InventoryEventPayload payload
     ) {
         if (currentStatus != OrderStatus.PENDING_RESERVE) {
             return;
         }
 
         // 재고예약 실패는 주문을 RESERVE_FAILED로 종료한다.
-        String reasonCode = asString(payload.get("reasonCode"), DEFAULT_STOCK_RESERVE_FAIL_REASON);
+        String reasonCode = resolveReasonCode(payload.reasonCode(), DEFAULT_STOCK_RESERVE_FAIL_REASON);
         order.updateStatus(OrderStatus.RESERVE_FAILED, reasonCode, null, null);
         saveStatusHistory(order, currentStatus, OrderStatus.RESERVE_FAILED, eventId, reasonCode);
         transitionSaga(order.getId(), OrderSagaState.RESERVE_FAILED, eventId, reasonCode);
@@ -202,7 +202,7 @@ public class OrderSagaService {
             OrderEntity order,
             OrderStatus currentStatus,
             String eventId,
-            Map<String, Object> payload
+            PaymentEventPayload payload
     ) {
         if (currentStatus != OrderStatus.PENDING_RESERVE
                 && currentStatus != OrderStatus.RESERVED
@@ -211,7 +211,7 @@ public class OrderSagaService {
         }
 
         // 결제 실패 시 PAYMENT_FAILED 전이 후, 재고가 이미 예약된 주문은 보상 흐름으로 보낸다.
-        String reasonCode = asString(payload.get("reasonCode"), DEFAULT_PAYMENT_FAIL_REASON);
+        String reasonCode = resolveReasonCode(payload.reasonCode(), DEFAULT_PAYMENT_FAIL_REASON);
         order.updateStatus(OrderStatus.PAYMENT_FAILED, reasonCode, null, null);
         saveStatusHistory(order, currentStatus, OrderStatus.PAYMENT_FAILED, eventId, reasonCode);
 
@@ -316,19 +316,23 @@ public class OrderSagaService {
         orderDomainEventPublisher.publish(event);
     }
 
-    private String asString(Object value, String defaultValue) {
-        return value == null ? defaultValue : String.valueOf(value);
+    private String resolveReasonCode(String reasonCode, String defaultValue) {
+        if (reasonCode == null || reasonCode.isBlank()) {
+            return defaultValue;
+        }
+        return reasonCode;
     }
 
     private void dispatchEvent(
-            Map<String, SagaEventHandler> handlers,
+            Map<String, SagaEventHandler<?>> handlers,
             String eventType,
             OrderEntity order,
             OrderStatus currentStatus,
             String eventId,
-            Map<String, Object> payload
+            Object payload
     ) {
-        SagaEventHandler handler = handlers.get(eventType);
+        @SuppressWarnings("unchecked")
+        SagaEventHandler<Object> handler = (SagaEventHandler<Object>) handlers.get(eventType);
         if (handler == null) {
             return;
         }
@@ -339,7 +343,7 @@ public class OrderSagaService {
             OrderEntity order,
             OrderStatus currentStatus,
             String eventId,
-            Map<String, Object> payload
+            Object payload
     ) {
         handleStockReserved(order, currentStatus, eventId);
     }
@@ -348,16 +352,16 @@ public class OrderSagaService {
             OrderEntity order,
             OrderStatus currentStatus,
             String eventId,
-            Map<String, Object> payload
+            Object payload
     ) {
-        handleStockReserveFailed(order, currentStatus, eventId, payload);
+        handleStockReserveFailed(order, currentStatus, eventId, (InventoryEventPayload) payload);
     }
 
     private void handleInventoryReleasedEvent(
             OrderEntity order,
             OrderStatus currentStatus,
             String eventId,
-            Map<String, Object> payload
+            Object payload
     ) {
         handleInventoryReleased(order, currentStatus, eventId);
     }
@@ -366,7 +370,7 @@ public class OrderSagaService {
             OrderEntity order,
             OrderStatus currentStatus,
             String eventId,
-            Map<String, Object> payload
+            Object payload
     ) {
         handlePaymentAuthorized(order, currentStatus, eventId);
     }
@@ -375,18 +379,18 @@ public class OrderSagaService {
             OrderEntity order,
             OrderStatus currentStatus,
             String eventId,
-            Map<String, Object> payload
+            Object payload
     ) {
-        handlePaymentFailed(order, currentStatus, eventId, payload);
+        handlePaymentFailed(order, currentStatus, eventId, (PaymentEventPayload) payload);
     }
 
     @FunctionalInterface
-    private interface SagaEventHandler {
+    private interface SagaEventHandler<T> {
         void handle(
                 OrderEntity order,
                 OrderStatus currentStatus,
                 String eventId,
-                Map<String, Object> payload
+                T payload
         );
     }
 }

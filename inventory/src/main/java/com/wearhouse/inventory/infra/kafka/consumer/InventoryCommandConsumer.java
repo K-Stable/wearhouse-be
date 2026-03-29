@@ -3,7 +3,8 @@ package com.wearhouse.inventory.infra.kafka.consumer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.support.kafka.dto.KafkaMessageEnvelope;
 import com.wearhouse.inventory.domain.service.buyer.command.BuyerInventoryCommandService;
-import java.util.Map;
+import com.wearhouse.inventory.kafka.dto.InventoryReleaseRequestedEvent;
+import com.wearhouse.inventory.kafka.dto.InventoryReserveRequestedEvent;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -31,9 +32,9 @@ public class InventoryCommandConsumer {
             KafkaMessageEnvelope envelope = objectMapper.readValue(message, KafkaMessageEnvelope.class);
             String eventId = envelope.eventId();
             eventType = safeEventType(envelope.eventType());
-            Map<String, Object> payload = requirePayload(envelope.payload());
 
             if ("InventoryReserveRequested".equals(eventType)) {
+                InventoryReserveRequestedEvent payload = requirePayload(envelope.payload(), InventoryReserveRequestedEvent.class);
                 buyerInventoryCommandService.onReserveRequested(
                         eventId,
                         topic,
@@ -47,6 +48,7 @@ public class InventoryCommandConsumer {
             }
 
             if ("InventoryReleaseRequested".equals(eventType)) {
+                InventoryReleaseRequestedEvent payload = requirePayload(envelope.payload(), InventoryReleaseRequestedEvent.class);
                 buyerInventoryCommandService.onReleaseRequested(
                         eventId,
                         topic,
@@ -62,9 +64,9 @@ public class InventoryCommandConsumer {
         }
     }
 
-    private Map<String, Object> requirePayload(Map<String, Object> payload) {
+    private <T> T requirePayload(Object payload, Class<T> type) {
         if (payload != null) {
-            return payload;
+            return objectMapper.convertValue(payload, type);
         }
         throw new IllegalArgumentException("inventory event payload 형식이 올바르지 않습니다.");
     }

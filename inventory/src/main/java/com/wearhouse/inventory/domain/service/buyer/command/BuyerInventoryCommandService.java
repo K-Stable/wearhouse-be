@@ -15,6 +15,9 @@ import com.wearhouse.inventory.infra.product.InventoryProductStatusClient;
 import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService;
 import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService.LockAcquireException;
 import com.wearhouse.inventory.infra.redis.InventoryRedisStockCacheService;
+import com.wearhouse.inventory.kafka.dto.InventoryReleaseRequestedEvent;
+import com.wearhouse.inventory.kafka.dto.InventoryReserveRequestedEvent;
+import com.wearhouse.inventory.kafka.dto.OrderConfirmedEvent;
 import com.wearhouse.inventory.support.InventoryIdGenerator;
 import com.wearhouse.inventory.support.config.InventoryKafkaTopicsProperties;
 import com.wearhouse.inventory.support.config.InventoryProperties;
@@ -56,7 +59,7 @@ public class BuyerInventoryCommandService {
             String topic,
             String partitionKey,
             String rawPayload,
-            Map<String, Object> payload
+            InventoryReserveRequestedEvent payload
     ) {
         // Inbox로 중복 메시지를 차단한다. (동일 eventId 재수신은 무시)
         boolean received = inventoryInboxRepository.tryReceive(
@@ -80,8 +83,8 @@ public class BuyerInventoryCommandService {
             inventoryInboxRepository.markProcessed(eventId, INVENTORY_COMMAND_CONSUMER);
         } catch (ErrorException exception) {
             // 비즈니스 실패는 실패 이벤트를 발행하고 메시지는 처리완료로 기록한다.
-            Long fallbackOrderId = command == null ? asLong(payload.get("orderId")) : command.orderId();
-            String fallbackOrderNo = command == null ? asString(payload.get("orderNo")) : command.orderNo();
+            Long fallbackOrderId = command == null ? payload.orderId() : command.orderId();
+            String fallbackOrderNo = command == null ? payload.orderNo() : command.orderNo();
             publishStockReserveFailed(
                     fallbackOrderId,
                     fallbackOrderNo,
@@ -106,7 +109,7 @@ public class BuyerInventoryCommandService {
             String topic,
             String partitionKey,
             String rawPayload,
-            Map<String, Object> payload
+            InventoryReleaseRequestedEvent payload
     ) {
         // 주문 보상/취소 시 재고 해제 이벤트를 처리한다.
         boolean received = inventoryInboxRepository.tryReceive(
@@ -143,7 +146,7 @@ public class BuyerInventoryCommandService {
             String topic,
             String partitionKey,
             String rawPayload,
-            Map<String, Object> payload
+            OrderConfirmedEvent payload
     ) {
         // 주문 확정 이벤트 수신 시 RESERVED 수량을 최종 차감(CONFIRMED) 처리한다.
         boolean received = inventoryInboxRepository.tryReceive(
@@ -471,19 +474,22 @@ public class BuyerInventoryCommandService {
         inventoryDomainEventPublisher.publish(event);
     }
 
-    private InventoryReserveCommand toReserveCommand(Map<String, Object> payload) {
-        Long orderId = asLong(payload.get("orderId"));
+    private InventoryReserveCommand toReserveCommand(InventoryReserveRequestedEvent payload) {
+        Long orderId = payload.orderId();
         if (orderId == null) {
             throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
         }
-        String orderNo = asString(payload.get("orderNo"));
+        String orderNo = payload.orderNo();
 
         List<ReserveLine> lines = new ArrayList<>();
-        for (Map<String, Object> item : toMapList(payload.get("items"))) {
-            Long optionId = asLong(item.get("optionId"));
-            Long productId = asLong(item.get("productId"));
+        if (payload.items() == null) {
+            throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
+        }
+        for (InventoryReserveRequestedEvent.Item item : payload.items()) {
+            Long optionId = item.optionId();
+            Long productId = item.productId();
             Long skuId = optionId == null ? productId : optionId;
-            Integer quantity = asInt(item.get("quantity"));
+            Integer quantity = item.quantity();
 
             if (skuId == null || quantity == null || quantity <= 0) {
                 throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
@@ -497,73 +503,26 @@ public class BuyerInventoryCommandService {
         return new InventoryReserveCommand(orderId, orderNo, lines);
     }
 
-    private InventoryReleaseCommand toReleaseCommand(Map<String, Object> payload) {
-        Long orderId = asLong(payload.get("orderId"));
+    private InventoryReleaseCommand toReleaseCommand(InventoryReleaseRequestedEvent payload) {
+        Long orderId = payload.orderId();
         if (orderId == null) {
             throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
         }
-        String orderNo = asString(payload.get("orderNo"));
-        String reasonCode = asString(payload.get("reasonCode"));
+        String orderNo = payload.orderNo();
+        String reasonCode = payload.reasonCode();
         if (reasonCode == null || reasonCode.isBlank()) {
             reasonCode = "UNKNOWN";
         }
         return new InventoryReleaseCommand(orderId, orderNo, reasonCode);
     }
 
-    private InventoryOrderConfirmCommand toOrderConfirmCommand(Map<String, Object> payload) {
-        Long orderId = asLong(payload.get("orderId"));
+    private InventoryOrderConfirmCommand toOrderConfirmCommand(OrderConfirmedEvent payload) {
+        Long orderId = payload.orderId();
         if (orderId == null) {
             throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
         }
-        String orderNo = asString(payload.get("orderNo"));
+        String orderNo = payload.orderNo();
         return new InventoryOrderConfirmCommand(orderId, orderNo);
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> toMapList(Object value) {
-        if (value instanceof List<?> list) {
-            List<Map<String, Object>> result = new ArrayList<>();
-            for (Object item : list) {
-                if (!(item instanceof Map<?, ?> map)) {
-                    throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
-                }
-                result.add((Map<String, Object>) map);
-            }
-            return result;
-        }
-        throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
-    }
-
-    private Long asLong(Object value) {
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value instanceof String stringValue && !stringValue.isBlank()) {
-            try {
-                return Long.parseLong(stringValue);
-            } catch (NumberFormatException exception) {
-                throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
-            }
-        }
-        return null;
-    }
-
-    private Integer asInt(Object value) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        if (value instanceof String stringValue && !stringValue.isBlank()) {
-            try {
-                return Integer.parseInt(stringValue);
-            } catch (NumberFormatException exception) {
-                throw new ErrorException(InventoryErrorCode.INVALID_COMMAND);
-            }
-        }
-        return null;
-    }
-
-    private String asString(Object value) {
-        return value == null ? null : String.valueOf(value);
     }
 
     private record InventoryReserveCommand(Long orderId, String orderNo, List<ReserveLine> lines) {

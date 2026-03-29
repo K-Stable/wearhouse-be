@@ -3,7 +3,7 @@ package com.wearhouse.inventory.infra.kafka.consumer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.support.kafka.dto.KafkaMessageEnvelope;
 import com.wearhouse.inventory.domain.service.buyer.command.BuyerInventoryCommandService;
-import java.util.Map;
+import com.wearhouse.inventory.kafka.dto.OrderConfirmedEvent;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -31,9 +31,9 @@ public class InventoryOrderConsumer {
             KafkaMessageEnvelope envelope = objectMapper.readValue(message, KafkaMessageEnvelope.class);
             String eventId = envelope.eventId();
             eventType = safeEventType(envelope.eventType());
-            Map<String, Object> payload = requirePayload(envelope.payload());
 
             if ("OrderConfirmed".equals(eventType)) {
+                OrderConfirmedEvent payload = requirePayload(envelope.payload(), OrderConfirmedEvent.class);
                 buyerInventoryCommandService.onOrderConfirmed(
                         eventId,
                         topic,
@@ -49,9 +49,9 @@ public class InventoryOrderConsumer {
         }
     }
 
-    private Map<String, Object> requirePayload(Map<String, Object> payload) {
+    private <T> T requirePayload(Object payload, Class<T> type) {
         if (payload != null) {
-            return payload;
+            return objectMapper.convertValue(payload, type);
         }
         throw new IllegalArgumentException("order event payload 형식이 올바르지 않습니다.");
     }

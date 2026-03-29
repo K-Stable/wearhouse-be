@@ -2,15 +2,14 @@ package com.wearhouse.order.kafka.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.support.kafka.dto.KafkaMessageEnvelope;
+import com.wearhouse.order.kafka.dto.InventoryEventPayload;
+import com.wearhouse.order.kafka.dto.PaymentEventPayload;
 import com.wearhouse.order.saga.service.OrderSagaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
-
-import java.util.Map;
-
 @RequiredArgsConstructor
 @Component
 public class OrderKafkaConsumer {
@@ -31,16 +30,16 @@ public class OrderKafkaConsumer {
                 acknowledgment,
                 topic,
                 key,
-                (eventId, eventType, parsedTopic, parsedKey, rawMessage, orderId, payload) ->
+                (eventId, eventType, parsedTopic, parsedKey, rawMessage, payload) ->
                         orderSagaService.onInventoryEvent(
                                 eventId,
                                 eventType,
                                 parsedTopic,
                                 parsedKey,
                                 rawMessage,
-                                orderId,
                                 payload
-                        )
+                        ),
+                InventoryEventPayload.class
         );
     }
 
@@ -56,31 +55,31 @@ public class OrderKafkaConsumer {
                 acknowledgment,
                 topic,
                 key,
-                (eventId, eventType, parsedTopic, parsedKey, rawMessage, orderId, payload) ->
+                (eventId, eventType, parsedTopic, parsedKey, rawMessage, payload) ->
                         orderSagaService.onPaymentEvent(
                                 eventId,
                                 eventType,
                                 parsedTopic,
                                 parsedKey,
                                 rawMessage,
-                                orderId,
                                 payload
-                        )
+                        ),
+                PaymentEventPayload.class
         );
     }
 
-    private void processMessage(
+    private <T> void processMessage(
             String message,
             Acknowledgment acknowledgment,
             String topic,
             String key,
-            SagaDispatcher dispatcher
+            SagaDispatcher<T> dispatcher,
+            Class<T> payloadType
     ) throws Exception {
         KafkaMessageEnvelope envelope = objectMapper.readValue(message, KafkaMessageEnvelope.class);
         String eventId = envelope.eventId();
         String eventType = safeEventType(envelope.eventType());
-        Map<String, Object> payload = requirePayload(envelope.payload());
-        Long orderId = requireOrderId(payload);
+        T payload = requirePayload(envelope.payload(), payloadType);
 
         // 사가 처리(상태전이 + 이력 + 후속 이벤트)가 끝난 뒤에만 ack 한다.
         dispatcher.dispatch(
@@ -89,15 +88,14 @@ public class OrderKafkaConsumer {
                 topic,
                 key,
                 message,
-                orderId,
                 payload
         );
         acknowledgment.acknowledge();
     }
 
-    private Map<String, Object> requirePayload(Map<String, Object> payload) {
+    private <T> T requirePayload(Object payload, Class<T> payloadType) {
         if (payload != null) {
-            return payload;
+            return objectMapper.convertValue(payload, payloadType);
         }
         throw new IllegalArgumentException("event payload 형식이 올바르지 않습니다.");
     }
@@ -106,27 +104,15 @@ public class OrderKafkaConsumer {
         return eventType == null || eventType.isBlank() ? "unknown" : eventType;
     }
 
-    private Long requireOrderId(Map<String, Object> payload) {
-        Object value = payload.get("orderId");
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value instanceof String stringValue) {
-            return Long.parseLong(stringValue);
-        }
-        throw new IllegalArgumentException("orderId 값이 올바르지 않습니다.");
-    }
-
     @FunctionalInterface
-    private interface SagaDispatcher {
+    private interface SagaDispatcher<T> {
         void dispatch(
                 String eventId,
                 String eventType,
                 String topic,
                 String key,
                 String message,
-                Long orderId,
-                Map<String, Object> payload
+                T payload
         ) throws Exception;
     }
 }

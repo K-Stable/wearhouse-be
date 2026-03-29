@@ -22,12 +22,11 @@ import com.wearhouse.inventory.infra.product.InventoryProductStatusClient;
 import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService;
 import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService.LockAcquireException;
 import com.wearhouse.inventory.infra.redis.InventoryRedisStockCacheService;
+import com.wearhouse.inventory.kafka.dto.InventoryReserveRequestedEvent;
 import com.wearhouse.inventory.support.config.InventoryKafkaTopicsProperties;
 import com.wearhouse.inventory.support.config.InventoryProperties;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,7 +61,7 @@ class InventoryCommandServiceConcurrencyTest {
     @Test
     void 핫SKU_락_획득_실패시_예약실패_이벤트를_발행한다() {
         BuyerInventoryCommandService service = newService("101", 3);
-        Map<String, Object> payload = reservePayload(1L, "ORDER-1", 101L, 1);
+        InventoryReserveRequestedEvent payload = reservePayload(1L, "ORDER-1", 101L, 1);
 
         when(inventoryInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(true);
@@ -89,7 +88,7 @@ class InventoryCommandServiceConcurrencyTest {
     @Test
     void 낙관락_재시도_소진시_예약실패_이벤트를_발행한다() {
         BuyerInventoryCommandService service = newService("999", 3);
-        Map<String, Object> payload = reservePayload(2L, "ORDER-2", 201L, 1);
+        InventoryReserveRequestedEvent payload = reservePayload(2L, "ORDER-2", 201L, 1);
 
         when(inventoryInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(true);
@@ -135,7 +134,7 @@ class InventoryCommandServiceConcurrencyTest {
     @Test
     void 핫SKU_미설정이면_모든SKU에_락을_획득한다() {
         BuyerInventoryCommandService service = newService("", 3);
-        Map<String, Object> payload = reservePayload(3L, "ORDER-3", 301L, 1);
+        InventoryReserveRequestedEvent payload = reservePayload(3L, "ORDER-3", 301L, 1);
         InventoryStockEntity stock = InventoryStockEntity.create(
                 301L,
                 10,
@@ -189,20 +188,15 @@ class InventoryCommandServiceConcurrencyTest {
         return service;
     }
 
-    private Map<String, Object> reservePayload(Long orderId, String orderNo, Long skuId, Integer quantity) {
-        Map<String, Object> line = new LinkedHashMap<>();
-        line.put("productId", skuId);
-        line.put("optionId", skuId);
-        line.put("sellerId", 777L);
-        line.put("quantity", quantity);
-
-        List<Map<String, Object>> items = new ArrayList<>();
-        items.add(line);
-
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", orderId);
-        payload.put("orderNo", orderNo);
-        payload.put("items", items);
-        return payload;
+    private InventoryReserveRequestedEvent reservePayload(Long orderId, String orderNo, Long skuId, Integer quantity) {
+        return new InventoryReserveRequestedEvent(
+                orderId,
+                orderNo,
+                List.of(new InventoryReserveRequestedEvent.Item(
+                        skuId,
+                        skuId,
+                        quantity
+                ))
+        );
     }
 }
