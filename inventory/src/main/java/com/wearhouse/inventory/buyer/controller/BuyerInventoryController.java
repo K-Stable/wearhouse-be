@@ -57,7 +57,7 @@ public class BuyerInventoryController {
     }
 
     private void requireInternalSecret(String headerSecret) {
-        if (!inventoryProperties.getInternal().getSharedSecret().equals(headerSecret)) {
+        if (!inventoryProperties.internal().sharedSecret().equals(headerSecret)) {
             throw new ErrorException(CommonErrorCode.FORBIDDEN);
         }
     }

@@ -19,16 +19,16 @@ public class InventoryRuntimePropertiesValidator {
 
     @PostConstruct
     void validate() {
-        requireText("wearhouse.kafka.inventory-command-topic", inventoryKafkaTopicsProperties.getInventoryCommandTopic());
-        requireText("wearhouse.kafka.inventory-event-topic", inventoryKafkaTopicsProperties.getInventoryEventTopic());
-        requireText("wearhouse.kafka.order-event-topic", inventoryKafkaTopicsProperties.getOrderEventTopic());
-        requirePositive("wearhouse.inventory.reservation-hold-minutes", inventoryProperties.getReservationHoldMinutes());
-        requirePositive("wearhouse.inventory.optimistic-retry-count", inventoryProperties.getOptimisticRetryCount());
-        requirePositive("wearhouse.inventory.reservation-expire-interval-ms", inventoryProperties.getReservationExpireIntervalMs());
-        requirePositive("wearhouse.inventory.reservation-expire-batch-size", inventoryProperties.getReservationExpireBatchSize());
-        requirePositive("wearhouse.inventory.lock.wait-time-ms", inventoryProperties.getLock().getWaitTimeMs());
-        requirePositive("wearhouse.inventory.lock.lease-time-ms", inventoryProperties.getLock().getLeaseTimeMs());
-        requirePositive("wearhouse.inventory.lock.retry-interval-ms", inventoryProperties.getLock().getRetryIntervalMs());
+        requireText("wearhouse.kafka.inventory-command-topic", inventoryKafkaTopicsProperties.inventoryCommandTopic());
+        requireText("wearhouse.kafka.inventory-event-topic", inventoryKafkaTopicsProperties.inventoryEventTopic());
+        requireText("wearhouse.kafka.order-event-topic", inventoryKafkaTopicsProperties.orderEventTopic());
+        requirePositive("wearhouse.inventory.reservation-hold-minutes", inventoryProperties.reservationHoldMinutes());
+        requirePositive("wearhouse.inventory.optimistic-retry-count", inventoryProperties.optimisticRetryCount());
+        requirePositive("wearhouse.inventory.reservation-expire-interval-ms", inventoryProperties.reservationExpireIntervalMs());
+        requirePositive("wearhouse.inventory.reservation-expire-batch-size", inventoryProperties.reservationExpireBatchSize());
+        requirePositive("wearhouse.inventory.lock.wait-time-ms", inventoryProperties.lock().waitTimeMs());
+        requirePositive("wearhouse.inventory.lock.lease-time-ms", inventoryProperties.lock().leaseTimeMs());
+        requirePositive("wearhouse.inventory.lock.retry-interval-ms", inventoryProperties.lock().retryIntervalMs());
     }
 
     private void requireText(String key, String value) {

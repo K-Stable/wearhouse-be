@@ -20,6 +20,7 @@ import com.wearhouse.order.payment.dto.request.PaymentConfirmInternalRequest;
 import com.wearhouse.order.payment.dto.request.PaymentPrepareInternalRequest;
 import com.wearhouse.order.payment.dto.response.PaymentConfirmInternalResponse;
 import com.wearhouse.order.payment.dto.response.PaymentPrepareInternalResponse;
+import com.wearhouse.order.support.config.OrderInternalProperties;
 import com.wearhouse.order.support.config.OrderProperties;
 import jakarta.persistence.EntityManager;
 import java.nio.charset.StandardCharsets;
@@ -41,6 +42,7 @@ public class OrderPaymentOrchestrationService {
     private final OrderSagaRepository orderSagaRepository;
     private final OrderPaymentClient orderPaymentClient;
     private final OrderProperties orderProperties;
+    private final OrderInternalProperties orderInternalProperties;
     private final EntityManager entityManager;
 
     public OrderPaymentConfirmResponse confirmPayment(
@@ -73,7 +75,7 @@ public class OrderPaymentOrchestrationService {
 
         validateStablePaymentConfirmRequest(request);
         ApiResponse<PaymentConfirmInternalResponse> confirmResponse = orderPaymentClient.confirmStablepayPayment(
-                orderProperties.getInternal().getSharedSecret(),
+                orderInternalProperties.sharedSecret(),
                 new PaymentConfirmInternalRequest(
                         order.getId(),
                         request.orderId(),
@@ -109,7 +111,7 @@ public class OrderPaymentOrchestrationService {
         String customerId = UUID.nameUUIDFromBytes(customerKey.getBytes(StandardCharsets.UTF_8)).toString();
 
         ApiResponse<PaymentPrepareInternalResponse> prepareResponse = orderPaymentClient.prepareStablepayPayment(
-                orderProperties.getInternal().getSharedSecret(),
+                orderInternalProperties.sharedSecret(),
                 new PaymentPrepareInternalRequest(
                         prepareTarget.getId(),
                         prepareTarget.getOrderNo(),
@@ -144,7 +146,7 @@ public class OrderPaymentOrchestrationService {
         }
 
         long startedAt = System.currentTimeMillis();
-        while ((System.currentTimeMillis() - startedAt) < orderProperties.getPaymentConfirmWaitTimeoutMs()) {
+        while ((System.currentTimeMillis() - startedAt) < orderProperties.paymentConfirmWaitTimeoutMs()) {
             Optional<OrderStatus> current = orderRepository.findDetailById(orderId).map(OrderEntity::getStatus);
             if (current.isEmpty()) {
                 throw new ErrorException(OrderErrorCode.ORDER_NOT_FOUND);
@@ -153,7 +155,7 @@ public class OrderPaymentOrchestrationService {
             if (currentStatus == OrderStatus.CONFIRMED || currentStatus == OrderStatus.PAYMENT_FAILED) {
                 return currentStatus;
             }
-            pause(orderProperties.getPaymentConfirmWaitIntervalMs());
+            pause(orderProperties.paymentConfirmWaitIntervalMs());
         }
         return orderRepository.findDetailById(orderId)
                 .map(OrderEntity::getStatus)
@@ -163,11 +165,11 @@ public class OrderPaymentOrchestrationService {
     private OrderEntity waitForPrepareTarget(OrderEntity order) {
         OrderEntity current = order;
         long startedAt = System.currentTimeMillis();
-        while ((System.currentTimeMillis() - startedAt) < orderProperties.getPaymentPrepareWaitTimeoutMs()) {
+        while ((System.currentTimeMillis() - startedAt) < orderProperties.paymentPrepareWaitTimeoutMs()) {
             if (!OrderStatusPolicy.PAYMENT_PREPARE_WAIT_STATUSES.contains(current.getStatus())) {
                 return current;
             }
-            pause(orderProperties.getPaymentPrepareWaitIntervalMs());
+            pause(orderProperties.paymentPrepareWaitIntervalMs());
             entityManager.clear();
             current = orderRepository.findDetailById(order.getId())
                     .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
@@ -224,11 +226,11 @@ public class OrderPaymentOrchestrationService {
     }
 
     private String buildPaymentPrepareSuccessUrl(String orderNo) {
-        return replaceOrderNoTemplate(orderProperties.getPaymentPrepareSuccessUrlTemplate(), orderNo);
+        return replaceOrderNoTemplate(orderProperties.paymentPrepareSuccessUrlTemplate(), orderNo);
     }
 
     private String buildPaymentPrepareFailUrl(String orderNo) {
-        return replaceOrderNoTemplate(orderProperties.getPaymentPrepareFailUrlTemplate(), orderNo);
+        return replaceOrderNoTemplate(orderProperties.paymentPrepareFailUrlTemplate(), orderNo);
     }
 
     private String replaceOrderNoTemplate(String template, String orderNo) {
@@ -319,4 +321,3 @@ public class OrderPaymentOrchestrationService {
         );
     }
 }
-

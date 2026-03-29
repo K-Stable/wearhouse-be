@@ -42,8 +42,16 @@ class DeliveryCommandServiceTest {
 
     @BeforeEach
     void setUp() {
-        OrderProperties orderProperties = new OrderProperties();
-        orderProperties.setDeliveryPurchaseConfirmDelayDays(7L);
+        OrderProperties orderProperties = new OrderProperties(
+                3000L,
+                100L,
+                3000L,
+                100L,
+                7L,
+                60000L,
+                "https://mall.wearhouse.com/orders/{orderNo}/payments/success",
+                "https://mall.wearhouse.com/orders/{orderNo}/payments/fail"
+        );
         deliveryCommandService = new DeliveryCommandService(
                 orderRepository,
                 deliveryRepository,

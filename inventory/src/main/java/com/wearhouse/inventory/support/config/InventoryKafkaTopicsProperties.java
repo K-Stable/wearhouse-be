@@ -1,25 +1,23 @@
 package com.wearhouse.inventory.support.config;
 
 import jakarta.validation.constraints.NotBlank;
-import lombok.Getter;
-import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
-@Component
-@Getter
-@Setter
 @Validated
 @ConfigurationProperties(prefix = "wearhouse.kafka")
-public class InventoryKafkaTopicsProperties {
+public record InventoryKafkaTopicsProperties(
+        @NotBlank
+        @DefaultValue("wearhouse.inventory.command.v1")
+        String inventoryCommandTopic,
 
-    @NotBlank
-    private String inventoryCommandTopic = "wearhouse.inventory.command.v1";
+        @NotBlank
+        @DefaultValue("wearhouse.inventory.event.v1")
+        String inventoryEventTopic,
 
-    @NotBlank
-    private String inventoryEventTopic = "wearhouse.inventory.event.v1";
-
-    @NotBlank
-    private String orderEventTopic = "wearhouse.order.event.v1";
+        @NotBlank
+        @DefaultValue("wearhouse.order.event.v1")
+        String orderEventTopic
+) {
 }

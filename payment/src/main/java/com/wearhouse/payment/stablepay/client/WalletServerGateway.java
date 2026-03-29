@@ -2,13 +2,13 @@ package com.wearhouse.payment.stablepay.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wearhouse.payment.support.config.PaymentPayProperties;
 import java.math.BigDecimal;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -32,12 +32,13 @@ public class WalletServerGateway {
     public WalletServerGateway(
             RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper,
-            @Value("${wearhouse.pay.api-base-url:https://api.kst-wallet.xyz}") String apiBaseUrl,
-            @Value("${wearhouse.pay.secret-key:pay_secret_key}") String secretKey,
-            @Value("${wearhouse.pay.prepare-path:/v1/merchant/checkout-sessions}") String preparePath,
-            @Value("${wearhouse.pay.confirm-path:/api/v1/merchant/payments/confirm}") String confirmPath,
-            @Value("${wearhouse.pay.timeout-ms:10000}") long timeoutMs
+            PaymentPayProperties paymentPayProperties
     ) {
+        String apiBaseUrl = paymentPayProperties.apiBaseUrl();
+        String secretKey = paymentPayProperties.secretKey();
+        String preparePath = paymentPayProperties.preparePath();
+        String confirmPath = paymentPayProperties.confirmPath();
+        long timeoutMs = paymentPayProperties.timeoutMs();
         long normalizedTimeoutMs = Math.max(1000L, timeoutMs);
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(normalizedTimeoutMs))

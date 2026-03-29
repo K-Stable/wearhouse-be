@@ -268,7 +268,7 @@ public class OrderSagaService {
                 .eventType(OrderEventType.PAYMENT_PREPARE_REQUESTED)
                 .aggregateType(AGGREGATE_TYPE_ORDER)
                 .aggregateId(String.valueOf(order.getId()))
-                .topic(kafkaTopicsProperties.getPaymentPrepareTopic())
+                .topic(kafkaTopicsProperties.paymentPrepareTopic())
                 .partitionKey(String.valueOf(order.getId()))
                 .payload(payload)
                 .build();
@@ -289,7 +289,7 @@ public class OrderSagaService {
                 .eventType(OrderEventType.INVENTORY_RELEASE_REQUESTED)
                 .aggregateType(AGGREGATE_TYPE_ORDER)
                 .aggregateId(String.valueOf(order.getId()))
-                .topic(kafkaTopicsProperties.getInventoryCommandTopic())
+                .topic(kafkaTopicsProperties.inventoryCommandTopic())
                 .partitionKey(String.valueOf(order.getId()))
                 .payload(payload)
                 .build();
@@ -309,7 +309,7 @@ public class OrderSagaService {
                 .eventType(OrderEventType.ORDER_CONFIRMED)
                 .aggregateType(AGGREGATE_TYPE_ORDER)
                 .aggregateId(String.valueOf(order.getId()))
-                .topic(kafkaTopicsProperties.getOrderEventTopic())
+                .topic(kafkaTopicsProperties.orderEventTopic())
                 .partitionKey(String.valueOf(order.getId()))
                 .payload(payload)
                 .build();

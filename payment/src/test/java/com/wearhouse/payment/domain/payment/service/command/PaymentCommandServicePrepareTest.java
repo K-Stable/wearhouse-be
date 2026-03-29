@@ -8,9 +8,10 @@ import static org.mockito.Mockito.when;
 import com.wearhouse.payment.internal.dto.request.WalletPrepareRequest;
 import com.wearhouse.payment.internal.dto.response.WalletPrepareResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.internal.service.PaymentInternalPrepareService;
-import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
+import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
+import com.wearhouse.payment.support.config.PaymentMockProperties;
+import com.wearhouse.payment.support.config.PaymentOrderInternalProperties;
 import com.wearhouse.payment.stablepay.client.WalletServerGateway;
 import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
 import com.wearhouse.payment.transaction.service.PaymentTransactionUpdateService;
@@ -21,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentCommandServicePrepareTest {
@@ -33,7 +33,7 @@ class PaymentCommandServicePrepareTest {
     @Mock
     private WalletServerGateway walletServerGateway;
     @Mock
-    private PaymentDomainEventPublisher paymentDomainEventPublisher;
+    private PaymentEventPublishService paymentEventPublishService;
 
     private PaymentInternalPrepareService paymentInternalPrepareService;
 
@@ -43,11 +43,10 @@ class PaymentCommandServicePrepareTest {
                 paymentTransactionCreateService,
                 paymentTransactionUpdateService,
                 walletServerGateway,
-                paymentDomainEventPublisher,
-                new PaymentKafkaTopicsProperties()
+                paymentEventPublishService,
+                new PaymentMockProperties(30, 10000L, 200, "FAIL", "TIMEOUT"),
+                new PaymentOrderInternalProperties("internal-secret")
         );
-        ReflectionTestUtils.setField(paymentInternalPrepareService, "pendingTimeoutMinutes", 30);
-        ReflectionTestUtils.setField(paymentInternalPrepareService, "internalSharedSecret", "internal-secret");
     }
 
     @Test

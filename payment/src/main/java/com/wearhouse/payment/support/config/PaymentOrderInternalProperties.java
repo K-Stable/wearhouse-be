@@ -6,14 +6,10 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
 @Validated
-@ConfigurationProperties(prefix = "wearhouse.kafka")
-public record PaymentKafkaTopicsProperties(
+@ConfigurationProperties(prefix = "wearhouse.order.internal")
+public record PaymentOrderInternalProperties(
         @NotBlank
-        @DefaultValue("wearhouse.payment.command.v1")
-        String paymentPrepareTopic,
-
-        @NotBlank
-        @DefaultValue("wearhouse.payment.event.v1")
-        String paymentEventTopic
+        @DefaultValue("wearhouse-order-internal-secret")
+        String sharedSecret
 ) {
 }

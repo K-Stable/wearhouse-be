@@ -19,7 +19,7 @@ public class PaymentCommandConsumer {
     private final PaymentPrepareRequestedHandler paymentPrepareRequestedHandler;
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
 
-    @KafkaListener(topics = "#{@paymentKafkaTopicsProperties.paymentPrepareTopic}")
+    @KafkaListener(topics = "${wearhouse.kafka.payment-prepare-topic:wearhouse.payment.command.v1}")
     public void consume(
             String message,
             Acknowledgment acknowledgment,

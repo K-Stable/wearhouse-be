@@ -26,6 +26,8 @@ import com.wearhouse.order.domain.entity.OrderItemEntity;
 import com.wearhouse.order.domain.entity.OrderInfo;
 import com.wearhouse.order.domain.model.OrderStatus;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
+import com.wearhouse.order.support.config.OrderInventoryInternalProperties;
+import com.wearhouse.order.support.config.OrderUserInternalProperties;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -34,7 +36,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -53,10 +54,8 @@ public class BuyerOrderQueryService {
     private final OrderRepository orderRepository;
     private final InventoryStockFeignClient inventoryStockFeignClient;
     private final UserOrderInfoFeignClient userOrderInfoFeignClient;
-    @Value("${wearhouse.inventory.internal.shared-secret:wearhouse-inventory-internal-secret}")
-    private String inventoryInternalSharedSecret;
-    @Value("${wearhouse.user.internal.shared-secret:wearhouse-user-internal-secret}")
-    private String userInternalSharedSecret;
+    private final OrderInventoryInternalProperties orderInventoryInternalProperties;
+    private final OrderUserInternalProperties orderUserInternalProperties;
 
     @ReadTx
     public OrderDetailResponse getOrderDetail(String orderNo) {
@@ -230,7 +229,7 @@ public class BuyerOrderQueryService {
     private InventoryOrderPreviewResponse callInventoryPreview(List<InventoryOrderPreviewItemRequest> items) {
         try {
             ApiResponse<InventoryOrderPreviewResponse> response = inventoryStockFeignClient.previewOrder(
-                    inventoryInternalSharedSecret,
+                    orderInventoryInternalProperties.sharedSecret(),
                     new InventoryOrderPreviewRequest(items)
             );
             if (response == null || !response.success() || response.data() == null || response.data().items() == null) {
@@ -247,7 +246,7 @@ public class BuyerOrderQueryService {
     private BuyerOrderPreviewInfo fetchBuyerPreviewInfo(Long buyerId) {
         try {
             ApiResponse<UserOrderPreviewInfoResponse> response = userOrderInfoFeignClient.getBuyerPreviewInfo(
-                    userInternalSharedSecret,
+                    orderUserInternalProperties.sharedSecret(),
                     new UserOrderPreviewInfoRequest(buyerId)
             );
             if (response == null || !response.success() || response.data() == null) {

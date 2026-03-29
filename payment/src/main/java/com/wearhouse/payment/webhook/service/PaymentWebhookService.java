@@ -2,17 +2,12 @@ package com.wearhouse.payment.webhook.service;
 
 import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.support.PaymentIdGenerator;
-import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
+import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.webhook.dto.request.PayWebhookRequest;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,8 +21,7 @@ public class PaymentWebhookService {
     private final PaymentWebhookValidationService paymentWebhookValidationService;
     private final PaymentWebhookDedupService paymentWebhookDedupService;
     private final PaymentTransactionRepository paymentTransactionRepository;
-    private final PaymentDomainEventPublisher paymentDomainEventPublisher;
-    private final PaymentKafkaTopicsProperties paymentKafkaTopicsProperties;
+    private final PaymentEventPublishService paymentEventPublishService;
 
     @WriteTx
     public void handle(String timestamp, String signature, String rawBody) {
@@ -87,23 +81,14 @@ public class PaymentWebhookService {
         );
         paymentTransactionRepository.save(transaction);
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", transaction.getOrderId());
-        payload.put("orderNo", transaction.getOrderNo());
-        payload.put("paymentId", transaction.getPaymentId());
-        payload.put("paymentKey", transaction.getPaymentKey());
-        payload.put("txHash", transaction.getTxHash());
-        payload.put("authorizedAt", transaction.getAuthorizedAt());
-
-        paymentDomainEventPublisher.publish(PaymentDomainEvent.builder()
-                .eventId(PaymentIdGenerator.newEventId())
-                .eventType("PaymentAuthorized")
-                .aggregateType("ORDER")
-                .aggregateId(String.valueOf(transaction.getOrderId()))
-                .topic(paymentKafkaTopicsProperties.getPaymentEventTopic())
-                .partitionKey(String.valueOf(transaction.getOrderId()))
-                .payload(payload)
-                .build());
+        paymentEventPublishService.publishAuthorizedFromWebhook(
+                transaction.getOrderId(),
+                transaction.getOrderNo(),
+                transaction.getPaymentId(),
+                transaction.getPaymentKey(),
+                transaction.getTxHash(),
+                transaction.getAuthorizedAt()
+        );
     }
 
     private void handlePaymentFailed(PayWebhookRequest webhookRequest) {
@@ -126,23 +111,14 @@ public class PaymentWebhookService {
         );
         paymentTransactionRepository.save(transaction);
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", transaction.getOrderId());
-        payload.put("orderNo", transaction.getOrderNo());
-        payload.put("paymentId", transaction.getPaymentId());
-        payload.put("reasonCode", reasonCode);
-        payload.put("reasonMessage", coalesce(webhookRequest.payment().reasonMessage(), "결제 승인에 실패했습니다."));
-        payload.put("failedAt", transaction.getFailedAt());
-
-        paymentDomainEventPublisher.publish(PaymentDomainEvent.builder()
-                .eventId(PaymentIdGenerator.newEventId())
-                .eventType("PaymentFailed")
-                .aggregateType("ORDER")
-                .aggregateId(String.valueOf(transaction.getOrderId()))
-                .topic(paymentKafkaTopicsProperties.getPaymentEventTopic())
-                .partitionKey(String.valueOf(transaction.getOrderId()))
-                .payload(payload)
-                .build());
+        paymentEventPublishService.publishFailed(
+                transaction.getOrderId(),
+                transaction.getOrderNo(),
+                transaction.getPaymentId(),
+                reasonCode,
+                coalesce(webhookRequest.payment().reasonMessage(), "결제 승인에 실패했습니다."),
+                transaction.getFailedAt()
+        );
     }
 
     private Optional<PaymentTransactionEntity> findTransaction(PayWebhookRequest.PaymentWebhookPayload payload) {

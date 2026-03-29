@@ -3,24 +3,21 @@ package com.wearhouse.payment.internal.service;
 import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.common.support.lock.DistributedLock;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
+import com.wearhouse.payment.domain.payment.model.PaymentMethod;
 import com.wearhouse.payment.kafka.dto.PaymentPrepareRequestedEvent;
+import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.support.PaymentIdGenerator;
-import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
+import com.wearhouse.payment.support.config.PaymentMockProperties;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
 import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -30,28 +27,19 @@ public class PaymentCommandService {
 
     private static final String PAYMENT_COMMAND_CONSUMER = "payment-command-consumer";
     private static final String DEFAULT_REASON_CODE = "PAYMENT_FAILED";
-    private static final String DEFAULT_METHOD = "CARD";
-    private static final String STABLE_METHOD = "STABLE";
-    private static final String LEGACY_STABLEPAY_METHOD = "STABLEPAY";
 
     private final PaymentInboxRepository paymentInboxRepository;
     private final PaymentTransactionCreateService paymentTransactionCreateService;
-    private final PaymentDomainEventPublisher paymentDomainEventPublisher;
+    private final PaymentEventPublishService paymentEventPublishService;
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
-    private final PaymentKafkaTopicsProperties paymentKafkaTopicsProperties;
-    @Value("${wearhouse.payment.mock.pending-timeout-minutes:30}")
-    private int pendingTimeoutMinutes;
-    @Value("${wearhouse.payment.mock.fail-methods:FAIL}")
-    private String failMethodsRaw;
-    @Value("${wearhouse.payment.mock.timeout-methods:TIMEOUT}")
-    private String timeoutMethodsRaw;
+    private final PaymentMockProperties paymentMockProperties;
     private Set<String> failMethods = Set.of();
     private Set<String> timeoutMethods = Set.of();
 
     @PostConstruct
     public void init() {
-        this.failMethods = parseUpperCaseSet(failMethodsRaw);
-        this.timeoutMethods = parseUpperCaseSet(timeoutMethodsRaw);
+        this.failMethods = parseUpperCaseSet(paymentMockProperties.failMethods());
+        this.timeoutMethods = parseUpperCaseSet(paymentMockProperties.timeoutMethods());
     }
 
     @WriteTx
@@ -102,37 +90,37 @@ public class PaymentCommandService {
 
         String paymentId = PaymentIdGenerator.newPaymentId();
         LocalDateTime now = LocalDateTime.now();
-        String paymentMethod = resolvePaymentMethod(event.paymentMethod());
-        String normalizedMethod = normalizeMethod(paymentMethod);
+        String requestedMethodToken = PaymentMethod.requestedTokenOrDefault(event.paymentMethod());
+        String paymentMethod = PaymentMethod.from(requestedMethodToken).name();
 
         try {
-            if (isStableMethod(normalizedMethod)) {
+            if (PaymentMethod.isStable(requestedMethodToken)) {
                 paymentTransactionCreateService.insertPending(
                         paymentId,
                         event.orderId(),
                         event.orderNo(),
                         event.amount(),
                         paymentMethod,
-                        now.plusMinutes(pendingTimeoutMinutes)
+                        now.plusMinutes(paymentMockProperties.pendingTimeoutMinutes())
                 );
                 paymentKafkaFlowMetrics.incrementPaymentDecision("stablepay_pending");
                 return;
             }
 
-            if (timeoutMethods.contains(normalizedMethod)) {
+            if (timeoutMethods.contains(requestedMethodToken)) {
                 paymentTransactionCreateService.insertPending(
                         paymentId,
                         event.orderId(),
                         event.orderNo(),
                         event.amount(),
                         paymentMethod,
-                        now.plusMinutes(pendingTimeoutMinutes)
+                        now.plusMinutes(paymentMockProperties.pendingTimeoutMinutes())
                 );
                 paymentKafkaFlowMetrics.incrementPaymentDecision("pending_timeout");
                 return;
             }
 
-            if (failMethods.contains(normalizedMethod)) {
+            if (failMethods.contains(requestedMethodToken)) {
                 paymentTransactionCreateService.insertFailed(
                         paymentId,
                         event.orderId(),
@@ -142,7 +130,7 @@ public class PaymentCommandService {
                         DEFAULT_REASON_CODE,
                         now
                 );
-                publishPaymentFailed(
+                paymentEventPublishService.publishFailed(
                         event.orderId(),
                         event.orderNo(),
                         paymentId,
@@ -162,67 +150,18 @@ public class PaymentCommandService {
                     paymentMethod,
                     now
             );
-            publishPaymentAuthorized(event.orderId(), event.orderNo(), paymentId, event.amount(), paymentMethod, now);
+            paymentEventPublishService.publishAuthorized(
+                    event.orderId(),
+                    event.orderNo(),
+                    paymentId,
+                    event.amount(),
+                    paymentMethod,
+                    now
+            );
             paymentKafkaFlowMetrics.incrementPaymentDecision("authorized");
         } catch (DuplicateKeyException ignored) {
             // order_id unique 충돌은 중복 요청으로 간주한다.
         }
-    }
-
-    private void publishPaymentAuthorized(
-            Long orderId,
-            String orderNo,
-            String paymentId,
-            BigDecimal amount,
-            String paymentMethod,
-            LocalDateTime authorizedAt
-    ) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", orderId);
-        payload.put("orderNo", orderNo);
-        payload.put("paymentId", paymentId);
-        payload.put("amount", amount);
-        payload.put("method", paymentMethod);
-        payload.put("authorizedAt", authorizedAt);
-
-        PaymentDomainEvent event = PaymentDomainEvent.builder()
-                .eventId(PaymentIdGenerator.newEventId())
-                .eventType("PaymentAuthorized")
-                .aggregateType("ORDER")
-                .aggregateId(String.valueOf(orderId))
-                .topic(paymentKafkaTopicsProperties.getPaymentEventTopic())
-                .partitionKey(String.valueOf(orderId))
-                .payload(payload)
-                .build();
-        paymentDomainEventPublisher.publish(event);
-    }
-
-    private void publishPaymentFailed(
-            Long orderId,
-            String orderNo,
-            String paymentId,
-            String reasonCode,
-            String reasonMessage,
-            LocalDateTime failedAt
-    ) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", orderId);
-        payload.put("orderNo", orderNo);
-        payload.put("paymentId", paymentId);
-        payload.put("reasonCode", reasonCode);
-        payload.put("reasonMessage", reasonMessage);
-        payload.put("failedAt", failedAt);
-
-        PaymentDomainEvent event = PaymentDomainEvent.builder()
-                .eventId(PaymentIdGenerator.newEventId())
-                .eventType("PaymentFailed")
-                .aggregateType("ORDER")
-                .aggregateId(String.valueOf(orderId))
-                .topic(paymentKafkaTopicsProperties.getPaymentEventTopic())
-                .partitionKey(String.valueOf(orderId))
-                .payload(payload)
-                .build();
-        paymentDomainEventPublisher.publish(event);
     }
 
     private void validatePrepareRequestedEvent(PaymentPrepareRequestedEvent event) {
@@ -243,20 +182,5 @@ public class PaymentCommandService {
                 .filter(value -> !value.isEmpty())
                 .map(String::toUpperCase)
                 .collect(Collectors.toSet());
-    }
-
-    private String normalizeMethod(String method) {
-        return method == null ? "" : method.trim().toUpperCase();
-    }
-
-    private boolean isStableMethod(String normalizedMethod) {
-        return STABLE_METHOD.equals(normalizedMethod) || LEGACY_STABLEPAY_METHOD.equals(normalizedMethod);
-    }
-
-    private String resolvePaymentMethod(String paymentMethod) {
-        if (paymentMethod == null || paymentMethod.isBlank()) {
-            return DEFAULT_METHOD;
-        }
-        return paymentMethod;
     }
 }

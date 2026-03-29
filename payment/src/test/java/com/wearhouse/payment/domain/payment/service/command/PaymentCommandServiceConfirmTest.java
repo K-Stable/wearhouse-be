@@ -10,9 +10,9 @@ import static org.mockito.Mockito.when;
 import com.wearhouse.payment.internal.dto.request.PaymentConfirmRequest;
 import com.wearhouse.payment.internal.dto.response.PaymentConfirmResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.internal.service.PaymentInternalConfirmService;
-import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
+import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
+import com.wearhouse.payment.support.config.PaymentOrderInternalProperties;
 import com.wearhouse.payment.stablepay.client.WalletServerGateway;
 import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
 import com.wearhouse.payment.transaction.service.PaymentTransactionUpdateService;
@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentCommandServiceConfirmTest {
@@ -36,7 +35,7 @@ class PaymentCommandServiceConfirmTest {
     @Mock
     private WalletServerGateway walletServerGateway;
     @Mock
-    private PaymentDomainEventPublisher paymentDomainEventPublisher;
+    private PaymentEventPublishService paymentEventPublishService;
 
     private PaymentInternalConfirmService paymentInternalConfirmService;
 
@@ -46,10 +45,9 @@ class PaymentCommandServiceConfirmTest {
                 paymentTransactionCreateService,
                 paymentTransactionUpdateService,
                 walletServerGateway,
-                paymentDomainEventPublisher,
-                new PaymentKafkaTopicsProperties()
+                paymentEventPublishService,
+                new PaymentOrderInternalProperties("internal-secret")
         );
-        ReflectionTestUtils.setField(paymentInternalConfirmService, "internalSharedSecret", "internal-secret");
     }
 
     @Test
@@ -80,7 +78,14 @@ class PaymentCommandServiceConfirmTest {
         assertThat(response.paymentStatus()).isEqualTo("AUTHORIZED");
         assertThat(pending.getStatus().name()).isEqualTo("AUTHORIZED");
         verify(paymentTransactionUpdateService).save(pending);
-        verify(paymentDomainEventPublisher).publish(any());
+        verify(paymentEventPublishService).publishAuthorized(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
     }
 
     @Test
@@ -101,7 +106,22 @@ class PaymentCommandServiceConfirmTest {
         )).isInstanceOf(IllegalArgumentException.class);
 
         verify(walletServerGateway, never()).walletConfirm(any(), any());
-        verify(paymentDomainEventPublisher, never()).publish(any());
+        verify(paymentEventPublishService, never()).publishAuthorized(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+        verify(paymentEventPublishService, never()).publishFailed(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
         verify(paymentTransactionUpdateService, never()).save(any());
     }
 }

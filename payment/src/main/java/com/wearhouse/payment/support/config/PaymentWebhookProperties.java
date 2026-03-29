@@ -1,19 +1,20 @@
 package com.wearhouse.payment.support.config;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
 @Validated
-@ConfigurationProperties(prefix = "wearhouse.kafka")
-public record PaymentKafkaTopicsProperties(
+@ConfigurationProperties(prefix = "wearhouse.pay.webhook")
+public record PaymentWebhookProperties(
         @NotBlank
-        @DefaultValue("wearhouse.payment.command.v1")
-        String paymentPrepareTopic,
+        @DefaultValue("pay-webhook-secret")
+        String secret,
 
-        @NotBlank
-        @DefaultValue("wearhouse.payment.event.v1")
-        String paymentEventTopic
+        @PositiveOrZero
+        @DefaultValue("300")
+        long allowedSkewSeconds
 ) {
 }

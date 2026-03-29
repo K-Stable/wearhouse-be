@@ -8,10 +8,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
+import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.webhook.dto.request.PayWebhookRequest;
 import com.wearhouse.payment.webhook.dto.request.PayWebhookRequest.PaymentWebhookPayload;
 import com.wearhouse.payment.webhook.service.PaymentWebhookDedupService;
@@ -32,11 +31,11 @@ class PaymentWebhookServiceTest {
     @Mock
     private PaymentTransactionRepository paymentTransactionRepository;
     @Mock
-    private PaymentDomainEventPublisher paymentDomainEventPublisher;
-    @Mock
     private PaymentWebhookValidationService paymentWebhookValidationService;
     @Mock
     private PaymentWebhookDedupService paymentWebhookDedupService;
+    @Mock
+    private PaymentEventPublishService paymentEventPublishService;
 
     private PaymentWebhookService paymentWebhookService;
 
@@ -46,8 +45,7 @@ class PaymentWebhookServiceTest {
                 paymentWebhookValidationService,
                 paymentWebhookDedupService,
                 paymentTransactionRepository,
-                paymentDomainEventPublisher,
-                new PaymentKafkaTopicsProperties()
+                paymentEventPublishService
         );
     }
 
@@ -98,6 +96,13 @@ class PaymentWebhookServiceTest {
 
         assertThat(transaction.getStatus()).isEqualTo(PaymentStatus.AUTHORIZED);
         verify(paymentTransactionRepository, times(1)).save(transaction);
-        verify(paymentDomainEventPublisher, times(1)).publish(any());
+        verify(paymentEventPublishService, times(1)).publishAuthorizedFromWebhook(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
     }
 }

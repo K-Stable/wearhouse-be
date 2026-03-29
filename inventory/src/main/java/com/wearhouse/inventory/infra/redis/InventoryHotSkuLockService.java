@@ -42,8 +42,8 @@ public class InventoryHotSkuLockService {
         RLock lock = redissonClient.getLock(key);
         try {
             boolean acquired = lock.tryLock(
-                    inventoryProperties.getLock().getWaitTimeMs(),
-                    inventoryProperties.getLock().getLeaseTimeMs(),
+                    inventoryProperties.lock().waitTimeMs(),
+                    inventoryProperties.lock().leaseTimeMs(),
                     TimeUnit.MILLISECONDS
             );
             if (!acquired) {
@@ -70,7 +70,7 @@ public class InventoryHotSkuLockService {
     }
 
     private String lockKey(Long skuId) {
-        return inventoryProperties.getLock().getKeyPrefix() + skuId;
+        return inventoryProperties.lock().keyPrefix() + skuId;
     }
 
     private List<SkuLockHandle> acquireAll(Set<Long> skuIds, String ownerToken) {
@@ -100,7 +100,7 @@ public class InventoryHotSkuLockService {
             return List.of();
         }
         // hot SKU만 락 대상으로 제한해 락 오버헤드를 줄인다.
-        Set<Long> hotSkuIds = parseHotSkuIds(inventoryProperties.getHotSkus());
+        Set<Long> hotSkuIds = parseHotSkuIds(inventoryProperties.hotSkus());
         if (hotSkuIds.isEmpty()) {
             return skuIds.stream().sorted().toList();
         }

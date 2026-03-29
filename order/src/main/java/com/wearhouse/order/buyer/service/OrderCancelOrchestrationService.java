@@ -112,7 +112,7 @@ public class OrderCancelOrchestrationService {
                 releaseEventId,
                 OrderEventType.INVENTORY_RELEASE_REQUESTED,
                 order.getId(),
-                kafkaTopicsProperties.getInventoryCommandTopic(),
+                kafkaTopicsProperties.inventoryCommandTopic(),
                 releasePayload
         );
     }

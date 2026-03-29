@@ -164,14 +164,22 @@ class InventoryCommandServiceConcurrencyTest {
     }
 
     private BuyerInventoryCommandService newService(String hotSkuRaw, int optimisticRetryCount) {
-        InventoryProperties inventoryProperties = new InventoryProperties();
-        inventoryProperties.setReservationHoldMinutes(15);
-        inventoryProperties.setOptimisticRetryCount(optimisticRetryCount);
-        inventoryProperties.setReservationExpireBatchSize(200);
-        inventoryProperties.setHotSkus(hotSkuRaw);
+        InventoryProperties inventoryProperties = new InventoryProperties(
+                15,
+                optimisticRetryCount,
+                30000L,
+                200,
+                hotSkuRaw,
+                new InventoryProperties.Lock(1200L, 3000L, 40L, "inventory:lock:sku:"),
+                new InventoryProperties.Cache(30L, "inventory:stock:available:"),
+                new InventoryProperties.Internal("wearhouse-inventory-internal-secret")
+        );
 
-        InventoryKafkaTopicsProperties inventoryKafkaTopicsProperties = new InventoryKafkaTopicsProperties();
-        inventoryKafkaTopicsProperties.setInventoryEventTopic("wearhouse.inventory.event.v1");
+        InventoryKafkaTopicsProperties inventoryKafkaTopicsProperties = new InventoryKafkaTopicsProperties(
+                "wearhouse.inventory.command.v1",
+                "wearhouse.inventory.event.v1",
+                "wearhouse.order.event.v1"
+        );
 
         BuyerInventoryCommandService service = new BuyerInventoryCommandService(
                 inventoryStockRepository,

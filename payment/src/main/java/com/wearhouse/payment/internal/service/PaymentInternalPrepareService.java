@@ -4,21 +4,18 @@ import com.wearhouse.common.global.error.CommonErrorCode;
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
+import com.wearhouse.payment.domain.payment.model.PaymentMethod;
 import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.internal.dto.request.WalletPrepareRequest;
 import com.wearhouse.payment.internal.dto.response.WalletPrepareResponse;
+import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.stablepay.client.WalletServerGateway;
-import com.wearhouse.payment.support.PaymentIdGenerator;
-import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
+import com.wearhouse.payment.support.config.PaymentMockProperties;
+import com.wearhouse.payment.support.config.PaymentOrderInternalProperties;
 import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
 import com.wearhouse.payment.transaction.service.PaymentTransactionUpdateService;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,19 +23,13 @@ import org.springframework.stereotype.Service;
 public class PaymentInternalPrepareService {
 
     private static final String DEFAULT_REASON_CODE = "PAYMENT_FAILED";
-    private static final String LEGACY_STABLEPAY_METHOD = "STABLEPAY";
-
-    private static final String STABLE_METHOD = "STABLE";
 
     private final PaymentTransactionCreateService paymentTransactionCreateService;
     private final PaymentTransactionUpdateService paymentTransactionUpdateService;
     private final WalletServerGateway walletServerGateway;
-    private final PaymentDomainEventPublisher paymentDomainEventPublisher;
-    private final PaymentKafkaTopicsProperties paymentKafkaTopicsProperties;
-    @Value("${wearhouse.payment.mock.pending-timeout-minutes:30}")
-    private int pendingTimeoutMinutes;
-    @Value("${wearhouse.order.internal.shared-secret:wearhouse-order-internal-secret}")
-    private String internalSharedSecret;
+    private final PaymentEventPublishService paymentEventPublishService;
+    private final PaymentMockProperties paymentMockProperties;
+    private final PaymentOrderInternalProperties paymentOrderInternalProperties;
 
     @WriteTx
     public WalletPrepareResponse prepare(
@@ -52,7 +43,7 @@ public class PaymentInternalPrepareService {
                 request.orderId(),
                 request.orderNo(),
                 request.amount(),
-                pendingTimeoutMinutes
+                paymentMockProperties.pendingTimeoutMinutes()
         );
         validatePrepareTarget(transaction);
 
@@ -76,8 +67,7 @@ public class PaymentInternalPrepareService {
         WalletServerGateway.WalletPrepareResult result = walletServerGateway.walletPrepare(walletPrepareRequest, idempotencyKey);
         LocalDateTime now = LocalDateTime.now();
 
-        String paymentStatus = normalizePrepareStatus(result.paymentStatus());
-        if ("FAILED".equals(paymentStatus)) {
+        if ("FAILED".equalsIgnoreCase(result.paymentStatus())) {
             String reasonCode = DEFAULT_REASON_CODE;
             transaction.failByWebhook(
                     reasonCode,
@@ -86,7 +76,7 @@ public class PaymentInternalPrepareService {
                     now
             );
             paymentTransactionUpdateService.save(transaction);
-            publishPaymentFailed(
+            paymentEventPublishService.publishFailed(
                     transaction.getOrderId(),
                     transaction.getOrderNo(),
                     transaction.getPaymentId(),
@@ -122,36 +112,8 @@ public class PaymentInternalPrepareService {
         );
     }
 
-    private void publishPaymentFailed(
-            Long orderId,
-            String orderNo,
-            String paymentId,
-            String reasonCode,
-            String reasonMessage,
-            LocalDateTime failedAt
-    ) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", orderId);
-        payload.put("orderNo", orderNo);
-        payload.put("paymentId", paymentId);
-        payload.put("reasonCode", reasonCode);
-        payload.put("reasonMessage", reasonMessage);
-        payload.put("failedAt", failedAt);
-
-        PaymentDomainEvent event = PaymentDomainEvent.builder()
-                .eventId(PaymentIdGenerator.newEventId())
-                .eventType("PaymentFailed")
-                .aggregateType("ORDER")
-                .aggregateId(String.valueOf(orderId))
-                .topic(paymentKafkaTopicsProperties.getPaymentEventTopic())
-                .partitionKey(String.valueOf(orderId))
-                .payload(payload)
-                .build();
-        paymentDomainEventPublisher.publish(event);
-    }
-
     private void assertInternalSecret(String internalSecret) {
-        if (internalSecret == null || !internalSecret.equals(internalSharedSecret)) {
+        if (internalSecret == null || !internalSecret.equals(paymentOrderInternalProperties.sharedSecret())) {
             throw new ErrorException(CommonErrorCode.UNAUTHORIZED, "내부 인증이 유효하지 않습니다.");
         }
     }
@@ -173,7 +135,7 @@ public class PaymentInternalPrepareService {
     }
 
     private void validatePrepareTarget(PaymentTransactionEntity transaction) {
-        if (!isStableMethod(normalizeMethod(transaction.getPaymentMethod()))) {
+        if (!PaymentMethod.isStable(transaction.getPaymentMethod())) {
             throw new IllegalArgumentException("STABLE 결제에 대해서만 prepare 요청이 가능합니다.");
         }
     }
@@ -183,21 +145,6 @@ public class PaymentInternalPrepareService {
             return idempotencyKey;
         }
         return "prepare:" + orderNo;
-    }
-
-    private boolean isStableMethod(String normalizedMethod) {
-        return STABLE_METHOD.equals(normalizedMethod) || LEGACY_STABLEPAY_METHOD.equals(normalizedMethod);
-    }
-
-    private String normalizeMethod(String method) {
-        return method == null ? "" : method.trim().toUpperCase();
-    }
-
-    private String normalizePrepareStatus(String status) {
-        if (status == null || status.isBlank()) {
-            return "READY";
-        }
-        return status.trim().toUpperCase();
     }
 
     private String coalesce(String value, String fallback) {

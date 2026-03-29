@@ -27,6 +27,7 @@ import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.payment.service.OrderPaymentOrchestrationService;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
+import com.wearhouse.order.support.config.OrderInventoryInternalProperties;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -37,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -54,10 +54,9 @@ public class OrderCreateOrchestrationService {
     private final OrderDomainEventPublisher orderDomainEventPublisher;
     private final InventoryStockFeignClient inventoryStockFeignClient;
     private final OrderKafkaTopicsProperties kafkaTopicsProperties;
+    private final OrderInventoryInternalProperties orderInventoryInternalProperties;
     private final TransactionTemplate transactionTemplate;
     private final OrderPaymentOrchestrationService orderPaymentOrchestrationService;
-    @Value("${wearhouse.inventory.internal.shared-secret:wearhouse-inventory-internal-secret}")
-    private String inventoryInternalSharedSecret;
 
     public OrderCreateResponse createOrder(OrderCreateRequest request) {
         OrderCreateContext context = transactionTemplate.execute(status -> {
@@ -181,7 +180,7 @@ public class OrderCreateOrchestrationService {
 
         try {
             ApiResponse<InventorySellerResolveResponse> response = inventoryStockFeignClient.resolveSellers(
-                    inventoryInternalSharedSecret,
+                    orderInventoryInternalProperties.sharedSecret(),
                     new InventorySellerResolveRequest(new ArrayList<>(skuIds))
             );
             if (response == null || !response.success() || response.data() == null || response.data().items() == null) {
@@ -242,7 +241,7 @@ public class OrderCreateOrchestrationService {
                 context.eventId(),
                 OrderEventType.INVENTORY_RESERVE_REQUESTED,
                 order.getId(),
-                kafkaTopicsProperties.getInventoryReserveTopic(),
+                kafkaTopicsProperties.inventoryReserveTopic(),
                 payload
         );
     }

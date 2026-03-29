@@ -109,7 +109,7 @@ public class DeliveryCommandService {
 
     @WriteTx
     public int autoConfirmDeliveredOrders() {
-        LocalDateTime threshold = LocalDateTime.now().minusDays(orderProperties.getDeliveryPurchaseConfirmDelayDays());
+        LocalDateTime threshold = LocalDateTime.now().minusDays(orderProperties.deliveryPurchaseConfirmDelayDays());
         List<DeliveryEntity> targets = deliveryRepository.findAutoConfirmTargets(
                 DeliveryStatus.DELIVERED,
                 threshold,

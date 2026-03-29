@@ -57,10 +57,14 @@ class OrderSagaServiceFlowTest {
 
     @BeforeEach
     void setUp() {
-        OrderKafkaTopicsProperties topicsProperties = new OrderKafkaTopicsProperties();
-        topicsProperties.setPaymentPrepareTopic("wearhouse.payment.command.v1");
-        topicsProperties.setInventoryCommandTopic("wearhouse.inventory.command.v1");
-        topicsProperties.setOrderEventTopic("wearhouse.order.event.v1");
+        OrderKafkaTopicsProperties topicsProperties = new OrderKafkaTopicsProperties(
+                "wearhouse.inventory.command.v1",
+                "wearhouse.inventory.command.v1",
+                "wearhouse.inventory.event.v1",
+                "wearhouse.payment.command.v1",
+                "wearhouse.payment.event.v1",
+                "wearhouse.order.event.v1"
+        );
 
         orderSagaService = new OrderSagaService(
                 orderRepository,

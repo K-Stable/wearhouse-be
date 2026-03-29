@@ -20,7 +20,7 @@ public class InventoryCommandConsumer {
     private final BuyerInventoryCommandService buyerInventoryCommandService;
 
 
-    @KafkaListener(topics = "#{@inventoryKafkaTopicsProperties.inventoryCommandTopic}")
+    @KafkaListener(topics = "${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}")
     public void consume(
             String message,
             Acknowledgment acknowledgment,

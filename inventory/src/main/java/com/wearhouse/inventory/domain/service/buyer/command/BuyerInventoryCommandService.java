@@ -183,7 +183,7 @@ public class BuyerInventoryCommandService {
                 .findByStatusAndExpiresAtLessThanEqualOrderByIdAsc(
                         InventoryReservationStatus.RESERVED,
                         now,
-                        PageRequest.of(0, inventoryProperties.getReservationExpireBatchSize())
+                        PageRequest.of(0, inventoryProperties.reservationExpireBatchSize())
                 );
 
         int releasedCount = 0;
@@ -258,7 +258,7 @@ public class BuyerInventoryCommandService {
             String sourceEventId,
             Map<Long, Integer> quantitiesBySku
     ) {
-        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(inventoryProperties.getReservationHoldMinutes());
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(inventoryProperties.reservationHoldMinutes());
         List<ReservationLineResult> results = new ArrayList<>();
         for (Map.Entry<Long, Integer> entry : quantitiesBySku.entrySet()) {
             Long skuId = entry.getKey();
@@ -323,7 +323,7 @@ public class BuyerInventoryCommandService {
     }
 
     private void reserveStockWithRetry(Long skuId, Integer quantity) {
-        int retryCount = inventoryProperties.getOptimisticRetryCount();
+        int retryCount = inventoryProperties.optimisticRetryCount();
         for (int attempt = 1; attempt <= retryCount; attempt++) {
             InventoryStockEntity stock = inventoryStockRepository.findBySkuId(skuId)
                     .orElseThrow(() -> new ErrorException(InventoryErrorCode.STOCK_NOT_FOUND));
@@ -346,7 +346,7 @@ public class BuyerInventoryCommandService {
     }
 
     private void releaseStockWithRetry(Long skuId, Integer quantity) {
-        int retryCount = inventoryProperties.getOptimisticRetryCount();
+        int retryCount = inventoryProperties.optimisticRetryCount();
         for (int attempt = 1; attempt <= retryCount; attempt++) {
             InventoryStockEntity stock = inventoryStockRepository.findBySkuId(skuId)
                     .orElseThrow(() -> new ErrorException(InventoryErrorCode.STOCK_NOT_FOUND));
@@ -365,7 +365,7 @@ public class BuyerInventoryCommandService {
     }
 
     private InventoryStockEntity confirmStockWithRetry(Long skuId, Integer quantity) {
-        int retryCount = inventoryProperties.getOptimisticRetryCount();
+        int retryCount = inventoryProperties.optimisticRetryCount();
         for (int attempt = 1; attempt <= retryCount; attempt++) {
             InventoryStockEntity stock = inventoryStockRepository.findBySkuId(skuId)
                     .orElseThrow(() -> new ErrorException(InventoryErrorCode.STOCK_NOT_FOUND));
@@ -421,7 +421,7 @@ public class BuyerInventoryCommandService {
                 .eventType("StockReserved")
                 .aggregateType("ORDER")
                 .aggregateId(String.valueOf(command.orderId()))
-                .topic(inventoryKafkaTopicsProperties.getInventoryEventTopic())
+                .topic(inventoryKafkaTopicsProperties.inventoryEventTopic())
                 .partitionKey(String.valueOf(command.orderId()))
                 .payload(payload)
                 .build();
@@ -445,7 +445,7 @@ public class BuyerInventoryCommandService {
                 .eventType("StockReserveFailed")
                 .aggregateType("ORDER")
                 .aggregateId(String.valueOf(orderId))
-                .topic(inventoryKafkaTopicsProperties.getInventoryEventTopic())
+                .topic(inventoryKafkaTopicsProperties.inventoryEventTopic())
                 .partitionKey(String.valueOf(orderId))
                 .payload(payload)
                 .build();
@@ -466,7 +466,7 @@ public class BuyerInventoryCommandService {
                 .eventType("InventoryReleased")
                 .aggregateType("ORDER")
                 .aggregateId(String.valueOf(command.orderId()))
-                .topic(inventoryKafkaTopicsProperties.getInventoryEventTopic())
+                .topic(inventoryKafkaTopicsProperties.inventoryEventTopic())
                 .partitionKey(String.valueOf(command.orderId()))
                 .payload(payload)
                 .build();

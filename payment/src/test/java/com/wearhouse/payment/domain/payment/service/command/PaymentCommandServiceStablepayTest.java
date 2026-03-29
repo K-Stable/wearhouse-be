@@ -7,11 +7,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.internal.service.PaymentCommandService;
 import com.wearhouse.payment.kafka.dto.PaymentPrepareRequestedEvent;
+import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
-import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
+import com.wearhouse.payment.support.config.PaymentMockProperties;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
 import java.math.BigDecimal;
@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentCommandServiceStablepayTest {
@@ -31,9 +30,9 @@ class PaymentCommandServiceStablepayTest {
     @Mock
     private PaymentTransactionCreateService paymentTransactionCreateService;
     @Mock
-    private PaymentDomainEventPublisher paymentDomainEventPublisher;
-    @Mock
     private PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
+    @Mock
+    private PaymentEventPublishService paymentEventPublishService;
 
     private PaymentCommandService paymentCommandService;
 
@@ -42,13 +41,10 @@ class PaymentCommandServiceStablepayTest {
         paymentCommandService = new PaymentCommandService(
                 paymentInboxRepository,
                 paymentTransactionCreateService,
-                paymentDomainEventPublisher,
+                paymentEventPublishService,
                 paymentKafkaFlowMetrics,
-                new PaymentKafkaTopicsProperties()
+                new PaymentMockProperties(30, 10000L, 200, "FAIL", "TIMEOUT")
         );
-        ReflectionTestUtils.setField(paymentCommandService, "pendingTimeoutMinutes", 30);
-        ReflectionTestUtils.setField(paymentCommandService, "failMethodsRaw", "FAIL");
-        ReflectionTestUtils.setField(paymentCommandService, "timeoutMethodsRaw", "TIMEOUT");
         paymentCommandService.init();
     }
 
@@ -75,6 +71,21 @@ class PaymentCommandServiceStablepayTest {
                 eq("STABLE"),
                 any()
         );
-        verify(paymentDomainEventPublisher, never()).publish(any());
+        verify(paymentEventPublishService, never()).publishAuthorized(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+        verify(paymentEventPublishService, never()).publishFailed(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
     }
 }

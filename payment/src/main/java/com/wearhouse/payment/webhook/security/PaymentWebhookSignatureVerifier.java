@@ -1,5 +1,6 @@
 package com.wearhouse.payment.webhook.security;
 
+import com.wearhouse.payment.support.config.PaymentWebhookProperties;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
@@ -7,7 +8,6 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -18,12 +18,9 @@ public class PaymentWebhookSignatureVerifier {
     private final String webhookSecret;
     private final Duration allowedSkew;
 
-    public PaymentWebhookSignatureVerifier(
-            @Value("${wearhouse.pay.webhook.secret:}") String webhookSecret,
-            @Value("${wearhouse.pay.webhook.allowed-skew-seconds:300}") long allowedSkewSeconds
-    ) {
-        this.webhookSecret = webhookSecret;
-        this.allowedSkew = Duration.ofSeconds(Math.max(allowedSkewSeconds, 0));
+    public PaymentWebhookSignatureVerifier(PaymentWebhookProperties paymentWebhookProperties) {
+        this.webhookSecret = paymentWebhookProperties.secret();
+        this.allowedSkew = Duration.ofSeconds(Math.max(paymentWebhookProperties.allowedSkewSeconds(), 0));
     }
 
     public void validate(String timestamp, String signature, String rawBody) {

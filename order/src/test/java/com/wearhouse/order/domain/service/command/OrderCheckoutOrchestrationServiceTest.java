@@ -31,6 +31,8 @@ import com.wearhouse.order.payment.client.OrderPaymentClient;
 import com.wearhouse.order.payment.service.OrderPaymentOrchestrationService;
 import com.wearhouse.order.payment.dto.response.PaymentConfirmInternalResponse;
 import com.wearhouse.order.payment.dto.response.PaymentPrepareInternalResponse;
+import com.wearhouse.order.support.config.OrderInternalProperties;
+import com.wearhouse.order.support.config.OrderInventoryInternalProperties;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import com.wearhouse.order.support.config.OrderProperties;
 import jakarta.persistence.EntityManager;
@@ -46,7 +48,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class OrderCommandServiceOrchestrationTest {
@@ -73,16 +74,28 @@ class OrderCommandServiceOrchestrationTest {
 
     @BeforeEach
     void setUp() {
-        OrderKafkaTopicsProperties topicsProperties = new OrderKafkaTopicsProperties();
-        topicsProperties.setInventoryReserveTopic("inventory.reserve.topic");
-        topicsProperties.setInventoryCommandTopic("inventory.command.topic");
+        OrderKafkaTopicsProperties topicsProperties = new OrderKafkaTopicsProperties(
+                "inventory.reserve.topic",
+                "inventory.command.topic",
+                "inventory.event.topic",
+                "payment.prepare.topic",
+                "payment.event.topic",
+                "order.event.topic"
+        );
 
-        OrderProperties orderProperties = new OrderProperties();
-        orderProperties.getInternal().setSharedSecret("internal-secret");
-        orderProperties.setPaymentConfirmWaitTimeoutMs(1000L);
-        orderProperties.setPaymentConfirmWaitIntervalMs(10L);
-        orderProperties.setPaymentPrepareWaitTimeoutMs(1000L);
-        orderProperties.setPaymentPrepareWaitIntervalMs(10L);
+        OrderProperties orderProperties = new OrderProperties(
+                1000L,
+                10L,
+                1000L,
+                10L,
+                7L,
+                60000L,
+                "https://mall.wearhouse.com/orders/{orderNo}/payments/success",
+                "https://mall.wearhouse.com/orders/{orderNo}/payments/fail"
+        );
+        OrderInternalProperties orderInternalProperties = new OrderInternalProperties("internal-secret");
+        OrderInventoryInternalProperties orderInventoryInternalProperties =
+                new OrderInventoryInternalProperties("inventory-secret");
 
         lenient().when(transactionTemplate.execute(any()))
                 .thenAnswer(invocation -> {
@@ -96,6 +109,7 @@ class OrderCommandServiceOrchestrationTest {
                 orderSagaRepository,
                 orderPaymentClient,
                 orderProperties,
+                orderInternalProperties,
                 entityManager
         );
         orderCreateOrchestrationService = new OrderCreateOrchestrationService(
@@ -105,10 +119,10 @@ class OrderCommandServiceOrchestrationTest {
                 orderDomainEventPublisher,
                 inventoryStockFeignClient,
                 topicsProperties,
+                orderInventoryInternalProperties,
                 transactionTemplate,
                 orderPaymentOrchestrationService
         );
-        ReflectionTestUtils.setField(orderCreateOrchestrationService, "inventoryInternalSharedSecret", "inventory-secret");
         lenient().when(inventoryStockFeignClient.resolveSellers(any(), any()))
                 .thenReturn(ApiResponse.success(new InventorySellerResolveResponse(
                         List.of(new InventorySkuSellerLine(2L, 10L))
