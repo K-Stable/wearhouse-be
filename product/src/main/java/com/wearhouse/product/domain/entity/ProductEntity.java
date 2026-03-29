@@ -22,7 +22,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -73,7 +72,6 @@ public class ProductEntity extends BaseEntity {
     @JoinColumn(name = "season_id")
     private ProductSeasonEntity productSeason;
 
-    @Builder
     private ProductEntity(
             Long sellerId,
             String name,
@@ -120,17 +118,17 @@ public class ProductEntity extends BaseEntity {
             ProductStatus status,
             ProductSeasonEntity productSeason
     ) {
-        return ProductEntity.builder()
-                .sellerId(sellerId)
-                .name(name)
-                .price(price)
-                .category(category)
-                .details(details)
-                .sizeGuide(sizeGuide)
-                .shipping(shipping)
-                .status(status)
-                .productSeason(productSeason)
-                .build();
+        return new ProductEntity(
+                sellerId,
+                name,
+                price,
+                category,
+                details,
+                sizeGuide,
+                shipping,
+                status,
+                productSeason
+        );
     }
 
     public void addOption(String size, String color, Integer stockQuantity, Integer sortOrder) {
@@ -149,5 +147,55 @@ public class ProductEntity extends BaseEntity {
 
     public void assignSeason(ProductSeasonEntity season) {
         this.productSeason = season;
+    }
+
+    public void replaceOptions(List<OptionDraft> optionDrafts) {
+        this.options.clear();
+        if (optionDrafts == null || optionDrafts.isEmpty()) {
+            return;
+        }
+        for (OptionDraft optionDraft : optionDrafts) {
+            if (optionDraft == null) {
+                continue;
+            }
+            addOption(
+                    optionDraft.size(),
+                    optionDraft.color(),
+                    optionDraft.stockQuantity(),
+                    optionDraft.sortOrder()
+            );
+        }
+    }
+
+    public void replaceImages(List<ImageDraft> imageDrafts) {
+        this.images.clear();
+        if (imageDrafts == null || imageDrafts.isEmpty()) {
+            return;
+        }
+        for (ImageDraft imageDraft : imageDrafts) {
+            if (imageDraft == null) {
+                continue;
+            }
+            addImage(
+                    imageDraft.imageType(),
+                    imageDraft.imageUrl(),
+                    imageDraft.sortOrder()
+            );
+        }
+    }
+
+    public record OptionDraft(
+            String size,
+            String color,
+            Integer stockQuantity,
+            Integer sortOrder
+    ) {
+    }
+
+    public record ImageDraft(
+            ProductImageType imageType,
+            String imageUrl,
+            Integer sortOrder
+    ) {
     }
 }

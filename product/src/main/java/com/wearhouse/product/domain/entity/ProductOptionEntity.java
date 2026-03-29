@@ -11,7 +11,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -41,7 +40,6 @@ public class ProductOptionEntity extends BaseEntity {
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder;
 
-    @Builder
     private ProductOptionEntity(
             ProductEntity product,
             String size,
@@ -64,12 +62,12 @@ public class ProductOptionEntity extends BaseEntity {
             Integer sortOrder
 
     ) {
-        return ProductOptionEntity.builder()
-                .product(product)
-                .size(size)
-                .color(color)
-                .stockQuantity(stockQuantity)
-                .sortOrder(sortOrder)
-                .build();
+        return new ProductOptionEntity(
+                product,
+                size,
+                color,
+                stockQuantity,
+                sortOrder
+        );
     }
 }

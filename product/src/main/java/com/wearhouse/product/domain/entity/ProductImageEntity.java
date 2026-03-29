@@ -14,7 +14,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -42,7 +41,6 @@ public class ProductImageEntity extends BaseEntity {
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder;
 
-    @Builder
     private ProductImageEntity(ProductEntity product, ProductImageType imageType, String imageUrl, Integer sortOrder) {
         this.product = product;
         this.imageType = imageType;
@@ -51,11 +49,11 @@ public class ProductImageEntity extends BaseEntity {
     }
 
     public static ProductImageEntity create(ProductEntity product, ProductImageType imageType, String imageUrl, Integer sortOrder) {
-        return ProductImageEntity.builder()
-                .product(product)
-                .imageType(imageType)
-                .imageUrl(imageUrl)
-                .sortOrder(sortOrder == null ? 0 : sortOrder)
-                .build();
+        return new ProductImageEntity(
+                product,
+                imageType,
+                imageUrl,
+                sortOrder
+        );
     }
 }

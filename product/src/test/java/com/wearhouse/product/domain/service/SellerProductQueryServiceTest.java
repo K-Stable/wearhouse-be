@@ -13,13 +13,17 @@ import com.wearhouse.product.domain.exception.ProductErrorCode;
 import com.wearhouse.product.domain.model.ProductStatus;
 import com.wearhouse.product.domain.repository.ProductRepository;
 import com.wearhouse.product.domain.repository.ProductSeasonRepository;
+import com.wearhouse.product.domain.service.common.ProductImageUrlResolver;
+import com.wearhouse.product.domain.service.common.ProductStockResolver;
+import com.wearhouse.product.domain.service.seller.SellerProductAccessValidator;
 import com.wearhouse.product.domain.service.seller.SellerProductQueryService;
+import com.wearhouse.product.domain.service.seller.SellerProductResponseMapper;
 import com.wearhouse.product.infra.inventory.ProductInventoryClient;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -38,8 +42,23 @@ class SellerProductQueryServiceTest {
     @Mock
     private S3StorageService s3StorageService;
 
-    @InjectMocks
     private SellerProductQueryService sellerProductQueryService;
+
+    @BeforeEach
+    void setUp() {
+        SellerProductAccessValidator accessValidator =
+                new SellerProductAccessValidator(productRepository, productSeasonRepository);
+        ProductImageUrlResolver productImageUrlResolver = new ProductImageUrlResolver(s3StorageService);
+        ProductStockResolver productStockResolver = new ProductStockResolver(productInventoryClient);
+        SellerProductResponseMapper sellerProductResponseMapper = new SellerProductResponseMapper(productImageUrlResolver);
+        sellerProductQueryService = new SellerProductQueryService(
+                productRepository,
+                productSeasonRepository,
+                accessValidator,
+                productStockResolver,
+                sellerProductResponseMapper
+        );
+    }
 
     @Test
     void getSellerProductsShouldValidateSeasonOwnershipWhenSeasonIdProvided() {

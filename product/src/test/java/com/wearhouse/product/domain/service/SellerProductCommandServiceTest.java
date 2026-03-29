@@ -21,7 +21,12 @@ import com.wearhouse.product.domain.model.Category;
 import com.wearhouse.product.domain.model.ProductStatus;
 import com.wearhouse.product.domain.repository.ProductRepository;
 import com.wearhouse.product.domain.repository.ProductSeasonRepository;
+import com.wearhouse.product.domain.service.common.ProductImageUrlResolver;
+import com.wearhouse.product.domain.service.seller.SellerProductAccessValidator;
 import com.wearhouse.product.domain.service.seller.SellerProductCommandService;
+import com.wearhouse.product.domain.service.seller.SellerProductInventorySyncService;
+import com.wearhouse.product.domain.service.seller.SellerProductSeasonCommandService;
+import com.wearhouse.product.domain.service.seller.SellerProductWriteService;
 import com.wearhouse.product.infra.inventory.ProductInventoryClient;
 import java.math.BigDecimal;
 import java.util.List;
@@ -49,12 +54,7 @@ class SellerProductCommandServiceTest {
 
     @Test
     void createProductShouldFlushBeforeInventorySync() {
-        SellerProductCommandService service = new SellerProductCommandService(
-                productRepository,
-                productSeasonRepository,
-                productInventoryClient,
-                s3StorageService
-        );
+        SellerProductCommandService service = createService();
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
         ProductCreateRequest request = new ProductCreateRequest(
                 "Debug Product",
@@ -120,12 +120,7 @@ class SellerProductCommandServiceTest {
 
     @Test
     void createProductShouldThrowWhenSeasonNotOwnedBySeller() {
-        SellerProductCommandService service = new SellerProductCommandService(
-                productRepository,
-                productSeasonRepository,
-                productInventoryClient,
-                s3StorageService
-        );
+        SellerProductCommandService service = createService();
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
         ProductCreateRequest request = new ProductCreateRequest(
                 "Debug Product",
@@ -152,12 +147,7 @@ class SellerProductCommandServiceTest {
 
     @Test
     void updateProductSeasonShouldTrimName() {
-        SellerProductCommandService service = new SellerProductCommandService(
-                productRepository,
-                productSeasonRepository,
-                productInventoryClient,
-                s3StorageService
-        );
+        SellerProductCommandService service = createService();
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
         ProductSeasonEntity season = ProductSeasonEntity.create(11L, "old-season");
         when(productSeasonRepository.findByIdAndSellerId(3L, 11L)).thenReturn(Optional.of(season));
@@ -170,12 +160,7 @@ class SellerProductCommandServiceTest {
 
     @Test
     void deleteProductSeasonShouldThrowWhenSeasonInUse() {
-        SellerProductCommandService service = new SellerProductCommandService(
-                productRepository,
-                productSeasonRepository,
-                productInventoryClient,
-                s3StorageService
-        );
+        SellerProductCommandService service = createService();
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
         ProductSeasonEntity season = ProductSeasonEntity.create(11L, "2026 SUMMER");
         when(productSeasonRepository.findByIdAndSellerId(3L, 11L)).thenReturn(Optional.of(season));
@@ -191,12 +176,7 @@ class SellerProductCommandServiceTest {
 
     @Test
     void deleteProductShouldDeleteInventoryStocksFirst() {
-        SellerProductCommandService service = new SellerProductCommandService(
-                productRepository,
-                productSeasonRepository,
-                productInventoryClient,
-                s3StorageService
-        );
+        SellerProductCommandService service = createService();
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
         ProductEntity product = ProductEntity.create(
                 11L,
@@ -214,5 +194,18 @@ class SellerProductCommandServiceTest {
 
         verify(productInventoryClient).deleteProductStocks(501L);
         verify(productRepository).delete(product);
+    }
+
+    private SellerProductCommandService createService() {
+        SellerProductAccessValidator accessValidator =
+                new SellerProductAccessValidator(productRepository, productSeasonRepository);
+        SellerProductSeasonCommandService seasonCommandService =
+                new SellerProductSeasonCommandService(productRepository, productSeasonRepository, accessValidator);
+        ProductImageUrlResolver productImageUrlResolver = new ProductImageUrlResolver(s3StorageService);
+        SellerProductInventorySyncService inventorySyncService =
+                new SellerProductInventorySyncService(productInventoryClient, productImageUrlResolver);
+        SellerProductWriteService sellerProductWriteService =
+                new SellerProductWriteService(productRepository, accessValidator, inventorySyncService);
+        return new SellerProductCommandService(seasonCommandService, sellerProductWriteService);
     }
 }
