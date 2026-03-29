@@ -15,7 +15,7 @@ public class PaymentDomainEvent {
     private final String producer;
     private final Integer version;
     private final LocalDateTime occurredAt;
-    private final Map<String, Object> payload;
+    private final Object payload;
 
     private PaymentDomainEvent(Builder builder) {
         this.eventId = builder.eventId;
@@ -81,7 +81,7 @@ public class PaymentDomainEvent {
         private String producer = "payment-service";
         private Integer version = 1;
         private LocalDateTime occurredAt = LocalDateTime.now();
-        private Map<String, Object> payload = new LinkedHashMap<>();
+        private Object payload = new LinkedHashMap<>();
 
         public Builder eventId(String eventId) {
             this.eventId = eventId;
@@ -113,7 +113,7 @@ public class PaymentDomainEvent {
             return this;
         }
 
-        public Builder payload(Map<String, Object> payload) {
+        public Builder payload(Object payload) {
             this.payload = payload;
             return this;
         }

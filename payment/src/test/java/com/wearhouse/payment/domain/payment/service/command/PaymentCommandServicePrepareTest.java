@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.wearhouse.payment.internal.dto.request.WalletPrepareRequest;
 import com.wearhouse.payment.internal.dto.response.WalletPrepareResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
+import com.wearhouse.payment.internal.mapper.PaymentInternalResponseMapper;
 import com.wearhouse.payment.internal.service.PaymentInternalPrepareService;
 import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.support.config.PaymentMockProperties;
@@ -45,7 +46,8 @@ class PaymentCommandServicePrepareTest {
                 walletServerGateway,
                 paymentEventPublishService,
                 new PaymentMockProperties(30, 10000L, 200, "FAIL", "TIMEOUT"),
-                new PaymentOrderInternalProperties("internal-secret")
+                new PaymentOrderInternalProperties("internal-secret"),
+                new PaymentInternalResponseMapper()
         );
     }
 

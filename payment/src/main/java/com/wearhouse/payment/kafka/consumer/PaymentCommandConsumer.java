@@ -4,11 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.support.kafka.dto.KafkaMessageEnvelope;
 import com.wearhouse.payment.kafka.dto.PaymentPrepareRequestedEvent;
 import com.wearhouse.payment.kafka.handler.PaymentPrepareRequestedHandler;
+import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -17,15 +17,15 @@ public class PaymentCommandConsumer {
 
     private final ObjectMapper objectMapper;
     private final PaymentPrepareRequestedHandler paymentPrepareRequestedHandler;
+    private final PaymentKafkaTopicsProperties paymentKafkaTopicsProperties;
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
 
     @KafkaListener(topics = "${wearhouse.kafka.payment-prepare-topic:wearhouse.payment.command.v1}")
     public void consume(
             String message,
-            Acknowledgment acknowledgment,
-            @Header(name = "kafka_receivedTopic", required = false) String topic,
-            @Header(name = "kafka_receivedMessageKey", required = false) String key
+            Acknowledgment acknowledgment
     ) throws Exception {
+        String topic = paymentKafkaTopicsProperties.paymentPrepareTopic();
         String eventType = "unknown";
         try {
             KafkaMessageEnvelope envelope = objectMapper.readValue(message, KafkaMessageEnvelope.class);
@@ -34,13 +34,7 @@ public class PaymentCommandConsumer {
 
             if ("PaymentPrepareRequested".equals(eventType)) {
                 PaymentPrepareRequestedEvent payload = toPrepareRequestedEvent(envelope.payload());
-                paymentPrepareRequestedHandler.handle(
-                        eventId,
-                        topic,
-                        key,
-                        message,
-                        payload
-                );
+                paymentPrepareRequestedHandler.handle(eventId, payload);
             }
             paymentKafkaFlowMetrics.incrementConsumerHandled("payment", eventType, topic, "success");
             acknowledgment.acknowledge();

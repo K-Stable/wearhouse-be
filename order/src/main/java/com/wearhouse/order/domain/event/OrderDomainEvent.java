@@ -15,7 +15,7 @@ public class OrderDomainEvent {
     private final String producer;
     private final Integer version;
     private final LocalDateTime occurredAt;
-    private final Map<String, Object> payload;
+    private final Object payload;
 
     private OrderDomainEvent(Builder builder) {
         this.eventId = builder.eventId;
@@ -81,7 +81,7 @@ public class OrderDomainEvent {
         private String producer = "order-service";
         private Integer version = 1;
         private LocalDateTime occurredAt = LocalDateTime.now();
-        private Map<String, Object> payload = new LinkedHashMap<>();
+        private Object payload = new LinkedHashMap<>();
 
         private Builder() {
         }
@@ -131,7 +131,7 @@ public class OrderDomainEvent {
             return this;
         }
 
-        public Builder payload(Map<String, Object> payload) {
+        public Builder payload(Object payload) {
             this.payload = payload;
             return this;
         }

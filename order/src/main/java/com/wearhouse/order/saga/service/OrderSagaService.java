@@ -18,9 +18,6 @@ import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.common.util.OrderIdGenerator;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.wearhouse.common.global.transactional.WriteTx;
@@ -41,41 +38,19 @@ public class OrderSagaService {
     private final OrderInboxRepository orderInboxRepository;
     private final OrderDomainEventPublisher orderDomainEventPublisher;
     private final OrderKafkaTopicsProperties kafkaTopicsProperties;
-    private final Map<String, SagaEventHandler<?>> inventoryEventHandlers = Map.of(
-            OrderEventType.STOCK_RESERVED,
-            this::handleStockReservedEvent,
-            OrderEventType.STOCK_RESERVE_FAILED,
-            this::handleStockReserveFailedEvent,
-            OrderEventType.INVENTORY_RELEASED,
-            this::handleInventoryReleasedEvent
-    );
-    private final Map<String, SagaEventHandler<?>> paymentEventHandlers = Map.of(
-            OrderEventType.PAYMENT_AUTHORIZED,
-            this::handlePaymentAuthorizedEvent,
-            OrderEventType.PAYMENT_FAILED,
-            this::handlePaymentFailedEvent
-    );
 
 
     @WriteTx
     public void onInventoryEvent(
             String eventId,
             String eventType,
-            String topic,
-            String partitionKey,
-            String rawPayload,
             InventoryEventPayload payload
     ) {
         processEvent(
                 INVENTORY_CONSUMER,
                 eventId,
-                eventType,
-                topic,
-                partitionKey,
-                rawPayload,
                 payload.orderId(),
-                payload,
-                inventoryEventHandlers
+                order -> dispatchInventoryEvent(order, eventType, eventId, payload)
         );
     }
 
@@ -83,47 +58,33 @@ public class OrderSagaService {
     public void onPaymentEvent(
             String eventId,
             String eventType,
-            String topic,
-            String partitionKey,
-            String rawPayload,
             PaymentEventPayload payload
     ) {
         processEvent(
                 PAYMENT_CONSUMER,
                 eventId,
-                eventType,
-                topic,
-                partitionKey,
-                rawPayload,
                 payload.orderId(),
-                payload,
-                paymentEventHandlers
+                order -> dispatchPaymentEvent(order, eventType, eventId, payload)
         );
     }
 
     private void processEvent(
             String consumerName,
             String eventId,
-            String eventType,
-            String topic,
-            String partitionKey,
-            String rawPayload,
             Long orderId,
-            Object payload,
-            Map<String, SagaEventHandler<?>> handlers
+            SagaEventProcessor processor
     ) {
         // Inbox로 중복 소비를 차단한다. (이미 처리된 eventId는 즉시 무시)
-        if (!orderInboxRepository.tryReceive(eventId, consumerName, eventType, topic, partitionKey, rawPayload)) {
+        if (!orderInboxRepository.tryReceive(eventId, consumerName)) {
             return;
         }
 
         try {
             OrderEntity order = loadOrder(orderId);
-            OrderStatus currentStatus = order.getStatus();
-            dispatchEvent(handlers, eventType, order, currentStatus, eventId, payload);
+            processor.process(order);
             orderInboxRepository.markProcessed(eventId, consumerName);
         } catch (Exception exception) {
-            orderInboxRepository.markFailed(eventId, consumerName, "CONSUME_FAIL", exception.getMessage());
+            orderInboxRepository.markFailed(eventId, consumerName);
             throw exception;
         }
     }
@@ -251,13 +212,11 @@ public class OrderSagaService {
 
     private void publishPaymentPrepareRequested(OrderEntity order) {
         String eventId = OrderIdGenerator.newEventId();
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", order.getId());
-        payload.put("orderNo", order.getOrderNo());
-        payload.put("buyerId", order.getBuyerId());
-        payload.put("amount", order.getTotalAmount());
-        payload.put(
-                "paymentMethod",
+        PaymentPrepareRequestedPayload payload = new PaymentPrepareRequestedPayload(
+                order.getId(),
+                order.getOrderNo(),
+                order.getBuyerId(),
+                order.getTotalAmount(),
                 order.getOrderInfo() == null || order.getOrderInfo().getPaymentMethod() == null
                         ? null
                         : order.getOrderInfo().getPaymentMethod().name()
@@ -279,10 +238,11 @@ public class OrderSagaService {
 
     private void publishInventoryReleaseRequested(OrderEntity order, String reasonCode) {
         String eventId = OrderIdGenerator.newEventId();
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", order.getId());
-        payload.put("orderNo", order.getOrderNo());
-        payload.put("reasonCode", reasonCode);
+        InventoryReleaseRequestedPayload payload = new InventoryReleaseRequestedPayload(
+                order.getId(),
+                order.getOrderNo(),
+                reasonCode
+        );
 
         OrderDomainEvent event = OrderDomainEvent.builder()
                 .eventId(eventId)
@@ -298,11 +258,12 @@ public class OrderSagaService {
 
     private void publishOrderConfirmed(OrderEntity order) {
         String eventId = OrderIdGenerator.newEventId();
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", order.getId());
-        payload.put("orderNo", order.getOrderNo());
-        payload.put("buyerId", order.getBuyerId());
-        payload.put("confirmedAt", LocalDateTime.now());
+        OrderConfirmedPayload payload = new OrderConfirmedPayload(
+                order.getId(),
+                order.getOrderNo(),
+                order.getBuyerId(),
+                LocalDateTime.now()
+        );
 
         OrderDomainEvent event = OrderDomainEvent.builder()
                 .eventId(eventId)
@@ -323,74 +284,65 @@ public class OrderSagaService {
         return reasonCode;
     }
 
-    private void dispatchEvent(
-            Map<String, SagaEventHandler<?>> handlers,
+    private void dispatchInventoryEvent(
+            OrderEntity order,
             String eventType,
-            OrderEntity order,
-            OrderStatus currentStatus,
             String eventId,
-            Object payload
+            InventoryEventPayload payload
     ) {
-        @SuppressWarnings("unchecked")
-        SagaEventHandler<Object> handler = (SagaEventHandler<Object>) handlers.get(eventType);
-        if (handler == null) {
-            return;
+        OrderStatus currentStatus = order.getStatus();
+        switch (eventType) {
+            case OrderEventType.STOCK_RESERVED -> handleStockReserved(order, currentStatus, eventId);
+            case OrderEventType.STOCK_RESERVE_FAILED -> handleStockReserveFailed(order, currentStatus, eventId, payload);
+            case OrderEventType.INVENTORY_RELEASED -> handleInventoryReleased(order, currentStatus, eventId);
+            default -> {
+                // no-op
+            }
         }
-        handler.handle(order, currentStatus, eventId, payload);
     }
 
-    private void handleStockReservedEvent(
+    private void dispatchPaymentEvent(
             OrderEntity order,
-            OrderStatus currentStatus,
+            String eventType,
             String eventId,
-            Object payload
+            PaymentEventPayload payload
     ) {
-        handleStockReserved(order, currentStatus, eventId);
-    }
-
-    private void handleStockReserveFailedEvent(
-            OrderEntity order,
-            OrderStatus currentStatus,
-            String eventId,
-            Object payload
-    ) {
-        handleStockReserveFailed(order, currentStatus, eventId, (InventoryEventPayload) payload);
-    }
-
-    private void handleInventoryReleasedEvent(
-            OrderEntity order,
-            OrderStatus currentStatus,
-            String eventId,
-            Object payload
-    ) {
-        handleInventoryReleased(order, currentStatus, eventId);
-    }
-
-    private void handlePaymentAuthorizedEvent(
-            OrderEntity order,
-            OrderStatus currentStatus,
-            String eventId,
-            Object payload
-    ) {
-        handlePaymentAuthorized(order, currentStatus, eventId);
-    }
-
-    private void handlePaymentFailedEvent(
-            OrderEntity order,
-            OrderStatus currentStatus,
-            String eventId,
-            Object payload
-    ) {
-        handlePaymentFailed(order, currentStatus, eventId, (PaymentEventPayload) payload);
+        OrderStatus currentStatus = order.getStatus();
+        switch (eventType) {
+            case OrderEventType.PAYMENT_AUTHORIZED -> handlePaymentAuthorized(order, currentStatus, eventId);
+            case OrderEventType.PAYMENT_FAILED -> handlePaymentFailed(order, currentStatus, eventId, payload);
+            default -> {
+                // no-op
+            }
+        }
     }
 
     @FunctionalInterface
-    private interface SagaEventHandler<T> {
-        void handle(
-                OrderEntity order,
-                OrderStatus currentStatus,
-                String eventId,
-                T payload
-        );
+    private interface SagaEventProcessor {
+        void process(OrderEntity order);
+    }
+
+    private record PaymentPrepareRequestedPayload(
+            Long orderId,
+            String orderNo,
+            Long buyerId,
+            java.math.BigDecimal amount,
+            String paymentMethod
+    ) {
+    }
+
+    private record InventoryReleaseRequestedPayload(
+            Long orderId,
+            String orderNo,
+            String reasonCode
+    ) {
+    }
+
+    private record OrderConfirmedPayload(
+            Long orderId,
+            String orderNo,
+            Long buyerId,
+            LocalDateTime confirmedAt
+    ) {
     }
 }

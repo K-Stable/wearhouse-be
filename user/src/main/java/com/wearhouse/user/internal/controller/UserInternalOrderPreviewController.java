@@ -6,9 +6,9 @@ import com.wearhouse.user.domain.dto.request.InternalBuyerOrderPreviewRequest;
 import com.wearhouse.user.domain.dto.response.InternalBuyerOrderPreviewResponse;
 import com.wearhouse.user.domain.exception.UserErrorCode;
 import com.wearhouse.user.internal.service.UserInternalOrderPreviewQueryService;
+import com.wearhouse.user.support.config.UserInternalProperties;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -23,9 +23,7 @@ public class UserInternalOrderPreviewController {
     private static final String INTERNAL_SECRET_HEADER = "X-Internal-Secret";
 
     private final UserInternalOrderPreviewQueryService userInternalOrderPreviewQueryService;
-
-    @Value("${wearhouse.user.internal.shared-secret:wearhouse-user-internal-secret}")
-    private String internalSharedSecret;
+    private final UserInternalProperties userInternalProperties;
 
     @PostMapping("/buyers")
     public ApiResponse<InternalBuyerOrderPreviewResponse> getBuyerPreviewInfo(
@@ -38,7 +36,7 @@ public class UserInternalOrderPreviewController {
     }
 
     private void requireInternalSecret(String headerSecret) {
-        if (!internalSharedSecret.equals(headerSecret)) {
+        if (!userInternalProperties.resolvedSharedSecret().equals(headerSecret)) {
             throw new ErrorException(UserErrorCode.INTERNAL_SECRET_INVALID);
         }
     }

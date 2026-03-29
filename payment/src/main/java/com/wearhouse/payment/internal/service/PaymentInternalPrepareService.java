@@ -8,6 +8,7 @@ import com.wearhouse.payment.domain.payment.model.PaymentMethod;
 import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.internal.dto.request.WalletPrepareRequest;
 import com.wearhouse.payment.internal.dto.response.WalletPrepareResponse;
+import com.wearhouse.payment.internal.mapper.PaymentInternalResponseMapper;
 import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.stablepay.client.WalletServerGateway;
 import com.wearhouse.payment.support.config.PaymentMockProperties;
@@ -30,6 +31,7 @@ public class PaymentInternalPrepareService {
     private final PaymentEventPublishService paymentEventPublishService;
     private final PaymentMockProperties paymentMockProperties;
     private final PaymentOrderInternalProperties paymentOrderInternalProperties;
+    private final PaymentInternalResponseMapper paymentInternalResponseMapper;
 
     @WriteTx
     public WalletPrepareResponse prepare(
@@ -48,7 +50,7 @@ public class PaymentInternalPrepareService {
         validatePrepareTarget(transaction);
 
         if (transaction.getStatus() == PaymentStatus.AUTHORIZED || transaction.getStatus() == PaymentStatus.FAILED) {
-            return new WalletPrepareResponse(
+            return paymentInternalResponseMapper.toPrepareResponse(
                     transaction.getPaymentSessionId(),
                     null,
                     null,
@@ -84,7 +86,7 @@ public class PaymentInternalPrepareService {
                     null,
                     now
             );
-            return new WalletPrepareResponse(
+            return paymentInternalResponseMapper.toPrepareResponse(
                     coalesce(result.checkoutSessionId(), transaction.getPaymentSessionId()),
                     result.checkoutUrl(),
                     result.appLaunchUrl(),
@@ -104,7 +106,7 @@ public class PaymentInternalPrepareService {
         );
         paymentTransactionUpdateService.save(transaction);
 
-        return new WalletPrepareResponse(
+        return paymentInternalResponseMapper.toPrepareResponse(
                 transaction.getPaymentSessionId(),
                 result.checkoutUrl(),
                 result.appLaunchUrl(),

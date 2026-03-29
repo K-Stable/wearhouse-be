@@ -56,19 +56,12 @@ public class BuyerInventoryCommandService {
     @WriteTx
     public void onReserveRequested(
             String eventId,
-            String topic,
-            String partitionKey,
-            String rawPayload,
             InventoryReserveRequestedEvent payload
     ) {
         // Inbox로 중복 메시지를 차단한다. (동일 eventId 재수신은 무시)
         boolean received = inventoryInboxRepository.tryReceive(
                 eventId,
-                INVENTORY_COMMAND_CONSUMER,
-                "InventoryReserveRequested",
-                topic,
-                partitionKey,
-                rawPayload
+                INVENTORY_COMMAND_CONSUMER
         );
         if (!received) {
             return;
@@ -93,12 +86,7 @@ public class BuyerInventoryCommandService {
             );
             inventoryInboxRepository.markProcessed(eventId, INVENTORY_COMMAND_CONSUMER);
         } catch (Exception exception) {
-            inventoryInboxRepository.markFailed(
-                    eventId,
-                    INVENTORY_COMMAND_CONSUMER,
-                    "CONSUME_FAIL",
-                    exception.getMessage()
-            );
+            inventoryInboxRepository.markFailed(eventId, INVENTORY_COMMAND_CONSUMER);
             throw exception;
         }
     }
@@ -106,19 +94,12 @@ public class BuyerInventoryCommandService {
     @WriteTx
     public void onReleaseRequested(
             String eventId,
-            String topic,
-            String partitionKey,
-            String rawPayload,
             InventoryReleaseRequestedEvent payload
     ) {
         // 주문 보상/취소 시 재고 해제 이벤트를 처리한다.
         boolean received = inventoryInboxRepository.tryReceive(
                 eventId,
-                INVENTORY_COMMAND_CONSUMER,
-                "InventoryReleaseRequested",
-                topic,
-                partitionKey,
-                rawPayload
+                INVENTORY_COMMAND_CONSUMER
         );
         if (!received) {
             return;
@@ -130,12 +111,7 @@ public class BuyerInventoryCommandService {
             publishInventoryReleased(command, releasedCount);
             inventoryInboxRepository.markProcessed(eventId, INVENTORY_COMMAND_CONSUMER);
         } catch (Exception exception) {
-            inventoryInboxRepository.markFailed(
-                    eventId,
-                    INVENTORY_COMMAND_CONSUMER,
-                    "CONSUME_FAIL",
-                    exception.getMessage()
-            );
+            inventoryInboxRepository.markFailed(eventId, INVENTORY_COMMAND_CONSUMER);
             throw exception;
         }
     }
@@ -143,19 +119,12 @@ public class BuyerInventoryCommandService {
     @WriteTx
     public void onOrderConfirmed(
             String eventId,
-            String topic,
-            String partitionKey,
-            String rawPayload,
             OrderConfirmedEvent payload
     ) {
         // 주문 확정 이벤트 수신 시 RESERVED 수량을 최종 차감(CONFIRMED) 처리한다.
         boolean received = inventoryInboxRepository.tryReceive(
                 eventId,
-                INVENTORY_ORDER_CONSUMER,
-                "OrderConfirmed",
-                topic,
-                partitionKey,
-                rawPayload
+                INVENTORY_ORDER_CONSUMER
         );
         if (!received) {
             return;
@@ -166,12 +135,7 @@ public class BuyerInventoryCommandService {
             confirm(command);
             inventoryInboxRepository.markProcessed(eventId, INVENTORY_ORDER_CONSUMER);
         } catch (Exception exception) {
-            inventoryInboxRepository.markFailed(
-                    eventId,
-                    INVENTORY_ORDER_CONSUMER,
-                    "CONSUME_FAIL",
-                    exception.getMessage()
-            );
+            inventoryInboxRepository.markFailed(eventId, INVENTORY_ORDER_CONSUMER);
             throw exception;
         }
     }
@@ -400,21 +364,20 @@ public class BuyerInventoryCommandService {
     }
 
     private void publishStockReserved(InventoryReserveCommand command, List<ReservationLineResult> results) {
-        List<Map<String, Object>> reservationPayload = new ArrayList<>();
-        for (ReservationLineResult result : results) {
-            Map<String, Object> line = new LinkedHashMap<>();
-            line.put("reservationId", result.reservationId());
-            line.put("skuId", result.skuId());
-            line.put("quantity", result.quantity());
-            line.put("expiresAt", result.expiresAt());
-            reservationPayload.add(line);
-        }
-
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", command.orderId());
-        payload.put("orderNo", command.orderNo());
-        payload.put("reservations", reservationPayload);
-        payload.put("reservedAt", LocalDateTime.now());
+        List<StockReservedReservationPayload> reservationPayload = results.stream()
+                .map(result -> new StockReservedReservationPayload(
+                        result.reservationId(),
+                        result.skuId(),
+                        result.quantity(),
+                        result.expiresAt()
+                ))
+                .toList();
+        StockReservedPayload payload = new StockReservedPayload(
+                command.orderId(),
+                command.orderNo(),
+                reservationPayload,
+                LocalDateTime.now()
+        );
 
         InventoryDomainEvent event = InventoryDomainEvent.builder()
                 .eventId(InventoryIdGenerator.newEventId())
@@ -434,11 +397,12 @@ public class BuyerInventoryCommandService {
             return;
         }
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", orderId);
-        payload.put("orderNo", orderNo);
-        payload.put("reasonCode", reasonCode);
-        payload.put("reasonMessage", reasonMessage);
+        StockReserveFailedPayload payload = new StockReserveFailedPayload(
+                orderId,
+                orderNo,
+                reasonCode,
+                reasonMessage
+        );
 
         InventoryDomainEvent event = InventoryDomainEvent.builder()
                 .eventId(InventoryIdGenerator.newEventId())
@@ -454,12 +418,13 @@ public class BuyerInventoryCommandService {
     }
 
     private void publishInventoryReleased(InventoryReleaseCommand command, int releasedCount) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", command.orderId());
-        payload.put("orderNo", command.orderNo());
-        payload.put("reasonCode", command.reasonCode());
-        payload.put("releasedCount", releasedCount);
-        payload.put("releasedAt", LocalDateTime.now());
+        InventoryReleasedPayload payload = new InventoryReleasedPayload(
+                command.orderId(),
+                command.orderNo(),
+                command.reasonCode(),
+                releasedCount,
+                LocalDateTime.now()
+        );
 
         InventoryDomainEvent event = InventoryDomainEvent.builder()
                 .eventId(InventoryIdGenerator.newEventId())
@@ -538,5 +503,38 @@ public class BuyerInventoryCommandService {
     }
 
     private record ReservationLineResult(String reservationId, Long skuId, Integer quantity, LocalDateTime expiresAt) {
+    }
+
+    private record StockReservedReservationPayload(
+            String reservationId,
+            Long skuId,
+            Integer quantity,
+            LocalDateTime expiresAt
+    ) {
+    }
+
+    private record StockReservedPayload(
+            Long orderId,
+            String orderNo,
+            List<StockReservedReservationPayload> reservations,
+            LocalDateTime reservedAt
+    ) {
+    }
+
+    private record StockReserveFailedPayload(
+            Long orderId,
+            String orderNo,
+            String reasonCode,
+            String reasonMessage
+    ) {
+    }
+
+    private record InventoryReleasedPayload(
+            Long orderId,
+            String orderNo,
+            String reasonCode,
+            Integer releasedCount,
+            LocalDateTime releasedAt
+    ) {
     }
 }

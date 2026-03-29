@@ -15,6 +15,7 @@ import com.wearhouse.order.domain.entity.DeliveryEntity;
 import com.wearhouse.order.domain.entity.OrderEntity;
 import com.wearhouse.order.domain.model.DeliveryStatus;
 import com.wearhouse.order.domain.model.OrderStatus;
+import com.wearhouse.order.delivery.mapper.DeliveryResponseMapper;
 import com.wearhouse.order.delivery.service.DeliveryCommandService;
 import com.wearhouse.order.infra.jpa.repository.DeliveryRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
@@ -56,7 +57,8 @@ class DeliveryCommandServiceTest {
                 orderRepository,
                 deliveryRepository,
                 orderStatusHistoryRepository,
-                orderProperties
+                orderProperties,
+                new DeliveryResponseMapper()
         );
     }
 

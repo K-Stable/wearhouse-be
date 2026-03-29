@@ -14,11 +14,7 @@ public class OrderInboxRepository {
 
     public boolean tryReceive(
             String eventId,
-            String consumerName,
-            String eventType,
-            String topic,
-            String partitionKey,
-            String payload
+            String consumerName
     ) {
         return orderInboxEventRepository.insertIgnoreReceived(eventId, consumerName) > 0;
     }
@@ -28,7 +24,7 @@ public class OrderInboxRepository {
                 .ifPresent(OrderInboxEventEntity::markProcessed);
     }
 
-    public void markFailed(String eventId, String consumerName, String reasonCode, String reasonMessage) {
+    public void markFailed(String eventId, String consumerName) {
         orderInboxEventRepository.findByEventIdAndConsumerName(eventId, consumerName)
                 .ifPresent(OrderInboxEventEntity::markFailed);
     }

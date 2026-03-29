@@ -11,13 +11,7 @@ public class PaymentPrepareRequestedHandler {
 
     private final PaymentInternalCommandService paymentInternalCommandService;
 
-    public void handle(
-            String eventId,
-            String topic,
-            String partitionKey,
-            String rawPayload,
-            PaymentPrepareRequestedEvent payload
-    ) {
-        paymentInternalCommandService.handlePaymentPrepareRequested(eventId, topic, partitionKey, rawPayload, payload);
+    public void handle(String eventId, PaymentPrepareRequestedEvent payload) {
+        paymentInternalCommandService.handlePaymentPrepareRequested(eventId, payload);
     }
 }

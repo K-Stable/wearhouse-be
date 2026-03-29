@@ -11,6 +11,7 @@ import com.wearhouse.payment.internal.service.PaymentInternalCommandService;
 import com.wearhouse.payment.kafka.dto.PaymentPrepareRequestedEvent;
 import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
+import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
 import com.wearhouse.payment.support.config.PaymentMockProperties;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentCommandServiceStablepayTest {
@@ -43,7 +45,9 @@ class PaymentCommandServiceStablepayTest {
                 paymentTransactionCreateService,
                 paymentEventPublishService,
                 paymentKafkaFlowMetrics,
-                new PaymentMockProperties(30, 10000L, 200, "FAIL", "TIMEOUT")
+                new PaymentKafkaTopicsProperties("wearhouse.payment.command.v1", "wearhouse.payment.event.v1"),
+                new PaymentMockProperties(30, 10000L, 200, "FAIL", "TIMEOUT"),
+                new ObjectMapper()
         );
         paymentInternalCommandService.init();
     }
@@ -57,11 +61,12 @@ class PaymentCommandServiceStablepayTest {
         PaymentPrepareRequestedEvent payload = new PaymentPrepareRequestedEvent(
                 1L,
                 "O202603190001",
+                10L,
                 new BigDecimal("10000"),
                 "STABLE"
         );
 
-        paymentInternalCommandService.handlePaymentPrepareRequested("evt_1", "topic", "1", "{}", payload);
+        paymentInternalCommandService.handlePaymentPrepareRequested("evt_1", payload);
 
         verify(paymentTransactionCreateService).insertPending(
                 anyString(),

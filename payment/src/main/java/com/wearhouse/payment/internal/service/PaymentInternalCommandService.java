@@ -1,5 +1,7 @@
 package com.wearhouse.payment.internal.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.common.support.lock.DistributedLock;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
@@ -8,6 +10,7 @@ import com.wearhouse.payment.kafka.dto.PaymentPrepareRequestedEvent;
 import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.support.PaymentIdGenerator;
+import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
 import com.wearhouse.payment.support.config.PaymentMockProperties;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
@@ -32,7 +35,9 @@ public class PaymentInternalCommandService {
     private final PaymentTransactionCreateService paymentTransactionCreateService;
     private final PaymentEventPublishService paymentEventPublishService;
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
+    private final PaymentKafkaTopicsProperties paymentKafkaTopicsProperties;
     private final PaymentMockProperties paymentMockProperties;
+    private final ObjectMapper objectMapper;
     private Set<String> failMethods = Set.of();
     private Set<String> timeoutMethods = Set.of();
 
@@ -44,23 +49,22 @@ public class PaymentInternalCommandService {
 
     @WriteTx
     @DistributedLock(
-            key = "#p4['orderId']",
+            key = "#a1 == null || #a1.orderId() == null ? #a0 : #a1.orderId()",
             prefix = "payment:lock:prepare:"
     )
     public void handlePaymentPrepareRequested(
             String eventId,
-            String topic,
-            String partitionKey,
-            String rawPayload,
             PaymentPrepareRequestedEvent payload
     ) {
+        validatePrepareRequestedEvent(payload);
+
         boolean received = paymentInboxRepository.tryReceive(
                 eventId,
                 PAYMENT_COMMAND_CONSUMER,
                 "PaymentPrepareRequested",
-                topic,
-                partitionKey,
-                rawPayload
+                paymentKafkaTopicsProperties.paymentPrepareTopic(),
+                payload.orderId() == null ? null : String.valueOf(payload.orderId()),
+                toRawPayload(payload)
         );
         if (!received) {
             return;
@@ -80,9 +84,15 @@ public class PaymentInternalCommandService {
         }
     }
 
-    private void processPrepareCommand(PaymentPrepareRequestedEvent event) {
-        validatePrepareRequestedEvent(event);
+    private String toRawPayload(PaymentPrepareRequestedEvent payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalArgumentException("payment prepare payload 직렬화에 실패했습니다.", exception);
+        }
+    }
 
+    private void processPrepareCommand(PaymentPrepareRequestedEvent event) {
         Optional<PaymentTransactionEntity> existing = paymentTransactionCreateService.findByOrderId(event.orderId());
         if (existing.isPresent()) {
             return;

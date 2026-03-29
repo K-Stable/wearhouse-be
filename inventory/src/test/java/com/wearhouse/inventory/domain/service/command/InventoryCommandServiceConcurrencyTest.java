@@ -11,6 +11,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.inventory.domain.entity.InventoryStockEntity;
 import com.wearhouse.inventory.domain.event.InventoryDomainEvent;
 import com.wearhouse.inventory.domain.event.InventoryDomainEventPublisher;
@@ -41,6 +43,8 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 @ExtendWith(MockitoExtension.class)
 class InventoryCommandServiceConcurrencyTest {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     @Mock
     private InventoryStockRepository inventoryStockRepository;
     @Mock
@@ -63,25 +67,27 @@ class InventoryCommandServiceConcurrencyTest {
         BuyerInventoryCommandService service = newService("101", 3);
         InventoryReserveRequestedEvent payload = reservePayload(1L, "ORDER-1", 101L, 1);
 
-        when(inventoryInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        when(inventoryInboxRepository.tryReceive(anyString(), anyString()))
                 .thenReturn(true);
         when(inventoryHotSkuLockService.withHotSkuLocks(anySet(), anyString(), any()))
                 .thenThrow(new LockAcquireException("lock-fail"));
 
-        service.onReserveRequested("evt-lock-fail", "inventory-command", "1", "{}", payload);
+        service.onReserveRequested("evt-lock-fail", payload);
 
         ArgumentCaptor<InventoryDomainEvent> eventCaptor = ArgumentCaptor.forClass(InventoryDomainEvent.class);
         verify(inventoryDomainEventPublisher).publish(eventCaptor.capture());
 
         Map<String, Object> envelope = eventCaptor.getValue().toEnvelope();
-        @SuppressWarnings("unchecked")
-        Map<String, Object> eventPayload = (Map<String, Object>) envelope.get("payload");
+        Map<String, Object> eventPayload = OBJECT_MAPPER.convertValue(
+                envelope.get("payload"),
+                new TypeReference<>() {}
+        );
 
         assertThat(envelope.get("eventType")).isEqualTo("StockReserveFailed");
         assertThat(eventPayload.get("reasonCode")).isEqualTo("INVENTORY_409_003");
 
         verify(inventoryInboxRepository).markProcessed("evt-lock-fail", "inventory-command-consumer");
-        verify(inventoryInboxRepository, never()).markFailed(anyString(), anyString(), anyString(), anyString());
+        verify(inventoryInboxRepository, never()).markFailed(anyString(), anyString());
         verify(inventoryStockRepository, never()).findBySkuId(anyLong());
     }
 
@@ -90,7 +96,7 @@ class InventoryCommandServiceConcurrencyTest {
         BuyerInventoryCommandService service = newService("999", 3);
         InventoryReserveRequestedEvent payload = reservePayload(2L, "ORDER-2", 201L, 1);
 
-        when(inventoryInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        when(inventoryInboxRepository.tryReceive(anyString(), anyString()))
                 .thenReturn(true);
         when(inventoryHotSkuLockService.withHotSkuLocks(anySet(), anyString(), any()))
                 .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(2)).get());
@@ -111,14 +117,16 @@ class InventoryCommandServiceConcurrencyTest {
         when(inventoryStockRepository.saveAndFlush(any(InventoryStockEntity.class)))
                 .thenThrow(new ObjectOptimisticLockingFailureException(InventoryStockEntity.class, 201L));
 
-        service.onReserveRequested("evt-optimistic-fail", "inventory-command", "2", "{}", payload);
+        service.onReserveRequested("evt-optimistic-fail", payload);
 
         ArgumentCaptor<InventoryDomainEvent> eventCaptor = ArgumentCaptor.forClass(InventoryDomainEvent.class);
         verify(inventoryDomainEventPublisher).publish(eventCaptor.capture());
 
         Map<String, Object> envelope = eventCaptor.getValue().toEnvelope();
-        @SuppressWarnings("unchecked")
-        Map<String, Object> eventPayload = (Map<String, Object>) envelope.get("payload");
+        Map<String, Object> eventPayload = OBJECT_MAPPER.convertValue(
+                envelope.get("payload"),
+                new TypeReference<>() {}
+        );
 
         assertThat(envelope.get("eventType")).isEqualTo("StockReserveFailed");
         assertThat(eventPayload.get("reasonCode")).isEqualTo("INVENTORY_409_002");
@@ -128,7 +136,7 @@ class InventoryCommandServiceConcurrencyTest {
         verify(entityManager, times(2)).clear();
         verify(inventoryRedisStockCacheService, never()).cacheAvailableQty(anyLong(), any());
         verify(inventoryInboxRepository).markProcessed("evt-optimistic-fail", "inventory-command-consumer");
-        verify(inventoryInboxRepository, never()).markFailed(anyString(), anyString(), anyString(), anyString());
+        verify(inventoryInboxRepository, never()).markFailed(anyString(), anyString());
     }
 
     @Test
@@ -149,7 +157,7 @@ class InventoryCommandServiceConcurrencyTest {
                 "https://cdn.example.com/main-blue.jpg"
         );
 
-        when(inventoryInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        when(inventoryInboxRepository.tryReceive(anyString(), anyString()))
                 .thenReturn(true);
         when(inventoryHotSkuLockService.withHotSkuLocks(anySet(), anyString(), any()))
                 .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(2)).get());
@@ -157,7 +165,7 @@ class InventoryCommandServiceConcurrencyTest {
         when(inventoryStockRepository.saveAndFlush(any(InventoryStockEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.onReserveRequested("evt-lock-all", "inventory-command", "3", "{}", payload);
+        service.onReserveRequested("evt-lock-all", payload);
 
         verify(inventoryHotSkuLockService).withHotSkuLocks(anySet(), anyString(), any());
         verify(inventoryInboxRepository).markProcessed("evt-lock-all", "inventory-command-consumer");

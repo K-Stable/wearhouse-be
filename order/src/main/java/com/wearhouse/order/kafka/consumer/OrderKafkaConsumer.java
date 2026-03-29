@@ -8,7 +8,6 @@ import com.wearhouse.order.saga.service.OrderSagaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Component
@@ -21,22 +20,15 @@ public class OrderKafkaConsumer {
     @KafkaListener(topics = "${wearhouse.kafka.inventory-event-topic:wearhouse.inventory.event.v1}")
     public void consumeInventoryEvent(
             String message,
-            Acknowledgment acknowledgment,
-            @Header(name = "kafka_receivedTopic", required = false) String topic,
-            @Header(name = "kafka_receivedMessageKey", required = false) String key
+            Acknowledgment acknowledgment
     ) throws Exception {
         processMessage(
                 message,
                 acknowledgment,
-                topic,
-                key,
-                (eventId, eventType, parsedTopic, parsedKey, rawMessage, payload) ->
+                (eventId, eventType, payload) ->
                         orderSagaService.onInventoryEvent(
                                 eventId,
                                 eventType,
-                                parsedTopic,
-                                parsedKey,
-                                rawMessage,
                                 payload
                         ),
                 InventoryEventPayload.class
@@ -46,22 +38,15 @@ public class OrderKafkaConsumer {
     @KafkaListener(topics = "${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
     public void consumePaymentEvent(
             String message,
-            Acknowledgment acknowledgment,
-            @Header(name = "kafka_receivedTopic", required = false) String topic,
-            @Header(name = "kafka_receivedMessageKey", required = false) String key
+            Acknowledgment acknowledgment
     ) throws Exception {
         processMessage(
                 message,
                 acknowledgment,
-                topic,
-                key,
-                (eventId, eventType, parsedTopic, parsedKey, rawMessage, payload) ->
+                (eventId, eventType, payload) ->
                         orderSagaService.onPaymentEvent(
                                 eventId,
                                 eventType,
-                                parsedTopic,
-                                parsedKey,
-                                rawMessage,
                                 payload
                         ),
                 PaymentEventPayload.class
@@ -71,8 +56,6 @@ public class OrderKafkaConsumer {
     private <T> void processMessage(
             String message,
             Acknowledgment acknowledgment,
-            String topic,
-            String key,
             SagaDispatcher<T> dispatcher,
             Class<T> payloadType
     ) throws Exception {
@@ -85,9 +68,6 @@ public class OrderKafkaConsumer {
         dispatcher.dispatch(
                 eventId,
                 eventType,
-                topic,
-                key,
-                message,
                 payload
         );
         acknowledgment.acknowledge();
@@ -109,9 +89,6 @@ public class OrderKafkaConsumer {
         void dispatch(
                 String eventId,
                 String eventType,
-                String topic,
-                String key,
-                String message,
                 T payload
         ) throws Exception;
     }

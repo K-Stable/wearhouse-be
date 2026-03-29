@@ -28,7 +28,12 @@ import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.paymentintegration.client.OrderPaymentIntegrationClient;
+import com.wearhouse.order.paymentintegration.mapper.OrderPaymentIntegrationResponseMapper;
+import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationGatewayAdapter;
+import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationSleeper;
 import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationService;
+import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationValidator;
+import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationWaiter;
 import com.wearhouse.order.paymentintegration.dto.response.PaymentConfirmInternalResponse;
 import com.wearhouse.order.paymentintegration.dto.response.PaymentPrepareInternalResponse;
 import com.wearhouse.order.support.config.OrderInternalProperties;
@@ -50,7 +55,7 @@ import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
-class OrderCommandServiceOrchestrationTest {
+class OrderCheckoutOrchestrationServiceTest {
 
     @Mock
     private OrderRepository orderRepository;
@@ -103,14 +108,27 @@ class OrderCommandServiceOrchestrationTest {
                     return callback.doInTransaction(mock(TransactionStatus.class));
                 });
 
+        OrderPaymentIntegrationValidator orderPaymentIntegrationValidator = new OrderPaymentIntegrationValidator();
+        OrderPaymentIntegrationWaiter orderPaymentIntegrationWaiter = new OrderPaymentIntegrationWaiter(
+                orderRepository,
+                entityManager,
+                orderProperties,
+                orderPaymentIntegrationValidator,
+                new OrderPaymentIntegrationSleeper()
+        );
+        OrderPaymentIntegrationGatewayAdapter orderPaymentIntegrationGatewayAdapter = new OrderPaymentIntegrationGatewayAdapter(
+                orderPaymentIntegrationClient,
+                orderInternalProperties,
+                orderProperties
+        );
         orderPaymentIntegrationService = new OrderPaymentIntegrationService(
                 orderRepository,
                 orderStatusHistoryRepository,
                 orderSagaRepository,
-                orderPaymentIntegrationClient,
-                orderProperties,
-                orderInternalProperties,
-                entityManager
+                new OrderPaymentIntegrationResponseMapper(),
+                orderPaymentIntegrationValidator,
+                orderPaymentIntegrationWaiter,
+                orderPaymentIntegrationGatewayAdapter
         );
         orderCreateOrchestrationService = new BuyerOrderCreateOrchestrationService(
                 orderRepository,

@@ -8,10 +8,11 @@ import com.wearhouse.user.domain.dto.response.InternalUserAuthAccountResponse;
 import com.wearhouse.user.domain.exception.UserErrorCode;
 import com.wearhouse.user.domain.model.UserAuthAccount;
 import com.wearhouse.user.domain.model.UserType;
+import com.wearhouse.user.internal.mapper.UserInternalResponseMapper;
 import com.wearhouse.user.internal.service.UserInternalAuthQueryService;
+import com.wearhouse.user.support.config.UserInternalProperties;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -26,9 +27,8 @@ public class UserInternalAuthController {
     private static final String INTERNAL_SECRET_HEADER = "X-Internal-Secret";
 
     private final UserInternalAuthQueryService userInternalAuthQueryService;
-
-    @Value("${wearhouse.user.internal.shared-secret}")
-    private String internalSharedSecret;
+    private final UserInternalProperties userInternalProperties;
+    private final UserInternalResponseMapper userInternalResponseMapper;
 
     @PostMapping("/by-login-id")
     public ApiResponse<InternalUserAuthAccountResponse> findByLoginId(
@@ -40,7 +40,7 @@ public class UserInternalAuthController {
                 parseUserType(request.userType()),
                 request.loginId()
         );
-        return ApiResponse.success(toResponse(account));
+        return ApiResponse.success(userInternalResponseMapper.toInternalUserAuthAccountResponse(account));
     }
 
     @PostMapping("/by-id")
@@ -53,11 +53,11 @@ public class UserInternalAuthController {
                 parseUserType(request.userType()),
                 request.userId()
         );
-        return ApiResponse.success(toResponse(account));
+        return ApiResponse.success(userInternalResponseMapper.toInternalUserAuthAccountResponse(account));
     }
 
     private void requireInternalSecret(String headerSecret) {
-        if (!internalSharedSecret.equals(headerSecret)) {
+        if (!userInternalProperties.resolvedSharedSecret().equals(headerSecret)) {
             throw new ErrorException(UserErrorCode.INTERNAL_SECRET_INVALID);
         }
     }
@@ -70,14 +70,4 @@ public class UserInternalAuthController {
         }
     }
 
-    private InternalUserAuthAccountResponse toResponse(UserAuthAccount account) {
-        return new InternalUserAuthAccountResponse(
-                account.userId(),
-                account.userType().name(),
-                account.email(),
-                account.passwordHash(),
-                account.status(),
-                account.userVersion()
-        );
-    }
 }

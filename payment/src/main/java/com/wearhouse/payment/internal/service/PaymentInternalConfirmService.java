@@ -7,6 +7,7 @@ import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.internal.dto.request.PaymentConfirmRequest;
 import com.wearhouse.payment.internal.dto.response.PaymentConfirmResponse;
+import com.wearhouse.payment.internal.mapper.PaymentInternalResponseMapper;
 import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.support.config.PaymentOrderInternalProperties;
 import com.wearhouse.payment.stablepay.client.WalletServerGateway;
@@ -28,6 +29,7 @@ public class PaymentInternalConfirmService {
     private final WalletServerGateway walletServerGateway;
     private final PaymentEventPublishService paymentEventPublishService;
     private final PaymentOrderInternalProperties paymentOrderInternalProperties;
+    private final PaymentInternalResponseMapper paymentInternalResponseMapper;
 
     @WriteTx
     public PaymentConfirmResponse confirm(
@@ -42,21 +44,17 @@ public class PaymentInternalConfirmService {
         validateConfirmTarget(transaction, request);
 
         if (transaction.getStatus() == PaymentStatus.AUTHORIZED) {
-            return new PaymentConfirmResponse(
-                    transaction.getOrderId(),
-                    transaction.getOrderNo(),
-                    transaction.getPaymentId(),
-                    PaymentStatus.AUTHORIZED.name(),
+            return paymentInternalResponseMapper.toConfirmResponse(
+                    transaction,
+                    PaymentStatus.AUTHORIZED,
                     transaction.getCommandStatus(),
                     null
             );
         }
         if (transaction.getStatus() == PaymentStatus.FAILED) {
-            return new PaymentConfirmResponse(
-                    transaction.getOrderId(),
-                    transaction.getOrderNo(),
-                    transaction.getPaymentId(),
-                    PaymentStatus.FAILED.name(),
+            return paymentInternalResponseMapper.toConfirmResponse(
+                    transaction,
+                    PaymentStatus.FAILED,
                     transaction.getCommandStatus(),
                     transaction.getReasonCode()
             );
@@ -87,11 +85,9 @@ public class PaymentInternalConfirmService {
                     transaction.getPaymentMethod(),
                     now
             );
-            return new PaymentConfirmResponse(
-                    transaction.getOrderId(),
-                    transaction.getOrderNo(),
-                    transaction.getPaymentId(),
-                    PaymentStatus.AUTHORIZED.name(),
+            return paymentInternalResponseMapper.toConfirmResponse(
+                    transaction,
+                    PaymentStatus.AUTHORIZED,
                     result.commandStatus(),
                     null
             );
@@ -114,21 +110,17 @@ public class PaymentInternalConfirmService {
                     "결제 승인에 실패했습니다.",
                     now
             );
-            return new PaymentConfirmResponse(
-                    transaction.getOrderId(),
-                    transaction.getOrderNo(),
-                    transaction.getPaymentId(),
-                    PaymentStatus.FAILED.name(),
+            return paymentInternalResponseMapper.toConfirmResponse(
+                    transaction,
+                    PaymentStatus.FAILED,
                     result.commandStatus(),
                     reasonCode
             );
         }
 
-        return new PaymentConfirmResponse(
-                transaction.getOrderId(),
-                transaction.getOrderNo(),
-                transaction.getPaymentId(),
-                PaymentStatus.PENDING.name(),
+        return paymentInternalResponseMapper.toConfirmResponse(
+                transaction,
+                PaymentStatus.PENDING,
                 result.commandStatus(),
                 null
         );

@@ -1,4 +1,4 @@
-package com.wearhouse.product.domain.service.buyer;
+package com.wearhouse.product.buyer.mapper;
 
 import com.wearhouse.product.domain.dto.response.BuyerProductDetailResponse;
 import com.wearhouse.product.domain.dto.response.BuyerProductListResponse;

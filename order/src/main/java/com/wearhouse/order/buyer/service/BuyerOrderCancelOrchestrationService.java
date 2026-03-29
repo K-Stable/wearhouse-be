@@ -18,8 +18,6 @@ import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -103,10 +101,11 @@ public class BuyerOrderCancelOrchestrationService {
         }
 
         String releaseEventId = OrderIdGenerator.newEventId();
-        Map<String, Object> releasePayload = new LinkedHashMap<>();
-        releasePayload.put("orderId", order.getId());
-        releasePayload.put("orderNo", order.getOrderNo());
-        releasePayload.put("reasonCode", cancelReasonCode);
+        InventoryReleaseRequestedPayload releasePayload = new InventoryReleaseRequestedPayload(
+                order.getId(),
+                order.getOrderNo(),
+                cancelReasonCode
+        );
 
         publishDomainEvent(
                 releaseEventId,
@@ -122,7 +121,7 @@ public class BuyerOrderCancelOrchestrationService {
             String eventType,
             Long orderId,
             String topic,
-            Map<String, Object> payload
+            Object payload
     ) {
         String aggregateId = String.valueOf(orderId);
         OrderDomainEvent event = OrderDomainEvent.builder()
@@ -181,5 +180,12 @@ public class BuyerOrderCancelOrchestrationService {
                 OrderStatus.PAYMENT_PENDING,
                 OrderStatus.PAYMENT_FAILED
         );
+    }
+
+    private record InventoryReleaseRequestedPayload(
+            Long orderId,
+            String orderNo,
+            String reasonCode
+    ) {
     }
 }

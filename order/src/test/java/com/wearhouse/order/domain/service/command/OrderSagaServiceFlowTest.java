@@ -84,8 +84,8 @@ class OrderSagaServiceFlowTest {
 
         InventoryEventPayload inventoryPayload = inventoryPayload(order.getId(), order.getOrderNo(), null);
         PaymentEventPayload paymentPayload = paymentPayload(order.getId(), order.getOrderNo(), null);
-        orderSagaService.onInventoryEvent("inv-evt-1", OrderEventType.STOCK_RESERVED, "inventory-event", "1", "{}", inventoryPayload);
-        orderSagaService.onPaymentEvent("pay-evt-1", OrderEventType.PAYMENT_AUTHORIZED, "payment-event", "1", "{}", paymentPayload);
+        orderSagaService.onInventoryEvent("inv-evt-1", OrderEventType.STOCK_RESERVED, inventoryPayload);
+        orderSagaService.onPaymentEvent("pay-evt-1", OrderEventType.PAYMENT_AUTHORIZED, paymentPayload);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(order.getConfirmedAt()).isNotNull();
@@ -110,12 +110,12 @@ class OrderSagaServiceFlowTest {
         stubCommon(order, saga);
 
         InventoryEventPayload inventoryPayload = inventoryPayload(order.getId(), order.getOrderNo(), null);
-        orderSagaService.onInventoryEvent("inv-evt-2", OrderEventType.STOCK_RESERVED, "inventory-event", "2", "{}", inventoryPayload);
+        orderSagaService.onInventoryEvent("inv-evt-2", OrderEventType.STOCK_RESERVED, inventoryPayload);
 
         PaymentEventPayload paymentFailedPayload = paymentPayload(order.getId(), order.getOrderNo(), "PAYMENT_FAILED");
-        orderSagaService.onPaymentEvent("pay-evt-2", OrderEventType.PAYMENT_FAILED, "payment-event", "2", "{}", paymentFailedPayload);
+        orderSagaService.onPaymentEvent("pay-evt-2", OrderEventType.PAYMENT_FAILED, paymentFailedPayload);
 
-        orderSagaService.onInventoryEvent("inv-evt-3", OrderEventType.INVENTORY_RELEASED, "inventory-event", "2", "{}", inventoryPayload);
+        orderSagaService.onInventoryEvent("inv-evt-3", OrderEventType.INVENTORY_RELEASED, inventoryPayload);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PAYMENT_FAILED);
         assertThat(order.getCancelledAt()).isNull();
@@ -138,7 +138,7 @@ class OrderSagaServiceFlowTest {
     }
 
     private void stubCommon(OrderEntity order, OrderSagaEntity saga) {
-        when(orderInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        when(orderInboxRepository.tryReceive(anyString(), anyString()))
                 .thenReturn(true);
         when(orderRepository.findDetailById(eq(order.getId()))).thenReturn(Optional.of(order));
         when(orderSagaRepository.findByOrder_Id(eq(order.getId()))).thenReturn(Optional.of(saga));

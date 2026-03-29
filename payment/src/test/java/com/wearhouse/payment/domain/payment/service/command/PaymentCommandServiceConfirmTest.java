@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.wearhouse.payment.internal.dto.request.PaymentConfirmRequest;
 import com.wearhouse.payment.internal.dto.response.PaymentConfirmResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
+import com.wearhouse.payment.internal.mapper.PaymentInternalResponseMapper;
 import com.wearhouse.payment.internal.service.PaymentInternalConfirmService;
 import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.support.config.PaymentOrderInternalProperties;
@@ -46,7 +47,8 @@ class PaymentCommandServiceConfirmTest {
                 paymentTransactionUpdateService,
                 walletServerGateway,
                 paymentEventPublishService,
-                new PaymentOrderInternalProperties("internal-secret")
+                new PaymentOrderInternalProperties("internal-secret"),
+                new PaymentInternalResponseMapper()
         );
     }
 

@@ -6,13 +6,13 @@ import com.wearhouse.inventory.buyer.dto.request.InventoryAvailabilityCheckReque
 import com.wearhouse.inventory.buyer.dto.request.InventoryAvailabilityCheckRequest.InventoryAvailabilityLineRequest;
 import com.wearhouse.inventory.buyer.dto.request.InventoryOrderPreviewRequest;
 import com.wearhouse.inventory.buyer.dto.request.InventoryOrderPreviewRequest.InventoryOrderPreviewItemRequest;
+import com.wearhouse.inventory.buyer.mapper.BuyerInventoryResponseMapper;
 import com.wearhouse.inventory.internal.dto.request.InventorySellerResolveRequest;
 import com.wearhouse.inventory.buyer.dto.response.InventoryAvailabilityCheckResponse;
 import com.wearhouse.inventory.buyer.dto.response.InventoryAvailabilityCheckResponse.InventoryAvailabilityLineResponse;
 import com.wearhouse.inventory.buyer.dto.response.InventoryOrderPreviewResponse;
 import com.wearhouse.inventory.buyer.dto.response.InventoryOrderPreviewResponse.InventoryOrderPreviewLineResponse;
 import com.wearhouse.inventory.internal.dto.response.InventorySellerResolveResponse;
-import com.wearhouse.inventory.internal.dto.response.InventorySellerResolveResponse.InventorySkuSellerLineResponse;
 import com.wearhouse.inventory.domain.entity.InventoryStockEntity;
 import com.wearhouse.inventory.domain.exception.InventoryErrorCode;
 import com.wearhouse.inventory.domain.model.InventoryProductStatus;
@@ -33,6 +33,7 @@ public class BuyerInventoryQueryService {
 
     private final InventoryStockRepository inventoryStockRepository;
     private final InventoryRedisStockCacheService inventoryRedisStockCacheService;
+    private final BuyerInventoryResponseMapper buyerInventoryResponseMapper;
 
     @ReadTx
     public InventoryAvailabilityCheckResponse checkAvailability(InventoryAvailabilityCheckRequest request) {
@@ -44,17 +45,16 @@ public class BuyerInventoryQueryService {
         for (InventoryAvailabilityLineRequest item : request.items()) {
             Long skuId = resolveSkuId(item.productId(), item.optionId());
             int availableQty = availabilityCheckResult.availableBySku().getOrDefault(skuId, 0);
-            lines.add(new InventoryAvailabilityLineResponse(
+            lines.add(buyerInventoryResponseMapper.toAvailabilityLineResponse(
                     item.productId(),
                     item.optionId(),
                     skuId,
                     item.quantity(),
-                    availableQty,
-                    availableQty >= item.quantity()
+                    availableQty
             ));
         }
 
-        return new InventoryAvailabilityCheckResponse(availabilityCheckResult.available(), lines);
+        return buyerInventoryResponseMapper.toAvailabilityCheckResponse(availabilityCheckResult.available(), lines);
     }
 
     @ReadTx
@@ -93,19 +93,11 @@ public class BuyerInventoryQueryService {
         List<InventoryOrderPreviewLineResponse> lines = new ArrayList<>(resolvedItems.size());
         for (ResolvedPreviewItem resolvedItem : resolvedItems) {
             if (resolvedItem.stock() == null) {
-                lines.add(new InventoryOrderPreviewLineResponse(
+                lines.add(buyerInventoryResponseMapper.toUnresolvedPreviewLineResponse(
                         resolvedItem.productId(),
-                        null,
-                        null,
-                        null,
-                        null,
                         resolvedItem.color(),
                         resolvedItem.size(),
-                        null,
-                        null,
-                        resolvedItem.quantity(),
-                        0,
-                        false
+                        resolvedItem.quantity()
                 ));
                 continue;
             }
@@ -115,22 +107,14 @@ public class BuyerInventoryQueryService {
             boolean releasedStatus = InventoryProductStatus.RELEASED.name().equalsIgnoreCase(stock.getProductStatus());
             boolean available = releasedStatus && availableQty >= resolvedItem.quantity();
 
-            lines.add(new InventoryOrderPreviewLineResponse(
-                    stock.getProductId(),
-                    stock.getSkuId(),
-                    stock.getSellerId(),
-                    stock.getProductName(),
-                    stock.getProductPrice(),
-                    stock.getOptionColor(),
-                    stock.getOptionSize(),
-                    stock.getMainImageUrl(),
-                    stock.getProductStatus(),
+            lines.add(buyerInventoryResponseMapper.toResolvedPreviewLineResponse(
+                    stock,
                     resolvedItem.quantity(),
                     availableQty,
                     available
             ));
         }
-        return new InventoryOrderPreviewResponse(lines);
+        return buyerInventoryResponseMapper.toOrderPreviewResponse(lines);
     }
 
     @ReadTx
@@ -145,11 +129,7 @@ public class BuyerInventoryQueryService {
             sellerBySku.put(stock.getSkuId(), stock.getSellerId());
         }
 
-        List<InventorySkuSellerLineResponse> items = new ArrayList<>(skuIds.size());
-        for (Long skuId : skuIds) {
-            items.add(new InventorySkuSellerLineResponse(skuId, sellerBySku.get(skuId)));
-        }
-        return new InventorySellerResolveResponse(items);
+        return buyerInventoryResponseMapper.toSellerResolveResponse(skuIds, sellerBySku);
     }
 
     private Map<Long, Integer> aggregateRequestedBySku(List<InventoryAvailabilityLineRequest> items) {

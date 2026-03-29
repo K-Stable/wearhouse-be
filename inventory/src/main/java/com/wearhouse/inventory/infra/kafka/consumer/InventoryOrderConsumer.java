@@ -8,7 +8,6 @@ import com.wearhouse.inventory.kafka.dto.OrderConfirmedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,9 +21,7 @@ public class InventoryOrderConsumer {
     @KafkaListener(topics = "${wearhouse.kafka.order-event-topic:wearhouse.order.event.v1}")
     public void consume(
             String message,
-            Acknowledgment acknowledgment,
-            @Header(name = "kafka_receivedTopic", required = false) String topic,
-            @Header(name = "kafka_receivedMessageKey", required = false) String key
+            Acknowledgment acknowledgment
     ) throws Exception {
         String eventType = "unknown";
         try {
@@ -36,9 +33,6 @@ public class InventoryOrderConsumer {
                 OrderConfirmedEvent payload = requirePayload(envelope.payload(), OrderConfirmedEvent.class);
                 buyerInventoryCommandService.onOrderConfirmed(
                         eventId,
-                        topic,
-                        key,
-                        message,
                         payload
                 );
             }

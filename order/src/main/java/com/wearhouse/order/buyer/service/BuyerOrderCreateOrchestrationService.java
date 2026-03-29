@@ -67,7 +67,7 @@ public class BuyerOrderCreateOrchestrationService {
                     txContext.orderedAt(),
                     txContext.amountSummary()
             );
-            List<Map<String, Object>> payloadItems = appendItemsAndBuildReservePayload(order, request.items());
+            List<ReservePayloadItem> payloadItems = appendItemsAndBuildReservePayload(order, request.items());
             saveCreatedOrder(order, txContext.eventId());
             startSaga(order, txContext.eventId());
             publishInventoryReserveRequested(order, request, txContext, payloadItems);
@@ -144,12 +144,12 @@ public class BuyerOrderCreateOrchestrationService {
         );
     }
 
-    private List<Map<String, Object>> appendItemsAndBuildReservePayload(
+    private List<ReservePayloadItem> appendItemsAndBuildReservePayload(
             OrderEntity order,
             List<OrderCreateItemRequest> requestItems
     ) {
         Map<Long, Long> sellerIdBySku = resolveSellerIds(requestItems);
-        List<Map<String, Object>> payloadItems = new ArrayList<>(requestItems.size());
+        List<ReservePayloadItem> payloadItems = new ArrayList<>(requestItems.size());
         for (OrderCreateItemRequest requestItem : requestItems) {
             Long skuId = resolveSkuId(requestItem);
             Long sellerId = sellerIdBySku.get(skuId);
@@ -206,12 +206,12 @@ public class BuyerOrderCreateOrchestrationService {
         return requestItem.optionId() != null ? requestItem.optionId() : requestItem.productId();
     }
 
-    private Map<String, Object> toReservePayloadItem(OrderCreateItemRequest requestItem) {
-        Map<String, Object> payloadItem = new LinkedHashMap<>();
-        payloadItem.put("productId", requestItem.productId());
-        payloadItem.put("optionId", requestItem.optionId());
-        payloadItem.put("quantity", requestItem.quantity());
-        return payloadItem;
+    private ReservePayloadItem toReservePayloadItem(OrderCreateItemRequest requestItem) {
+        return new ReservePayloadItem(
+                requestItem.productId(),
+                requestItem.optionId(),
+                requestItem.quantity()
+        );
     }
 
     private void saveCreatedOrder(OrderEntity order, String eventId) {
@@ -234,9 +234,9 @@ public class BuyerOrderCreateOrchestrationService {
             OrderEntity order,
             OrderCreateRequest request,
             OrderCreateContext context,
-            List<Map<String, Object>> payloadItems
+            List<ReservePayloadItem> payloadItems
     ) {
-        Map<String, Object> payload = buildInventoryReservePayload(order, request, context, payloadItems);
+        InventoryReserveRequestedPayload payload = buildInventoryReservePayload(order, request, context, payloadItems);
         publishDomainEvent(
                 context.eventId(),
                 OrderEventType.INVENTORY_RESERVE_REQUESTED,
@@ -246,26 +246,26 @@ public class BuyerOrderCreateOrchestrationService {
         );
     }
 
-    private Map<String, Object> buildInventoryReservePayload(
+    private InventoryReserveRequestedPayload buildInventoryReservePayload(
             OrderEntity order,
             OrderCreateRequest request,
             OrderCreateContext context,
-            List<Map<String, Object>> payloadItems
+            List<ReservePayloadItem> payloadItems
     ) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", order.getId());
-        payload.put("orderNo", order.getOrderNo());
-        payload.put("buyerId", request.buyerId());
-        payload.put("payAmount", context.amountSummary().payAmount());
-        payload.put("paymentMethod", request.paymentMethod() == null ? null : request.paymentMethod().name());
-        payload.put("recipientName", request.recipientName());
-        payload.put("recipientPhone", request.recipientPhone());
-        payload.put("zipCode", request.zipCode());
-        payload.put("address1", request.address1());
-        payload.put("address2", request.address2());
-        payload.put("orderedAt", context.orderedAt());
-        payload.put("items", payloadItems);
-        return payload;
+        return new InventoryReserveRequestedPayload(
+                order.getId(),
+                order.getOrderNo(),
+                request.buyerId(),
+                context.amountSummary().payAmount(),
+                request.paymentMethod() == null ? null : request.paymentMethod().name(),
+                request.recipientName(),
+                request.recipientPhone(),
+                request.zipCode(),
+                request.address1(),
+                request.address2(),
+                context.orderedAt(),
+                payloadItems
+        );
     }
 
     private OrderCreateContext prepareCreateContext(OrderCreateRequest request) {
@@ -286,7 +286,7 @@ public class BuyerOrderCreateOrchestrationService {
             String eventType,
             Long orderId,
             String topic,
-            Map<String, Object> payload
+            Object payload
     ) {
         String aggregateId = String.valueOf(orderId);
         OrderDomainEvent event = OrderDomainEvent.builder()
@@ -356,6 +356,29 @@ public class BuyerOrderCreateOrchestrationService {
 
     private BigDecimal safe(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private record ReservePayloadItem(
+            Long productId,
+            Long optionId,
+            Integer quantity
+    ) {
+    }
+
+    private record InventoryReserveRequestedPayload(
+            Long orderId,
+            String orderNo,
+            Long buyerId,
+            BigDecimal payAmount,
+            String paymentMethod,
+            String recipientName,
+            String recipientPhone,
+            String zipCode,
+            String address1,
+            String address2,
+            LocalDateTime orderedAt,
+            List<ReservePayloadItem> items
+    ) {
     }
 
     private record OrderAmountSummary(

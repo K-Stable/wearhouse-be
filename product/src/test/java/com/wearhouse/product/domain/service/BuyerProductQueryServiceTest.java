@@ -5,6 +5,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wearhouse.common.support.s3.S3StorageService;
+import com.wearhouse.product.buyer.mapper.BuyerProductResponseMapper;
 import com.wearhouse.product.domain.dto.response.BuyerProductDetailResponse;
 import com.wearhouse.product.domain.entity.ProductEntity;
 import com.wearhouse.product.domain.model.BuyerProductSortType;
@@ -14,7 +15,6 @@ import com.wearhouse.product.domain.model.ProductStatus;
 import com.wearhouse.product.domain.repository.ProductRepository;
 import com.wearhouse.product.domain.repository.ProductSeasonRepository;
 import com.wearhouse.product.domain.service.buyer.BuyerProductQueryService;
-import com.wearhouse.product.domain.service.buyer.BuyerProductResponseMapper;
 import com.wearhouse.product.domain.service.common.ProductImageUrlResolver;
 import com.wearhouse.product.domain.service.common.ProductStockResolver;
 import com.wearhouse.product.infra.inventory.ProductInventoryClient;

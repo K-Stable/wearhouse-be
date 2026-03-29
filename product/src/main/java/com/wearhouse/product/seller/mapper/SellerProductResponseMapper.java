@@ -1,4 +1,4 @@
-package com.wearhouse.product.domain.service.seller;
+package com.wearhouse.product.seller.mapper;
 
 import com.wearhouse.product.domain.dto.response.ProductOptionResponse;
 import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;

@@ -2,7 +2,6 @@ package com.wearhouse.common.support.kafka.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.LocalDateTime;
-import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record KafkaMessageEnvelope(
@@ -13,6 +12,6 @@ public record KafkaMessageEnvelope(
         LocalDateTime occurredAt,
         Integer version,
         String producer,
-        Map<String, Object> payload
+        Object payload
 ) {
 }

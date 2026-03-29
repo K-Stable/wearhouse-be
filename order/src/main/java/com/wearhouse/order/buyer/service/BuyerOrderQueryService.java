@@ -13,17 +13,14 @@ import com.wearhouse.common.infra.feign.userorder.dto.UserOrderPreviewInfoReques
 import com.wearhouse.common.infra.feign.userorder.dto.UserOrderPreviewInfoResponse;
 import com.wearhouse.order.buyer.dto.request.OrderPreviewRequest;
 import com.wearhouse.order.buyer.dto.response.OrderDetailResponse;
-import com.wearhouse.order.buyer.dto.response.OrderDetailResponse.OrderItemDetailResponse;
 import com.wearhouse.order.buyer.dto.response.OrderPreviewResponse;
 import com.wearhouse.order.buyer.dto.response.OrderPreviewResponse.BuyerOrderPreviewInfo;
-import com.wearhouse.order.buyer.dto.response.OrderPreviewResponse.DefaultAddress;
 import com.wearhouse.order.buyer.dto.response.OrderPreviewResponse.OrderableItem;
 import com.wearhouse.order.buyer.dto.response.OrderPreviewResponse.UnavailableItem;
 import com.wearhouse.order.buyer.dto.response.OrderSummaryResponse;
+import com.wearhouse.order.buyer.mapper.BuyerOrderResponseMapper;
 import com.wearhouse.order.common.exception.OrderErrorCode;
 import com.wearhouse.order.domain.entity.OrderEntity;
-import com.wearhouse.order.domain.entity.OrderItemEntity;
-import com.wearhouse.order.domain.entity.OrderInfo;
 import com.wearhouse.order.domain.model.OrderStatus;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import com.wearhouse.order.support.config.OrderInventoryInternalProperties;
@@ -56,37 +53,20 @@ public class BuyerOrderQueryService {
     private final UserOrderInfoFeignClient userOrderInfoFeignClient;
     private final OrderInventoryInternalProperties orderInventoryInternalProperties;
     private final OrderUserInternalProperties orderUserInternalProperties;
+    private final BuyerOrderResponseMapper buyerOrderResponseMapper;
 
     @ReadTx
     public OrderDetailResponse getOrderDetail(String orderNo) {
         OrderEntity order = orderRepository.findDetailByOrderNo(orderNo)
                 .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
 
-        List<OrderItemDetailResponse> detailItems = mapDetailItems(order.getItems());
-        OrderInfo info = order.getOrderInfo();
         boolean retryable = RETRYABLE_STATUSES.contains(order.getStatus());
-        return OrderDetailResponse.builder()
-                .orderNo(order.getOrderNo())
-                .buyerId(order.getBuyerId())
-                .status(order.getStatus().name())
-                .failReasonCode(order.getFailReasonCode())
-                .retryable(retryable)
-                .nextAction(retryable ? NEXT_ACTION_RETURN_TO_CHECKOUT : NEXT_ACTION_VIEW_ORDER)
-                .paymentMethod(info == null || info.getPaymentMethod() == null ? null : info.getPaymentMethod().name())
-                .recipientName(info == null ? null : info.getRecipientName())
-                .recipientPhone(info == null ? null : info.getRecipientPhone())
-                .zipCode(info == null ? null : info.getZipCode())
-                .address1(info == null ? null : info.getAddress1())
-                .address2(info == null ? null : info.getAddress2())
-                .deliveryRequest(info == null ? null : info.getDeliveryRequest())
-                .itemAmount(order.getItemAmount())
-                .shippingFee(order.getShippingFee())
-                .discountAmount(order.getDiscountAmount())
-                .pointUsedAmount(order.getPointUsedAmount())
-                .payAmount(order.getTotalAmount())
-                .orderedAt(order.getOrderedAt())
-                .items(detailItems)
-                .build();
+        return buyerOrderResponseMapper.toOrderDetailResponse(
+                order,
+                retryable,
+                retryable ? NEXT_ACTION_RETURN_TO_CHECKOUT : NEXT_ACTION_VIEW_ORDER,
+                buyerOrderResponseMapper.toDetailItemResponses(order.getItems())
+        );
     }
 
     @ReadTx
@@ -94,12 +74,7 @@ public class BuyerOrderQueryService {
         List<OrderEntity> orders = orderRepository.findByBuyerIdOrderByIdDesc(buyerId, PageRequest.of(0, limit));
         List<OrderSummaryResponse> responses = new ArrayList<>();
         for (OrderEntity order : orders) {
-            responses.add(OrderSummaryResponse.builder()
-                    .orderNo(order.getOrderNo())
-                    .status(order.getStatus().name())
-                    .payAmount(order.getTotalAmount())
-                    .orderedAt(order.getOrderedAt())
-                    .build());
+            responses.add(buyerOrderResponseMapper.toOrderSummaryResponse(order));
         }
         return responses;
     }
@@ -114,23 +89,6 @@ public class BuyerOrderQueryService {
         return preview(request, null);
     }
 
-    private List<OrderItemDetailResponse> mapDetailItems(List<OrderItemEntity> orderItems) {
-        List<OrderItemDetailResponse> detailItems = new ArrayList<>();
-        for (OrderItemEntity orderItem : orderItems) {
-            detailItems.add(OrderItemDetailResponse.builder()
-                    .productId(orderItem.getProductId())
-                    .optionId(orderItem.getOptionId())
-                    .productName(orderItem.getProductNameSnapshot())
-                    .optionName(orderItem.getOptionNameSnapshot())
-                    .unitPrice(orderItem.getUnitPrice())
-                    .quantity(orderItem.getQuantity())
-                    .lineAmount(orderItem.getLineAmount())
-                    .status(orderItem.getStatus().name())
-                    .build());
-        }
-        return detailItems;
-    }
-
     private OrderPreviewResponse preview(OrderPreviewRequest request, Long buyerId) {
         List<InventoryOrderPreviewItemRequest> previewItems = aggregatePreviewItems(request);
         InventoryOrderPreviewResponse inventoryResponse = callInventoryPreview(previewItems);
@@ -140,29 +98,10 @@ public class BuyerOrderQueryService {
         for (InventoryOrderPreviewLine item : inventoryResponse.items()) {
             if (item.available()) {
                 BigDecimal lineAmount = item.unitPrice().multiply(BigDecimal.valueOf(item.requestedQuantity()));
-                orderableItems.add(new OrderableItem(
-                        item.productId(),
-                        item.optionId(),
-                        item.sellerId(),
-                        item.productName(),
-                        item.color(),
-                        item.size(),
-                        item.mainImageUrl(),
-                        item.productStatus(),
-                        item.requestedQuantity(),
-                        item.unitPrice(),
-                        lineAmount
-                ));
+                orderableItems.add(buyerOrderResponseMapper.toOrderableItem(item, lineAmount));
                 continue;
             }
-            unavailableItems.add(new UnavailableItem(
-                    item.productId(),
-                    item.color(),
-                    item.size(),
-                    item.requestedQuantity(),
-                    item.availableQuantity(),
-                    resolveUnavailableReason(item)
-            ));
+            unavailableItems.add(buyerOrderResponseMapper.toUnavailableItem(item, resolveUnavailableReason(item)));
         }
 
         BigDecimal itemAmount = orderableItems.stream()
@@ -175,7 +114,7 @@ public class BuyerOrderQueryService {
         boolean partialSoldOut = !allSoldOut && !unavailableItems.isEmpty();
         String message = resolveMessage(allSoldOut, partialSoldOut);
 
-        return new OrderPreviewResponse(
+        return buyerOrderResponseMapper.toOrderPreviewResponse(
                 orderableItems,
                 unavailableItems,
                 allSoldOut,
@@ -253,16 +192,7 @@ public class BuyerOrderQueryService {
                 throw new ErrorException(OrderErrorCode.USER_PREVIEW_INVALID_RESPONSE);
             }
             UserOrderPreviewInfoResponse data = response.data();
-            DefaultAddress defaultAddress = data.defaultAddress() == null ? null : new DefaultAddress(
-                    data.defaultAddress().addressId(),
-                    data.defaultAddress().label(),
-                    data.defaultAddress().recipientName(),
-                    data.defaultAddress().recipientPhone(),
-                    data.defaultAddress().zipCode(),
-                    data.defaultAddress().address1(),
-                    data.defaultAddress().address2()
-            );
-            return new BuyerOrderPreviewInfo(data.point(), defaultAddress);
+            return buyerOrderResponseMapper.toBuyerPreviewInfo(data);
         } catch (ErrorException exception) {
             throw exception;
         } catch (Exception exception) {

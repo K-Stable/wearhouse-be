@@ -7,6 +7,7 @@ import com.wearhouse.order.delivery.dto.request.DeliveryDeliveredRequest;
 import com.wearhouse.order.delivery.dto.request.DeliveryRegisterRequest;
 import com.wearhouse.order.delivery.dto.request.DeliveryRegisterRequest.DeliveryRegisterItemRequest;
 import com.wearhouse.order.delivery.dto.response.DeliveryBatchUpdateResponse;
+import com.wearhouse.order.delivery.mapper.DeliveryResponseMapper;
 import com.wearhouse.order.domain.entity.DeliveryEntity;
 import com.wearhouse.order.domain.entity.OrderEntity;
 import com.wearhouse.order.domain.entity.OrderStatusHistoryEntity;
@@ -48,6 +49,7 @@ public class DeliveryCommandService {
     private final DeliveryRepository deliveryRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderProperties orderProperties;
+    private final DeliveryResponseMapper deliveryResponseMapper;
 
     @WriteTx
     public DeliveryBatchUpdateResponse registerDeliveries(LoginUser currentUser, DeliveryRegisterRequest request) {
@@ -76,7 +78,7 @@ public class DeliveryCommandService {
             processedOrderIds.add(item.orderId());
         }
 
-        return new DeliveryBatchUpdateResponse(processedOrderIds.size(), processedOrderIds);
+        return deliveryResponseMapper.toBatchUpdateResponse(processedOrderIds);
     }
 
     @WriteTx
@@ -104,7 +106,7 @@ public class DeliveryCommandService {
             processedOrderIds.add(orderId);
         }
 
-        return new DeliveryBatchUpdateResponse(processedOrderIds.size(), processedOrderIds);
+        return deliveryResponseMapper.toBatchUpdateResponse(processedOrderIds);
     }
 
     @WriteTx

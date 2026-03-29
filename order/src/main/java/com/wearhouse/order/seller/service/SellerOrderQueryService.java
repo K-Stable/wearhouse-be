@@ -3,12 +3,10 @@ package com.wearhouse.order.seller.service;
 import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.common.global.transactional.ReadTx;
 import com.wearhouse.order.domain.entity.OrderEntity;
-import com.wearhouse.order.domain.entity.OrderItemEntity;
-import com.wearhouse.order.domain.entity.OrderInfo;
 import com.wearhouse.order.domain.model.OrderStatus;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
-import com.wearhouse.order.seller.dto.response.SellerOrderListItemResponse;
 import com.wearhouse.order.seller.dto.response.SellerOrderListPageResponse;
+import com.wearhouse.order.seller.mapper.SellerOrderResponseMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,6 +18,7 @@ public class SellerOrderQueryService {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private final OrderRepository orderRepository;
+    private final SellerOrderResponseMapper sellerOrderResponseMapper;
 
     @ReadTx
     public SellerOrderListPageResponse getSellerOrders(
@@ -38,33 +37,10 @@ public class SellerOrderQueryService {
         );
 
         var content = orders.getContent().stream()
-                .map(this::toSellerOrderListItem)
+                .map(sellerOrderResponseMapper::toListItem)
                 .toList();
 
-        return new SellerOrderListPageResponse(
-                content,
-                orders.getNumber(),
-                orders.getSize(),
-                orders.getTotalElements(),
-                orders.getTotalPages(),
-                orders.hasNext(),
-                orders.hasPrevious()
-        );
-    }
-
-    private SellerOrderListItemResponse toSellerOrderListItem(OrderEntity order) {
-        int totalQuantity = order.getItems().stream()
-                .mapToInt(OrderItemEntity::getQuantity)
-                .sum();
-        OrderInfo info = order.getOrderInfo();
-        return new SellerOrderListItemResponse(
-                order.getOrderNo(),
-                order.getBuyerId(),
-                totalQuantity,
-                info == null || info.getPaymentMethod() == null ? null : info.getPaymentMethod().name(),
-                order.getOrderedAt() == null ? null : order.getOrderedAt().toLocalDate(),
-                order.getStatus() == null ? null : order.getStatus().name()
-        );
+        return sellerOrderResponseMapper.toPageResponse(orders, content);
     }
 
     private int resolvePage(Integer page) {

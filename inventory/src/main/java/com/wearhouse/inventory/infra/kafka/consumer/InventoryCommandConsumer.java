@@ -9,7 +9,6 @@ import com.wearhouse.inventory.kafka.dto.InventoryReserveRequestedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 @RequiredArgsConstructor
@@ -23,9 +22,7 @@ public class InventoryCommandConsumer {
     @KafkaListener(topics = "${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}")
     public void consume(
             String message,
-            Acknowledgment acknowledgment,
-            @Header(name = "kafka_receivedTopic", required = false) String topic,
-            @Header(name = "kafka_receivedMessageKey", required = false) String key
+            Acknowledgment acknowledgment
     ) throws Exception {
         String eventType = "unknown";
         try {
@@ -37,9 +34,6 @@ public class InventoryCommandConsumer {
                 InventoryReserveRequestedEvent payload = requirePayload(envelope.payload(), InventoryReserveRequestedEvent.class);
                 buyerInventoryCommandService.onReserveRequested(
                         eventId,
-                        topic,
-                        key,
-                        message,
                         payload
                 );
                 // reserve 처리 완료 이후 ack
@@ -51,9 +45,6 @@ public class InventoryCommandConsumer {
                 InventoryReleaseRequestedEvent payload = requirePayload(envelope.payload(), InventoryReleaseRequestedEvent.class);
                 buyerInventoryCommandService.onReleaseRequested(
                         eventId,
-                        topic,
-                        key,
-                        message,
                         payload
                 );
             }
