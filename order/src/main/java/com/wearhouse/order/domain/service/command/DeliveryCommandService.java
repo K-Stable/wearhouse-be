@@ -9,7 +9,6 @@ import com.wearhouse.order.domain.dto.request.DeliveryRegisterRequest.DeliveryRe
 import com.wearhouse.order.domain.dto.response.DeliveryBatchUpdateResponse;
 import com.wearhouse.order.domain.entity.DeliveryEntity;
 import com.wearhouse.order.domain.entity.OrderEntity;
-import com.wearhouse.order.domain.entity.OrderItemEntity;
 import com.wearhouse.order.domain.entity.OrderStatusHistoryEntity;
 import com.wearhouse.order.domain.exception.OrderErrorCode;
 import com.wearhouse.order.domain.model.DeliveryStatus;
@@ -52,7 +51,6 @@ public class DeliveryCommandService {
 
     @WriteTx
     public DeliveryBatchUpdateResponse registerDeliveries(LoginUser currentUser, DeliveryRegisterRequest request) {
-        Long sellerId = requireSellerId(currentUser);
         LinkedHashSet<Long> orderIds = extractOrderIds(request.items());
         Map<Long, OrderEntity> orders = loadOrders(orderIds);
         Map<Long, DeliveryEntity> deliveriesByOrderId = loadDeliveries(orderIds);
@@ -60,7 +58,6 @@ public class DeliveryCommandService {
         List<Long> processedOrderIds = new ArrayList<>(orderIds.size());
         for (DeliveryRegisterItemRequest item : request.items()) {
             OrderEntity order = requireOrder(orders, item.orderId());
-            validateOrderOwnership(order, sellerId);
             validateRegisterableOrderStatus(order.getStatus());
 
             DeliveryEntity delivery = deliveriesByOrderId.get(item.orderId());
@@ -84,7 +81,6 @@ public class DeliveryCommandService {
 
     @WriteTx
     public DeliveryBatchUpdateResponse markDelivered(LoginUser currentUser, DeliveryDeliveredRequest request) {
-        Long sellerId = requireSellerId(currentUser);
         LinkedHashSet<Long> orderIds = new LinkedHashSet<>(request.orderIds());
         Map<Long, OrderEntity> orders = loadOrders(orderIds);
         Map<Long, DeliveryEntity> deliveriesByOrderId = loadDeliveries(orderIds);
@@ -92,7 +88,6 @@ public class DeliveryCommandService {
         List<Long> processedOrderIds = new ArrayList<>(orderIds.size());
         for (Long orderId : orderIds) {
             OrderEntity order = requireOrder(orders, orderId);
-            validateOrderOwnership(order, sellerId);
 
             DeliveryEntity delivery = deliveriesByOrderId.get(orderId);
             if (delivery == null) {
@@ -175,26 +170,10 @@ public class DeliveryCommandService {
         return order;
     }
 
-    private void validateOrderOwnership(OrderEntity order, Long sellerId) {
-        boolean owner = order.getItems().stream()
-                .map(OrderItemEntity::getSellerId)
-                .anyMatch(sellerId::equals);
-        if (!owner) {
-            throw new ErrorException(OrderErrorCode.FORBIDDEN_ORDER_ACCESS);
-        }
-    }
-
     private void validateRegisterableOrderStatus(OrderStatus status) {
         if (!REGISTERABLE_ORDER_STATUSES.contains(status)) {
             throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "배송 등록 가능한 주문 상태가 아닙니다.");
         }
-    }
-
-    private Long requireSellerId(LoginUser currentUser) {
-        if (currentUser == null || currentUser.userId() == null || !currentUser.isSeller()) {
-            throw new ErrorException(OrderErrorCode.FORBIDDEN_ORDER_ACCESS);
-        }
-        return currentUser.userId();
     }
 
     private String normalize(String value) {

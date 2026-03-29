@@ -2,6 +2,10 @@ package com.wearhouse.order.domain.service.command;
 
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.response.ApiResponse;
+import com.wearhouse.common.infra.feign.inventory.InventoryStockFeignClient;
+import com.wearhouse.common.infra.feign.inventory.dto.InventorySellerResolveRequest;
+import com.wearhouse.common.infra.feign.inventory.dto.InventorySellerResolveResponse;
+import com.wearhouse.common.infra.feign.inventory.dto.InventorySellerResolveResponse.InventorySkuSellerLine;
 import com.wearhouse.order.domain.dto.request.OrderCancelRequest;
 import com.wearhouse.order.domain.dto.request.OrderCreateRequest;
 import com.wearhouse.order.domain.dto.request.OrderCreateRequest.OrderCreateItemRequest;
@@ -32,11 +36,13 @@ import com.wearhouse.order.infra.payment.dto.PaymentPrepareInternalResponse;
 import com.wearhouse.order.support.OrderIdGenerator;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import com.wearhouse.order.support.config.OrderProperties;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,8 +50,10 @@ import java.util.Set;
 import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.wearhouse.common.global.transactional.WriteTx;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
@@ -54,38 +62,63 @@ public class OrderCommandService {
     private static final String AGGREGATE_TYPE_ORDER = "ORDER";
     private static final String REASON_ORDER_CREATED = "ORDER_CREATED";
     private static final String DEFAULT_CANCEL_REASON = "BUYER_CANCEL";
+    private static final String REASON_PAYMENT_PREPARED = "PAYMENT_PREPARED";
 
     private final OrderRepository orderRepository;
     private final OrderSagaRepository orderSagaRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderDomainEventPublisher orderDomainEventPublisher;
+    private final InventoryStockFeignClient inventoryStockFeignClient;
     private final OrderPaymentClient orderPaymentClient;
     private final OrderKafkaTopicsProperties kafkaTopicsProperties;
     private final OrderProperties orderProperties;
     private final DeliveryCommandService deliveryCommandService;
+    private final TransactionTemplate transactionTemplate;
+    private final EntityManager entityManager;
+    @Value("${wearhouse.inventory.internal.shared-secret:wearhouse-inventory-internal-secret}")
+    private String inventoryInternalSharedSecret;
 
-    @WriteTx
     public OrderCreateResponse createOrder(OrderCreateRequest request) {
-        // 주문 생성의 1차 트랜잭션: 주문/사가 생성 + 재고예약 이벤트 발행까지 처리하고 즉시 응답한다.
-        OrderCreateContext context = prepareCreateContext(request);
-        OrderEntity order = createOrderEntity(
-                request,
-                context.orderNo(),
-                context.orderedAt(),
-                context.amountSummary()
-        );
-        List<Map<String, Object>> payloadItems = appendItemsAndBuildReservePayload(order, request.items());
+        // 주문 생성+사가 시작은 트랜잭션으로 커밋하고, 이후(커밋 후) 결제 준비를 진행한다.
+        OrderCreateContext context = transactionTemplate.execute(status -> {
+            OrderCreateContext txContext = prepareCreateContext(request);
+            OrderEntity order = createOrderEntity(
+                    request,
+                    txContext.orderNo(),
+                    txContext.orderedAt(),
+                    txContext.amountSummary()
+            );
+            List<Map<String, Object>> payloadItems = appendItemsAndBuildReservePayload(order, request.items());
+            saveCreatedOrder(order, txContext.eventId());
+            startSaga(order, txContext.eventId());
+            publishInventoryReserveRequested(order, request, txContext, payloadItems);
+            return txContext;
+        });
 
-        saveCreatedOrder(order, context.eventId());
-        startSaga(order, context.eventId());
-        publishInventoryReserveRequested(order, request, context, payloadItems);
+        if (context == null) {
+            throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "주문 생성 결과가 비어 있습니다.");
+        }
 
-        return OrderCreateResponse.builder()
+        OrderCreateResponse.OrderCreateResponseBuilder responseBuilder = OrderCreateResponse.builder()
                 .orderNo(context.orderNo())
                 .customerId(context.customerId())
                 .customerName(request.recipientName())
-                .payAmount(context.amountSummary().payAmount())
-                .build();
+                .payAmount(context.amountSummary().payAmount());
+
+        if (request.paymentMethod() == PaymentMethod.STABLE && request.buyerId() != null) {
+            OrderPaymentPrepareResponse prepareResponse = preparePayment(
+                    request.buyerId(),
+                    context.orderNo(),
+                    null
+            );
+            responseBuilder
+                    .checkoutSessionId(prepareResponse.checkoutSessionId())
+                    .checkoutUrl(prepareResponse.checkoutUrl())
+                    .appLaunchUrl(prepareResponse.appLaunchUrl())
+                    .checkoutExpiresAt(prepareResponse.checkoutExpiresAt());
+        }
+
+        return responseBuilder.build();
     }
 
     public OrderPaymentConfirmResponse confirmPayment(
@@ -122,8 +155,8 @@ public class OrderCommandService {
         ApiResponse<PaymentConfirmInternalResponse> confirmResponse = orderPaymentClient.confirmStablepayPayment(
                 orderProperties.getInternal().getSharedSecret(),
                 new PaymentConfirmInternalRequest(
+                        order.getId(),
                         request.orderId(),
-                        orderNo,
                         request.paymentKey(),
                         request.amount()
                 )
@@ -178,6 +211,7 @@ public class OrderCommandService {
         if (data == null) {
             throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "결제 준비 응답이 비어 있습니다.");
         }
+        markPaymentPendingAfterPrepare(prepareTarget);
 
         return new OrderPaymentPrepareResponse(
                 data.checkoutSessionId(),
@@ -245,9 +279,12 @@ public class OrderCommandService {
                 return current;
             }
             pause(orderProperties.getPaymentPrepareWaitIntervalMs());
+            // 소비자 트랜잭션이 갱신한 상태를 보장해서 읽기 위해 1차 캐시를 비운다.
+            entityManager.clear();
             current = orderRepository.findDetailById(order.getId())
                     .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
         }
+        entityManager.clear();
         return orderRepository.findDetailById(order.getId())
                 .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
     }
@@ -256,7 +293,7 @@ public class OrderCommandService {
         if (order.getBuyerId() == null || !order.getBuyerId().equals(buyerId)) {
             throw new ErrorException(OrderErrorCode.ORDER_NOT_FOUND);
         }
-        if (!order.getId().equals(request.orderId())) {
+        if (order.getOrderNo() == null || !order.getOrderNo().equals(request.orderId())) {
             throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "orderId 값이 주문 정보와 일치하지 않습니다.");
         }
         if (!OrderStatusPolicy.PAYMENT_CONFIRMABLE_STATUSES.contains(order.getStatus())) {
@@ -368,13 +405,19 @@ public class OrderCommandService {
             OrderEntity order,
             List<OrderCreateItemRequest> requestItems
     ) {
+        Map<Long, Long> sellerIdBySku = resolveSellerIds(requestItems);
         List<Map<String, Object>> payloadItems = new ArrayList<>(requestItems.size());
         for (OrderCreateItemRequest requestItem : requestItems) {
+            Long skuId = resolveSkuId(requestItem);
+            Long sellerId = sellerIdBySku.get(skuId);
+            if (sellerId == null) {
+                throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "sellerId를 확인할 수 없는 상품이 있습니다.");
+            }
             BigDecimal lineAmount = requestItem.unitPrice().multiply(BigDecimal.valueOf(requestItem.quantity()));
             order.addItem(
                     requestItem.productId(),
                     requestItem.optionId(),
-                    requestItem.sellerId(),
+                    sellerId,
                     requestItem.productName(),
                     requestItem.optionName(),
                     requestItem.unitPrice(),
@@ -386,11 +429,44 @@ public class OrderCommandService {
         return payloadItems;
     }
 
+    private Map<Long, Long> resolveSellerIds(List<OrderCreateItemRequest> requestItems) {
+        LinkedHashSet<Long> skuIds = new LinkedHashSet<>();
+        for (OrderCreateItemRequest item : requestItems) {
+            skuIds.add(resolveSkuId(item));
+        }
+
+        try {
+            ApiResponse<InventorySellerResolveResponse> response = inventoryStockFeignClient.resolveSellers(
+                    inventoryInternalSharedSecret,
+                    new InventorySellerResolveRequest(new ArrayList<>(skuIds))
+            );
+            if (response == null || !response.success() || response.data() == null || response.data().items() == null) {
+                throw new ErrorException(OrderErrorCode.INVENTORY_PREVIEW_INVALID_RESPONSE);
+            }
+
+            Map<Long, Long> sellerIdBySku = new LinkedHashMap<>();
+            for (InventorySkuSellerLine line : response.data().items()) {
+                if (line == null || line.skuId() == null || line.sellerId() == null) {
+                    continue;
+                }
+                sellerIdBySku.put(line.skuId(), line.sellerId());
+            }
+            return sellerIdBySku;
+        } catch (ErrorException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new ErrorException(OrderErrorCode.INVENTORY_PREVIEW_UNAVAILABLE);
+        }
+    }
+
+    private Long resolveSkuId(OrderCreateItemRequest requestItem) {
+        return requestItem.optionId() != null ? requestItem.optionId() : requestItem.productId();
+    }
+
     private Map<String, Object> toReservePayloadItem(OrderCreateItemRequest requestItem) {
         Map<String, Object> payloadItem = new LinkedHashMap<>();
         payloadItem.put("productId", requestItem.productId());
         payloadItem.put("optionId", requestItem.optionId());
-        payloadItem.put("sellerId", requestItem.sellerId());
         payloadItem.put("quantity", requestItem.quantity());
         return payloadItem;
     }
@@ -569,6 +645,17 @@ public class OrderCommandService {
                 .ifPresent(saga -> saga.transition(nextState, eventId, failReasonCode));
     }
 
+    private void markPaymentPendingAfterPrepare(OrderEntity order) {
+        if (order.getStatus() != OrderStatus.RESERVED) {
+            return;
+        }
+        String eventId = OrderIdGenerator.newEventId();
+        order.updateStatus(OrderStatus.PAYMENT_PENDING, null, null, null);
+        orderRepository.save(order);
+        saveStatusHistory(order, OrderStatus.RESERVED, OrderStatus.PAYMENT_PENDING, eventId, REASON_PAYMENT_PREPARED);
+        transitionSaga(order.getId(), OrderSagaState.WAITING_PAYMENT_RESULT, eventId, null);
+    }
+
     private void validateCreateRequest(OrderCreateRequest request) {
         if (request == null) {
             throw new ErrorException(OrderErrorCode.INVALID_ORDER_AMOUNT);
@@ -582,7 +669,6 @@ public class OrderCommandService {
 
         for (OrderCreateItemRequest item : request.items()) {
             if (item.productId() == null
-                    || item.sellerId() == null
                     || item.unitPrice() == null
                     || item.quantity() == null
                     || item.quantity() <= 0
@@ -644,11 +730,11 @@ public class OrderCommandService {
         );
 
         private static final Set<OrderStatus> PAYMENT_PREPARE_WAIT_STATUSES = Set.of(
-                OrderStatus.PENDING_RESERVE,
-                OrderStatus.RESERVED
+                OrderStatus.PENDING_RESERVE
         );
 
         private static final Set<OrderStatus> PAYMENT_PREPARABLE_STATUSES = Set.of(
+                OrderStatus.RESERVED,
                 OrderStatus.PAYMENT_PENDING,
                 OrderStatus.PAYMENT_FAILED,
                 OrderStatus.CONFIRMED

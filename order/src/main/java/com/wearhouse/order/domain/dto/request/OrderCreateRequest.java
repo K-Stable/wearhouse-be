@@ -34,7 +34,6 @@ public record OrderCreateRequest(
     public record OrderCreateItemRequest(
             @NotNull Long productId,
             Long optionId,
-            @NotNull Long sellerId,
             @NotBlank String productName,
             String optionName,
             @NotNull @DecimalMin("0") BigDecimal unitPrice,

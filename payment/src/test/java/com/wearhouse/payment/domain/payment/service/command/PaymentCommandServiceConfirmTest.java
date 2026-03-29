@@ -13,8 +13,7 @@ import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.infra.pay.PayConfirmGateway;
-import com.wearhouse.payment.infra.pay.PayPrepareGateway;
+import com.wearhouse.payment.infra.pay.WalletServerGateway;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -34,9 +33,7 @@ class PaymentCommandServiceConfirmTest {
     @Mock
     private PaymentTransactionRepository paymentTransactionRepository;
     @Mock
-    private PayConfirmGateway payConfirmGateway;
-    @Mock
-    private PayPrepareGateway payPrepareGateway;
+    private WalletServerGateway walletServerGateway;
     @Mock
     private PaymentDomainEventPublisher paymentDomainEventPublisher;
     @Mock
@@ -49,8 +46,7 @@ class PaymentCommandServiceConfirmTest {
         paymentCommandService = new PaymentCommandService(
                 paymentInboxRepository,
                 paymentTransactionRepository,
-                payConfirmGateway,
-                payPrepareGateway,
+                walletServerGateway,
                 paymentDomainEventPublisher,
                 paymentKafkaFlowMetrics
         );
@@ -76,7 +72,7 @@ class PaymentCommandServiceConfirmTest {
         pending.bindStablepaySession("pay_key_1", null, null, null, null, null, null, null);
 
         when(paymentTransactionRepository.findByOrderId(1L)).thenReturn(Optional.of(pending));
-        when(payConfirmGateway.confirm(any())).thenReturn(PayConfirmGateway.PayConfirmResult.authorized(
+        when(walletServerGateway.walletConfirm(any(), any())).thenReturn(WalletServerGateway.WalletConfirmResult.authorized(
                 "pid_1",
                 "cmd_1",
                 "authorized_confirmed",
@@ -111,7 +107,7 @@ class PaymentCommandServiceConfirmTest {
                 "internal-secret"
         )).isInstanceOf(IllegalArgumentException.class);
 
-        verify(payConfirmGateway, never()).confirm(any());
+        verify(walletServerGateway, never()).walletConfirm(any(), any());
         verify(paymentDomainEventPublisher, never()).publish(any());
         verify(paymentTransactionRepository, never()).save(any());
     }

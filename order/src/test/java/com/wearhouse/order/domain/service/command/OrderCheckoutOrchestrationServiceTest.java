@@ -7,8 +7,12 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.lenient;
 
 import com.wearhouse.common.global.response.ApiResponse;
+import com.wearhouse.common.infra.feign.inventory.InventoryStockFeignClient;
+import com.wearhouse.common.infra.feign.inventory.dto.InventorySellerResolveResponse;
+import com.wearhouse.common.infra.feign.inventory.dto.InventorySellerResolveResponse.InventorySkuSellerLine;
 import com.wearhouse.order.domain.dto.request.OrderCreateRequest;
 import com.wearhouse.order.domain.dto.request.OrderPaymentConfirmRequest;
 import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
@@ -27,6 +31,7 @@ import com.wearhouse.order.infra.payment.dto.PaymentConfirmInternalResponse;
 import com.wearhouse.order.infra.payment.dto.PaymentPrepareInternalResponse;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import com.wearhouse.order.support.config.OrderProperties;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -36,6 +41,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class OrderCommandServiceOrchestrationTest {
@@ -51,7 +59,13 @@ class OrderCommandServiceOrchestrationTest {
     @Mock
     private OrderDomainEventPublisher orderDomainEventPublisher;
     @Mock
+    private InventoryStockFeignClient inventoryStockFeignClient;
+    @Mock
     private DeliveryCommandService deliveryCommandService;
+    @Mock
+    private TransactionTemplate transactionTemplate;
+    @Mock
+    private EntityManager entityManager;
 
     private OrderCommandService orderCommandService;
 
@@ -65,17 +79,32 @@ class OrderCommandServiceOrchestrationTest {
         orderProperties.getInternal().setSharedSecret("internal-secret");
         orderProperties.setPaymentConfirmWaitTimeoutMs(1000L);
         orderProperties.setPaymentConfirmWaitIntervalMs(10L);
+        orderProperties.setPaymentPrepareWaitTimeoutMs(1000L);
+        orderProperties.setPaymentPrepareWaitIntervalMs(10L);
+
+        lenient().when(transactionTemplate.execute(any()))
+                .thenAnswer(invocation -> {
+                    TransactionCallback<Object> callback = invocation.getArgument(0);
+                    return callback.doInTransaction(mock(TransactionStatus.class));
+                });
 
         orderCommandService = new OrderCommandService(
                 orderRepository,
                 orderSagaRepository,
                 orderStatusHistoryRepository,
                 orderDomainEventPublisher,
+                inventoryStockFeignClient,
                 orderPaymentClient,
                 topicsProperties,
                 orderProperties,
-                deliveryCommandService
+                deliveryCommandService,
+                transactionTemplate,
+                entityManager
         );
+        lenient().when(inventoryStockFeignClient.resolveSellers(any(), any()))
+                .thenReturn(ApiResponse.success(new InventorySellerResolveResponse(
+                        List.of(new InventorySkuSellerLine(2L, 10L))
+                )));
     }
 
     @AfterEach
@@ -85,14 +114,47 @@ class OrderCommandServiceOrchestrationTest {
 
     @Test
     void 주문생성은_즉시_응답한다() {
-        OrderCreateRequest request = sampleRequest(PaymentMethod.STABLE);
+        OrderCreateRequest request = sampleRequest(PaymentMethod.CARD);
         OrderCreateResponse result = orderCommandService.createOrder(request);
 
         assertThat(result.orderNo()).isNotBlank();
         assertThat(result.customerId()).isNotBlank();
         assertThat(result.customerName()).isEqualTo("tester");
         assertThat(result.payAmount()).isEqualByComparingTo(new BigDecimal("1000"));
+        assertThat(result.checkoutUrl()).isNull();
         verify(orderDomainEventPublisher).publish(any());
+    }
+
+    @Test
+    void stable_주문생성은_재고예약후_prepare를_거쳐_checkout_url을_반환한다() {
+        OrderCreateRequest request = sampleRequest(PaymentMethod.STABLE);
+
+        OrderEntity paymentPending = mock(OrderEntity.class);
+        given(paymentPending.getStatus()).willReturn(OrderStatus.PAYMENT_PENDING);
+        given(paymentPending.getId()).willReturn(10L);
+        given(paymentPending.getOrderNo()).willReturn("O-STABLE-1");
+        given(paymentPending.getBuyerId()).willReturn(1L);
+        given(paymentPending.getTotalAmount()).willReturn(new BigDecimal("1000"));
+        OrderInfo stableInfo = mock(OrderInfo.class);
+        given(stableInfo.getPaymentMethod()).willReturn(PaymentMethod.STABLE);
+        given(stableInfo.getRecipientName()).willReturn("tester");
+        given(paymentPending.getOrderInfo()).willReturn(stableInfo);
+
+        given(orderRepository.findDetailByOrderNo(any())).willReturn(Optional.of(paymentPending));
+        given(orderPaymentClient.prepareStablepayPayment(eq("internal-secret"), any()))
+                .willReturn(ApiResponse.success(new PaymentPrepareInternalResponse(
+                        "cs-created",
+                        "https://wallet.example/checkout/cs-created",
+                        "wallet://checkout/cs-created",
+                        "2026-03-26T00:00:00Z"
+                )));
+
+        OrderCreateResponse result = orderCommandService.createOrder(request);
+
+        assertThat(result.orderNo()).isNotBlank();
+        assertThat(result.checkoutSessionId()).isEqualTo("cs-created");
+        assertThat(result.checkoutUrl()).isEqualTo("https://wallet.example/checkout/cs-created");
+        verify(orderPaymentClient).prepareStablepayPayment(eq("internal-secret"), any());
     }
 
     @Test
@@ -101,6 +163,7 @@ class OrderCommandServiceOrchestrationTest {
         given(paymentPending.getStatus()).willReturn(OrderStatus.PAYMENT_PENDING);
         given(paymentPending.getId()).willReturn(1L);
         given(paymentPending.getBuyerId()).willReturn(1L);
+        given(paymentPending.getOrderNo()).willReturn("O202603190001");
         OrderInfo stableInfo = mock(OrderInfo.class);
         given(stableInfo.getPaymentMethod()).willReturn(PaymentMethod.STABLE);
         given(paymentPending.getOrderInfo()).willReturn(stableInfo);
@@ -124,7 +187,7 @@ class OrderCommandServiceOrchestrationTest {
         OrderPaymentConfirmResponse response = orderCommandService.confirmPayment(
                 1L,
                 "O202603190001",
-                new OrderPaymentConfirmRequest(1L, "pay_key_1", new BigDecimal("10000"))
+                new OrderPaymentConfirmRequest("O202603190001", "pay_key_1", new BigDecimal("10000"))
         );
 
         assertThat(response.status()).isEqualTo(OrderStatus.CONFIRMED.name());
@@ -137,6 +200,7 @@ class OrderCommandServiceOrchestrationTest {
         given(paymentPending.getStatus()).willReturn(OrderStatus.PAYMENT_PENDING);
         given(paymentPending.getId()).willReturn(2L);
         given(paymentPending.getBuyerId()).willReturn(1L);
+        given(paymentPending.getOrderNo()).willReturn("O202603190002");
         OrderInfo cardInfo = mock(OrderInfo.class);
         given(cardInfo.getPaymentMethod()).willReturn(PaymentMethod.CARD);
         given(paymentPending.getOrderInfo()).willReturn(cardInfo);
@@ -151,7 +215,7 @@ class OrderCommandServiceOrchestrationTest {
         OrderPaymentConfirmResponse response = orderCommandService.confirmPayment(
                 1L,
                 "O202603190002",
-                new OrderPaymentConfirmRequest(2L, null, new BigDecimal("10000"))
+                new OrderPaymentConfirmRequest("O202603190002", "card_ignore", new BigDecimal("10000"))
         );
 
         assertThat(response.status()).isEqualTo(OrderStatus.CONFIRMED.name());
@@ -203,7 +267,6 @@ class OrderCommandServiceOrchestrationTest {
                 .items(List.of(OrderCreateRequest.OrderCreateItemRequest.builder()
                         .productId(1L)
                         .optionId(2L)
-                        .sellerId(3L)
                         .productName("상품")
                         .optionName("옵션")
                         .unitPrice(new BigDecimal("1000"))

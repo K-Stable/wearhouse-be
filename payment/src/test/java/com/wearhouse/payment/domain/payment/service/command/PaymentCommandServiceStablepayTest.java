@@ -10,8 +10,7 @@ import static org.mockito.Mockito.when;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.infra.pay.PayConfirmGateway;
-import com.wearhouse.payment.infra.pay.PayPrepareGateway;
+import com.wearhouse.payment.infra.pay.WalletServerGateway;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -32,9 +31,7 @@ class PaymentCommandServiceStablepayTest {
     @Mock
     private PaymentTransactionRepository paymentTransactionRepository;
     @Mock
-    private PayConfirmGateway payConfirmGateway;
-    @Mock
-    private PayPrepareGateway payPrepareGateway;
+    private WalletServerGateway walletServerGateway;
     @Mock
     private PaymentDomainEventPublisher paymentDomainEventPublisher;
     @Mock
@@ -47,8 +44,7 @@ class PaymentCommandServiceStablepayTest {
         paymentCommandService = new PaymentCommandService(
                 paymentInboxRepository,
                 paymentTransactionRepository,
-                payConfirmGateway,
-                payPrepareGateway,
+                walletServerGateway,
                 paymentDomainEventPublisher,
                 paymentKafkaFlowMetrics
         );

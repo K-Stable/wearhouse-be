@@ -183,7 +183,7 @@ public class OrderSagaService {
     }
 
     private void handlePaymentAuthorized(OrderEntity order, OrderStatus currentStatus, String eventId) {
-        if (currentStatus != OrderStatus.PAYMENT_PENDING) {
+        if (currentStatus != OrderStatus.PAYMENT_PENDING && currentStatus != OrderStatus.RESERVED) {
             return;
         }
 
@@ -274,10 +274,7 @@ public class OrderSagaService {
                 .build();
         orderDomainEventPublisher.publish(event);
 
-        // 결제 준비 요청 이벤트 발행 직후 상태를 PAYMENT_PENDING으로 전이한다.
-        order.updateStatus(OrderStatus.PAYMENT_PENDING, null, null, null);
-        saveStatusHistory(order, OrderStatus.RESERVED, OrderStatus.PAYMENT_PENDING, eventId, "PAYMENT_PREPARE_REQUESTED");
-        transitionSaga(order.getId(), OrderSagaState.WAITING_PAYMENT_RESULT, eventId, null);
+        // 주문 상태는 wallet prepare 응답 성공 시점(OrderCommandService)에서 PAYMENT_PENDING으로 전이한다.
     }
 
     private void publishInventoryReleaseRequested(OrderEntity order, String reasonCode) {

@@ -1,22 +1,18 @@
 package com.wearhouse.order.domain.service.command;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.order.domain.dto.request.DeliveryDeliveredRequest;
 import com.wearhouse.order.domain.dto.request.DeliveryRegisterRequest;
 import com.wearhouse.order.domain.dto.response.DeliveryBatchUpdateResponse;
 import com.wearhouse.order.domain.entity.DeliveryEntity;
 import com.wearhouse.order.domain.entity.OrderEntity;
-import com.wearhouse.order.domain.entity.OrderItemEntity;
-import com.wearhouse.order.domain.exception.OrderErrorCode;
 import com.wearhouse.order.domain.model.DeliveryStatus;
 import com.wearhouse.order.domain.model.OrderStatus;
 import com.wearhouse.order.infra.jpa.repository.DeliveryRepository;
@@ -58,7 +54,7 @@ class DeliveryCommandServiceTest {
     @Test
     void 배송등록시_판매자_주문이면_배송정보를_저장한다() {
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
-        OrderEntity order = mockSellerOrder(101L, 11L, OrderStatus.CONFIRMED);
+        OrderEntity order = mockOrder(101L, OrderStatus.CONFIRMED);
         DeliveryRegisterRequest request = new DeliveryRegisterRequest(List.of(
                 new DeliveryRegisterRequest.DeliveryRegisterItemRequest(101L, "CJ", "INV-101")
         ));
@@ -77,7 +73,7 @@ class DeliveryCommandServiceTest {
     @Test
     void 배송완료처리시_배송상태와_주문상태를_갱신한다() {
         LoginUser seller = new LoginUser(21L, "SELLER", List.of("ROLE_SELLER"), 1L);
-        OrderEntity order = mockSellerOrder(201L, 21L, OrderStatus.CONFIRMED);
+        OrderEntity order = mockOrder(201L, OrderStatus.CONFIRMED);
         DeliveryEntity delivery = DeliveryEntity.create(order, "CJ", "INV-201", DeliveryStatus.IN_DELIVERY);
         DeliveryDeliveredRequest request = new DeliveryDeliveredRequest(List.of(201L));
 
@@ -127,25 +123,26 @@ class DeliveryCommandServiceTest {
     }
 
     @Test
-    void 판매자_아니면_배송등록_실패한다() {
+    void 판매자_아니어도_배송등록할_수_있다() {
         LoginUser buyer = new LoginUser(1L, "BUYER", List.of("ROLE_BUYER"), 1L);
+        OrderEntity order = mockOrder(1L, OrderStatus.CONFIRMED);
         DeliveryRegisterRequest request = new DeliveryRegisterRequest(List.of(
                 new DeliveryRegisterRequest.DeliveryRegisterItemRequest(1L, "CJ", "INV-1")
         ));
 
-        assertThatThrownBy(() -> deliveryCommandService.registerDeliveries(buyer, request))
-                .isInstanceOf(ErrorException.class)
-                .satisfies(ex -> assertThat(((ErrorException) ex).errorCode())
-                        .isEqualTo(OrderErrorCode.FORBIDDEN_ORDER_ACCESS));
+        given(orderRepository.findDetailsByIdIn(any())).willReturn(List.of(order));
+        given(deliveryRepository.findByOrder_IdIn(any())).willReturn(List.of());
+        given(deliveryRepository.save(any(DeliveryEntity.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        DeliveryBatchUpdateResponse response = deliveryCommandService.registerDeliveries(buyer, request);
+
+        assertThat(response.processedCount()).isEqualTo(1);
     }
 
-    private OrderEntity mockSellerOrder(Long orderId, Long sellerId, OrderStatus status) {
+    private OrderEntity mockOrder(Long orderId, OrderStatus status) {
         OrderEntity order = mock(OrderEntity.class);
-        OrderItemEntity item = mock(OrderItemEntity.class);
-        given(item.getSellerId()).willReturn(sellerId);
         given(order.getId()).willReturn(orderId);
         given(order.getStatus()).willReturn(status);
-        given(order.getItems()).willReturn(List.of(item));
         return order;
     }
 }

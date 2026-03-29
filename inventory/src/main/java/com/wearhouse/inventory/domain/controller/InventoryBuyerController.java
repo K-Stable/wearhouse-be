@@ -5,8 +5,10 @@ import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.response.ApiResponse;
 import com.wearhouse.inventory.domain.dto.request.InventoryAvailabilityCheckRequest;
 import com.wearhouse.inventory.domain.dto.request.InventoryOrderPreviewRequest;
+import com.wearhouse.inventory.domain.dto.request.InventorySellerResolveRequest;
 import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse;
 import com.wearhouse.inventory.domain.dto.response.InventoryOrderPreviewResponse;
+import com.wearhouse.inventory.domain.dto.response.InventorySellerResolveResponse;
 import com.wearhouse.inventory.domain.service.buyer.query.BuyerInventoryQueryService;
 import com.wearhouse.inventory.support.config.InventoryProperties;
 import jakarta.validation.Valid;
@@ -41,6 +43,16 @@ public class InventoryBuyerController {
     ) {
         requireInternalSecret(headerSecret);
         InventoryOrderPreviewResponse response = buyerInventoryQueryService.previewOrder(request);
+        return ApiResponse.success(response);
+    }
+
+    @PostMapping("/stocks/sellers/resolve")
+    public ApiResponse<InventorySellerResolveResponse> resolveSellers(
+            @RequestHeader(name = INTERNAL_SECRET_HEADER, required = false) String headerSecret,
+            @Valid @RequestBody InventorySellerResolveRequest request
+    ) {
+        requireInternalSecret(headerSecret);
+        InventorySellerResolveResponse response = buyerInventoryQueryService.resolveSellers(request);
         return ApiResponse.success(response);
     }
 

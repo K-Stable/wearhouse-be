@@ -5,17 +5,16 @@ import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.common.support.lock.DistributedLock;
 import com.wearhouse.payment.domain.payment.dto.request.PaymentConfirmRequest;
-import com.wearhouse.payment.domain.payment.dto.request.PaymentPrepareRequest;
+import com.wearhouse.payment.domain.payment.dto.request.WalletPrepareRequest;
 import com.wearhouse.payment.domain.payment.dto.response.PaymentConfirmResponse;
-import com.wearhouse.payment.domain.payment.dto.response.PaymentPrepareResponse;
+import com.wearhouse.payment.domain.payment.dto.response.WalletPrepareResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.infra.pay.PayConfirmGateway;
-import com.wearhouse.payment.infra.pay.PayPrepareGateway;
+import com.wearhouse.payment.infra.pay.WalletServerGateway;
 import com.wearhouse.payment.support.PaymentIdGenerator;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import jakarta.annotation.PostConstruct;
@@ -40,11 +39,11 @@ public class PaymentCommandService {
     private static final String TIMEOUT_REASON_CODE = "PAYMENT_TIMEOUT";
     private static final String STABLE_METHOD = "STABLE";
     private static final String LEGACY_STABLEPAY_METHOD = "STABLEPAY";
+    private static final String CONFIRM_IDEMPOTENCY_PREFIX = "confirm:";
 
     private final PaymentInboxRepository paymentInboxRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
-    private final PayConfirmGateway payConfirmGateway;
-    private final PayPrepareGateway payPrepareGateway;
+    private final WalletServerGateway walletServerGateway;
     private final PaymentDomainEventPublisher paymentDomainEventPublisher;
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
     @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
@@ -101,9 +100,15 @@ public class PaymentCommandService {
             );
         }
 
-        PayConfirmGateway.PayConfirmResult result = payConfirmGateway.confirm(request);
+        String idempotencyKey = resolveConfirmIdempotencyKey(transaction.getOrderNo(), request.paymentKey());
+        WalletServerGateway.WalletConfirmRequest walletConfirmRequest = new WalletServerGateway.WalletConfirmRequest(
+                transaction.getOrderNo(),
+                request.paymentKey(),
+                request.amount()
+        );
+        WalletServerGateway.WalletConfirmResult result = walletServerGateway.walletConfirm(walletConfirmRequest, idempotencyKey);
         LocalDateTime now = LocalDateTime.now();
-        if (result.resultType() == PayConfirmGateway.ResultType.AUTHORIZED) {
+        if (result.resultType() == WalletServerGateway.ResultType.AUTHORIZED) {
             transaction.bindPaymentKey(request.paymentKey());
             transaction.authorizeByWebhook(
                     result.txHash(),
@@ -130,7 +135,7 @@ public class PaymentCommandService {
             );
         }
 
-        if (result.resultType() == PayConfirmGateway.ResultType.FAILED) {
+        if (result.resultType() == WalletServerGateway.ResultType.FAILED) {
             String reasonCode = resolveReasonCode(result.reasonCode());
             transaction.failByWebhook(
                     reasonCode,
@@ -168,19 +173,18 @@ public class PaymentCommandService {
     }
 
     @WriteTx
-    public PaymentPrepareResponse prepareStablepayPayment(
-            PaymentPrepareRequest request,
+    public WalletPrepareResponse walletPrepare(
+            WalletPrepareRequest request,
             String internalSecret
     ) {
         assertInternalSecret(internalSecret);
         validatePrepareRequest(request);
 
-        PaymentTransactionEntity transaction = paymentTransactionRepository.findByOrderId(request.orderId())
-                .orElseThrow(() -> new IllegalArgumentException("해당 주문의 결제 정보를 찾을 수 없습니다."));
+        PaymentTransactionEntity transaction = loadOrCreateStablePendingTransaction(request);
         validatePrepareTarget(transaction);
 
         if (transaction.getStatus() == PaymentStatus.AUTHORIZED) {
-            return new PaymentPrepareResponse(
+            return new WalletPrepareResponse(
                     transaction.getPaymentSessionId(),
                     null,
                     null,
@@ -188,7 +192,7 @@ public class PaymentCommandService {
             );
         }
         if (transaction.getStatus() == PaymentStatus.FAILED) {
-            return new PaymentPrepareResponse(
+            return new WalletPrepareResponse(
                     transaction.getPaymentSessionId(),
                     null,
                     null,
@@ -196,27 +200,24 @@ public class PaymentCommandService {
             );
         }
 
-        PaymentPrepareRequest walletPrepareRequest = new PaymentPrepareRequest(
-                transaction.getOrderId(),
+        WalletServerGateway.WalletPrepareRequest walletPrepareRequest = new WalletServerGateway.WalletPrepareRequest(
                 transaction.getOrderNo(),
-                request.customerId(),
                 request.orderName(),
                 transaction.getAmount(),
                 request.successUrl(),
-                request.failUrl(),
-                request.idempotencyKey()
+                request.failUrl()
         );
-        String idempotencyKey = resolvePrepareIdempotencyKey(request.idempotencyKey(), request.orderId());
-        PayPrepareGateway.PayPrepareResult result = payPrepareGateway.prepare(walletPrepareRequest, idempotencyKey);
+        String idempotencyKey = resolvePrepareIdempotencyKey(request.idempotencyKey(), transaction.getOrderNo());
+        WalletServerGateway.WalletPrepareResult result = walletServerGateway.walletPrepare(walletPrepareRequest, idempotencyKey);
         LocalDateTime now = LocalDateTime.now();
 
         String paymentStatus = normalizePrepareStatus(result.paymentStatus());
         if ("FAILED".equals(paymentStatus)) {
-            String reasonCode = resolveReasonCode(result.reasonCode());
+            String reasonCode = resolveReasonCode(null);
             transaction.failByWebhook(
                     reasonCode,
                     result.checkoutSessionId(),
-                    result.commandStatus(),
+                    null,
                     now
             );
             paymentTransactionRepository.save(transaction);
@@ -225,10 +226,10 @@ public class PaymentCommandService {
                     transaction.getOrderNo(),
                     transaction.getPaymentId(),
                     reasonCode,
-                    asString(result.reasonMessage()),
+                    null,
                     now
             );
-            return new PaymentPrepareResponse(
+            return new WalletPrepareResponse(
                     coalesce(result.checkoutSessionId(), transaction.getPaymentSessionId()),
                     result.checkoutUrl(),
                     result.appLaunchUrl(),
@@ -237,23 +238,46 @@ public class PaymentCommandService {
         }
 
         transaction.bindStablepaySession(
-                coalesce(result.paymentKey(), transaction.getPaymentKey()),
+                transaction.getPaymentKey(),
                 coalesce(result.checkoutSessionId(), transaction.getPaymentSessionId()),
-                coalesce(result.merchantKey(), transaction.getMerchantKey()),
-                coalesce(result.nonce(), transaction.getNonce()),
-                coalesce(result.deadline(), transaction.getDeadline()),
-                coalesce(result.payloadHash(), transaction.getPayloadHash()),
+                transaction.getMerchantKey(),
+                transaction.getNonce(),
+                transaction.getDeadline(),
+                transaction.getPayloadHash(),
                 transaction.getPayerAddress(),
                 transaction.getTokenAddress()
         );
         paymentTransactionRepository.save(transaction);
 
-        return new PaymentPrepareResponse(
+        return new WalletPrepareResponse(
                 transaction.getPaymentSessionId(),
                 result.checkoutUrl(),
                 result.appLaunchUrl(),
                 result.checkoutExpiresAt()
         );
+    }
+
+    private PaymentTransactionEntity loadOrCreateStablePendingTransaction(WalletPrepareRequest request) {
+        Optional<PaymentTransactionEntity> existing = paymentTransactionRepository.findByOrderId(request.orderId());
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        try {
+            paymentTransactionRepository.insertPending(
+                    PaymentIdGenerator.newPaymentId(),
+                    request.orderId(),
+                    request.orderNo(),
+                    request.amount(),
+                    STABLE_METHOD,
+                    LocalDateTime.now().plusMinutes(pendingTimeoutMinutes)
+            );
+        } catch (DuplicateKeyException ignored) {
+            // 동시 요청에서 중복 생성된 경우, 아래 재조회로 진행한다.
+        }
+
+        return paymentTransactionRepository.findByOrderId(request.orderId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 주문의 결제 정보를 찾을 수 없습니다."));
     }
 
     @WriteTx
@@ -489,7 +513,7 @@ public class PaymentCommandService {
         }
     }
 
-    private void validatePrepareRequest(PaymentPrepareRequest request) {
+    private void validatePrepareRequest(WalletPrepareRequest request) {
         if (request == null || request.orderId() == null) {
             throw new IllegalArgumentException("order 정보가 올바르지 않습니다.");
         }
@@ -539,11 +563,15 @@ public class PaymentCommandService {
         return reasonCode;
     }
 
-    private String resolvePrepareIdempotencyKey(String idempotencyKey, Long orderId) {
+    private String resolvePrepareIdempotencyKey(String idempotencyKey, String orderNo) {
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
             return idempotencyKey;
         }
-        return "prepare:" + orderId;
+        return "prepare:" + orderNo;
+    }
+
+    private String resolveConfirmIdempotencyKey(String orderNo, String paymentKey) {
+        return CONFIRM_IDEMPOTENCY_PREFIX + orderNo + ":" + paymentKey;
     }
 
     private Set<String> parseUpperCaseSet(String raw) {

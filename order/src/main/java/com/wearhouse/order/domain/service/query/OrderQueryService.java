@@ -118,18 +118,16 @@ public class OrderQueryService {
             Integer page,
             Integer size
     ) {
-        Long sellerId = requireSeller(currentUser);
         int pageNumber = resolvePage(page);
         int pageSize = resolveSize(size);
-        Page<OrderEntity> orders = orderRepository.findSellerOrders(
-                sellerId,
+        Page<OrderEntity> orders = orderRepository.findOrdersForSellerDashboard(
                 normalizeKeyword(keyword),
                 status,
                 PageRequest.of(pageNumber, pageSize)
         );
 
         List<SellerOrderListItemResponse> content = orders.getContent().stream()
-                .map(order -> toSellerOrderListItem(order, sellerId))
+                .map(this::toSellerOrderListItem)
                 .toList();
 
         return new SellerOrderListPageResponse(
@@ -341,27 +339,19 @@ public class OrderQueryService {
         return value.trim();
     }
 
-    private SellerOrderListItemResponse toSellerOrderListItem(OrderEntity order, Long sellerId) {
-        int sellerQuantity = order.getItems().stream()
-                .filter(item -> sellerId.equals(item.getSellerId()))
+    private SellerOrderListItemResponse toSellerOrderListItem(OrderEntity order) {
+        int totalQuantity = order.getItems().stream()
                 .mapToInt(OrderItemEntity::getQuantity)
                 .sum();
         OrderInfo info = order.getOrderInfo();
         return new SellerOrderListItemResponse(
                 order.getOrderNo(),
                 order.getBuyerId(),
-                sellerQuantity,
+                totalQuantity,
                 info == null || info.getPaymentMethod() == null ? null : info.getPaymentMethod().name(),
                 order.getOrderedAt() == null ? null : order.getOrderedAt().toLocalDate(),
                 order.getStatus() == null ? null : order.getStatus().name()
         );
-    }
-
-    private Long requireSeller(LoginUser currentUser) {
-        if (currentUser == null || currentUser.userId() == null || !currentUser.isSeller()) {
-            throw new ErrorException(OrderErrorCode.FORBIDDEN_ORDER_ACCESS);
-        }
-        return currentUser.userId();
     }
 
     private int resolvePage(Integer page) {
