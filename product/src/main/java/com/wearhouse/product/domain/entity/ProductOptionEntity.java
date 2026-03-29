@@ -54,7 +54,7 @@ public class ProductOptionEntity extends BaseEntity {
         this.sortOrder = sortOrder == null ? 0 : sortOrder;
     }
 
-    public static ProductOptionEntity create(
+    public static ProductOptionEntity of(
             ProductEntity product,
             String size,
             String color,

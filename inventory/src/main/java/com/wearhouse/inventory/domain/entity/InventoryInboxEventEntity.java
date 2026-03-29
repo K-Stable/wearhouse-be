@@ -13,7 +13,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -46,7 +45,6 @@ public class InventoryInboxEventEntity extends BaseEntity {
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
-    @Builder
     private InventoryInboxEventEntity(
             String eventId,
             String consumerName
@@ -70,25 +68,5 @@ public class InventoryInboxEventEntity extends BaseEntity {
 
     public void markFailed() {
         this.status = InventoryInboxStatus.FAILED;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getEventId() {
-        return eventId;
-    }
-
-    public String getConsumerName() {
-        return consumerName;
-    }
-
-    public InventoryInboxStatus getStatus() {
-        return status;
-    }
-
-    public LocalDateTime getProcessedAt() {
-        return processedAt;
     }
 }

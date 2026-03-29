@@ -34,7 +34,7 @@ public class BuyerUserCommandService {
         }
 
         String encodedPassword = passwordEncoder.encode(request.password());
-        BuyerEntity buyer = BuyerEntity.create(
+        BuyerEntity buyer = BuyerEntity.of(
                 request.loginId(),
                 request.email(),
                 encodedPassword,

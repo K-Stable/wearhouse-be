@@ -73,7 +73,7 @@ class SellerProductCommandServiceTest {
                 ProductStatus.PENDING
         );
         when(productSeasonRepository.findByIdAndSellerId(7L, 11L))
-                .thenReturn(Optional.of(ProductSeasonEntity.create(11L, "2026 SUMMER")));
+                .thenReturn(Optional.of(ProductSeasonEntity.of(11L, "2026 SUMMER")));
 
         when(productRepository.saveAndFlush(any(ProductEntity.class))).thenAnswer(invocation -> {
             ProductEntity persisted = invocation.getArgument(0);
@@ -149,7 +149,7 @@ class SellerProductCommandServiceTest {
     void updateProductSeasonShouldTrimName() {
         SellerProductCommandService service = createService();
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
-        ProductSeasonEntity season = ProductSeasonEntity.create(11L, "old-season");
+        ProductSeasonEntity season = ProductSeasonEntity.of(11L, "old-season");
         when(productSeasonRepository.findByIdAndSellerId(3L, 11L)).thenReturn(Optional.of(season));
 
         service.updateProductSeason(seller, 3L, new ProductSeasonUpdateRequest("  2026 SUMMER  "));
@@ -162,7 +162,7 @@ class SellerProductCommandServiceTest {
     void deleteProductSeasonShouldThrowWhenSeasonInUse() {
         SellerProductCommandService service = createService();
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
-        ProductSeasonEntity season = ProductSeasonEntity.create(11L, "2026 SUMMER");
+        ProductSeasonEntity season = ProductSeasonEntity.of(11L, "2026 SUMMER");
         when(productSeasonRepository.findByIdAndSellerId(3L, 11L)).thenReturn(Optional.of(season));
         when(productRepository.existsByProductSeason_IdAndSellerId(3L, 11L)).thenReturn(true);
 
@@ -178,7 +178,7 @@ class SellerProductCommandServiceTest {
     void deleteProductShouldDeleteInventoryStocksFirst() {
         SellerProductCommandService service = createService();
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
-        ProductEntity product = ProductEntity.create(
+        ProductEntity product = ProductEntity.of(
                 11L,
                 "Debug Product",
                 new BigDecimal("50000"),

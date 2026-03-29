@@ -94,7 +94,7 @@ public class ProductEntity extends BaseEntity {
         this.productSeason = productSeason;
     }
 
-    public static ProductEntity create(
+    public static ProductEntity of(
             Long sellerId,
             String name,
             BigDecimal price,
@@ -104,10 +104,10 @@ public class ProductEntity extends BaseEntity {
             String shipping,
             ProductStatus status
     ) {
-        return create(sellerId, name, price, category, details, sizeGuide, shipping, status, null);
+        return of(sellerId, name, price, category, details, sizeGuide, shipping, status, null);
     }
 
-    public static ProductEntity create(
+    public static ProductEntity of(
             Long sellerId,
             String name,
             BigDecimal price,
@@ -132,12 +132,12 @@ public class ProductEntity extends BaseEntity {
     }
 
     public void addOption(String size, String color, Integer stockQuantity, Integer sortOrder) {
-        ProductOptionEntity option = ProductOptionEntity.create(this, size, color, stockQuantity, sortOrder);
+        ProductOptionEntity option = ProductOptionEntity.of(this, size, color, stockQuantity, sortOrder);
         this.options.add(option);
     }
 
     public void addImage(ProductImageType imageType, String imageUrl, Integer sortOrder) {
-        ProductImageEntity image = ProductImageEntity.create(this, imageType, imageUrl, sortOrder);
+        ProductImageEntity image = ProductImageEntity.of(this, imageType, imageUrl, sortOrder);
         this.images.add(image);
     }
 

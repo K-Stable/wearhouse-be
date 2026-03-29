@@ -8,7 +8,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -46,7 +45,6 @@ public class BuyerEntity extends BaseEntity {
     @Column(name = "user_version", nullable = false)
     private Long userVersion;
 
-    @Builder
     private BuyerEntity(
             String loginId,
             String password,
@@ -64,33 +62,33 @@ public class BuyerEntity extends BaseEntity {
         this.phone = phone;
         this.point = point == null ? "0" : point;
         this.status = status;
-        this.userVersion = userVersion;
+            this.userVersion = userVersion;
     }
 
-    public static BuyerEntity create(String loginId, String email, String encodedPassword, String name, String phone) {
-        return BuyerEntity.builder()
-                .loginId(loginId)
-                .password(encodedPassword)
-                .email(email)
-                .name(name)
-                .phone(phone)
-                .point("0")
-                .status("ACTIVE")
-                .userVersion(1L)
-                .build();
+    public static BuyerEntity of(String loginId, String email, String encodedPassword, String name, String phone) {
+        return new BuyerEntity(
+                loginId,
+                encodedPassword,
+                email,
+                name,
+                phone,
+                "0",
+                "ACTIVE",
+                1L
+        );
     }
 
-    public static BuyerEntity create(String email, String encodedPassword, String name) {
-        return BuyerEntity.builder()
-                .loginId(email)
-                .password(encodedPassword)
-                .email(email)
-                .name(name)
-                .phone("")
-                .point("0")
-                .status("ACTIVE")
-                .userVersion(1L)
-                .build();
+    public static BuyerEntity of(String email, String encodedPassword, String name) {
+        return new BuyerEntity(
+                email,
+                encodedPassword,
+                email,
+                name,
+                "",
+                "0",
+                "ACTIVE",
+                1L
+        );
     }
 
     public void changePassword(String encodedPassword) {

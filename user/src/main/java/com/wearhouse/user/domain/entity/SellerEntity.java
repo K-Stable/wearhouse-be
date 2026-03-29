@@ -8,7 +8,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -46,7 +45,6 @@ public class SellerEntity extends BaseEntity {
     @Column(name = "user_version", nullable = false)
     private Long userVersion;
 
-    @Builder
     private SellerEntity(
             String loginId,
             String password,
@@ -64,10 +62,10 @@ public class SellerEntity extends BaseEntity {
         this.phone = phone;
         this.sellerNo = sellerNo;
         this.status = status;
-        this.userVersion = userVersion;
+            this.userVersion = userVersion;
     }
 
-    public static SellerEntity create(
+    public static SellerEntity of(
             String loginId,
             String email,
             String encodedPassword,
@@ -75,29 +73,29 @@ public class SellerEntity extends BaseEntity {
             String phone,
             String sellerNo
     ) {
-        return SellerEntity.builder()
-                .loginId(loginId)
-                .password(encodedPassword)
-                .email(email)
-                .name(name)
-                .phone(phone)
-                .sellerNo(sellerNo)
-                .status("ACTIVE")
-                .userVersion(1L)
-                .build();
+        return new SellerEntity(
+                loginId,
+                encodedPassword,
+                email,
+                name,
+                phone,
+                sellerNo,
+                "ACTIVE",
+                1L
+        );
     }
 
-    public static SellerEntity create(String email, String encodedPassword, String name) {
-        return SellerEntity.builder()
-                .loginId(email)
-                .password(encodedPassword)
-                .email(email)
-                .name(name)
-                .phone("")
-                .sellerNo("")
-                .status("ACTIVE")
-                .userVersion(1L)
-                .build();
+    public static SellerEntity of(String email, String encodedPassword, String name) {
+        return new SellerEntity(
+                email,
+                encodedPassword,
+                email,
+                name,
+                "",
+                "",
+                "ACTIVE",
+                1L
+        );
     }
 
     public void changePassword(String encodedPassword) {

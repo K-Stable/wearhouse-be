@@ -34,7 +34,7 @@ public class SellerUserCommandService {
         }
 
         String encodedPassword = passwordEncoder.encode(request.password());
-        SellerEntity seller = SellerEntity.create(
+        SellerEntity seller = SellerEntity.of(
                 request.loginId(),
                 request.email(),
                 encodedPassword,

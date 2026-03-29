@@ -95,7 +95,7 @@ class InventoryCommandServiceConcurrencyTest {
         when(inventoryHotSkuLockService.withHotSkuLocks(anySet(), anyString(), any()))
                 .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(2)).get());
         when(inventoryStockRepository.findBySkuId(eq(201L)))
-                .thenAnswer(invocation -> Optional.of(InventoryStockEntity.create(
+                .thenAnswer(invocation -> Optional.of(InventoryStockEntity.of(
                         201L,
                         10,
                         777L,
@@ -135,7 +135,7 @@ class InventoryCommandServiceConcurrencyTest {
     void 핫SKU_미설정이면_모든SKU에_락을_획득한다() {
         BuyerInventoryCommandService service = newService("", 3);
         InventoryReserveRequestedEvent payload = reservePayload(3L, "ORDER-3", 301L, 1);
-        InventoryStockEntity stock = InventoryStockEntity.create(
+        InventoryStockEntity stock = InventoryStockEntity.of(
                 301L,
                 10,
                 777L,

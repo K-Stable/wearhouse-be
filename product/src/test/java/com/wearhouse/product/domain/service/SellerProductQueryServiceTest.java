@@ -64,7 +64,7 @@ class SellerProductQueryServiceTest {
     void getSellerProductsShouldValidateSeasonOwnershipWhenSeasonIdProvided() {
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
         when(productSeasonRepository.findByIdAndSellerId(7L, 11L))
-                .thenReturn(Optional.of(ProductSeasonEntity.create(11L, "2026 SUMMER")));
+                .thenReturn(Optional.of(ProductSeasonEntity.of(11L, "2026 SUMMER")));
         when(productRepository.findSellerProductsByCursor(11L, null, null, null, 7L, 21))
                 .thenReturn(List.of());
 

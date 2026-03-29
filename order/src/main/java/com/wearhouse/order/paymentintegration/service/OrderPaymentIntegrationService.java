@@ -265,7 +265,7 @@ public class OrderPaymentIntegrationService {
             String eventId,
             String reasonCode
     ) {
-        orderStatusHistoryRepository.save(OrderStatusHistoryEntity.create(
+        orderStatusHistoryRepository.save(OrderStatusHistoryEntity.of(
                 order,
                 fromStatus,
                 toStatus,

@@ -83,7 +83,7 @@ class DeliveryCommandServiceTest {
     void 배송완료처리시_배송상태와_주문상태를_갱신한다() {
         LoginUser seller = new LoginUser(21L, "SELLER", List.of("ROLE_SELLER"), 1L);
         OrderEntity order = mockOrder(201L, OrderStatus.CONFIRMED);
-        DeliveryEntity delivery = DeliveryEntity.create(order, "CJ", "INV-201", DeliveryStatus.IN_DELIVERY);
+        DeliveryEntity delivery = DeliveryEntity.of(order, "CJ", "INV-201", DeliveryStatus.IN_DELIVERY);
         DeliveryDeliveredRequest request = new DeliveryDeliveredRequest(List.of(201L));
 
         given(orderRepository.findDetailsByIdIn(any())).willReturn(List.of(order));
@@ -101,7 +101,7 @@ class DeliveryCommandServiceTest {
     void 배송완료_D플러스7_경과시_자동구매확정으로_전이한다() {
         OrderEntity deliveredOrder = mock(OrderEntity.class);
         given(deliveredOrder.getStatus()).willReturn(OrderStatus.DELIVERED);
-        DeliveryEntity delivered = DeliveryEntity.create(
+        DeliveryEntity delivered = DeliveryEntity.of(
                 deliveredOrder,
                 "CJ",
                 "INV-301",

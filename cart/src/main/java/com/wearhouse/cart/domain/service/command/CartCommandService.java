@@ -67,7 +67,7 @@ public class CartCommandService {
                 buyerId,
                 request.productId(),
                 item.optionId()
-        ).orElseGet(() -> CartItemEntity.create(
+        ).orElseGet(() -> CartItemEntity.of(
                 buyerId,
                 request.productId(),
                 item.optionId(),

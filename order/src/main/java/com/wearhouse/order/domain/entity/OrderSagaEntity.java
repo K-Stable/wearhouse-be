@@ -14,7 +14,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -45,7 +44,6 @@ public class OrderSagaEntity extends BaseEntity {
     @Column(name = "fail_reason_code", length = 50)
     private String failReasonCode;
 
-    @Builder
     private OrderSagaEntity(
             OrderEntity order,
             String sagaId,
@@ -58,7 +56,7 @@ public class OrderSagaEntity extends BaseEntity {
         this.lastEventId = lastEventId;
     }
 
-    public static OrderSagaEntity create(
+    public static OrderSagaEntity of(
             OrderEntity order,
             String sagaId,
             OrderSagaState state,
@@ -71,29 +69,5 @@ public class OrderSagaEntity extends BaseEntity {
         this.state = nextState;
         this.lastEventId = lastEventId;
         this.failReasonCode = failReasonCode;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public OrderEntity getOrder() {
-        return order;
-    }
-
-    public String getSagaId() {
-        return sagaId;
-    }
-
-    public OrderSagaState getState() {
-        return state;
-    }
-
-    public String getLastEventId() {
-        return lastEventId;
-    }
-
-    public String getFailReasonCode() {
-        return failReasonCode;
     }
 }

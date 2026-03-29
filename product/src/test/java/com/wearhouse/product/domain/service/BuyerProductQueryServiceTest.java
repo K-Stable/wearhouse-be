@@ -61,7 +61,7 @@ class BuyerProductQueryServiceTest {
 
     @Test
     void getBuyerProductDetailShouldIncludeOptionStockQuantity() {
-        ProductEntity product = ProductEntity.create(
+        ProductEntity product = ProductEntity.of(
                 11L,
                 "Debug Product",
                 new BigDecimal("50000"),
@@ -130,7 +130,7 @@ class BuyerProductQueryServiceTest {
 
     @Test
     void getBuyerProductDetailShouldResolveMainImageKeyToUrl() {
-        ProductEntity product = ProductEntity.create(
+        ProductEntity product = ProductEntity.of(
                 11L,
                 "Debug Product",
                 new BigDecimal("50000"),

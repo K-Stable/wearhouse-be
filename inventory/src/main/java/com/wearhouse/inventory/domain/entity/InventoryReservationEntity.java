@@ -12,7 +12,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -57,7 +56,6 @@ public class InventoryReservationEntity extends BaseEntity {
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 
-    @Builder
     private InventoryReservationEntity(
             String reservationId,
             String sourceEventId,
@@ -111,49 +109,5 @@ public class InventoryReservationEntity extends BaseEntity {
         }
         this.status = InventoryReservationStatus.CONFIRMED;
         this.confirmedAt = confirmedAt;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getReservationId() {
-        return reservationId;
-    }
-
-    public String getSourceEventId() {
-        return sourceEventId;
-    }
-
-    public Long getOrderId() {
-        return orderId;
-    }
-
-    public String getOrderNo() {
-        return orderNo;
-    }
-
-    public Long getSkuId() {
-        return skuId;
-    }
-
-    public Integer getQuantity() {
-        return quantity;
-    }
-
-    public InventoryReservationStatus getStatus() {
-        return status;
-    }
-
-    public LocalDateTime getExpiresAt() {
-        return expiresAt;
-    }
-
-    public LocalDateTime getReleasedAt() {
-        return releasedAt;
-    }
-
-    public LocalDateTime getConfirmedAt() {
-        return confirmedAt;
     }
 }

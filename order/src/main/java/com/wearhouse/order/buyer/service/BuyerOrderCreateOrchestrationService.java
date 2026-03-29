@@ -221,7 +221,7 @@ public class BuyerOrderCreateOrchestrationService {
 
     private void startSaga(OrderEntity order, String eventId) {
         String sagaId = OrderIdGenerator.newSagaId();
-        OrderSagaEntity saga = OrderSagaEntity.create(
+        OrderSagaEntity saga = OrderSagaEntity.of(
                 order,
                 sagaId,
                 OrderSagaState.WAITING_INVENTORY,
@@ -308,7 +308,7 @@ public class BuyerOrderCreateOrchestrationService {
             String eventId,
             String reasonCode
     ) {
-        orderStatusHistoryRepository.save(OrderStatusHistoryEntity.create(
+        orderStatusHistoryRepository.save(OrderStatusHistoryEntity.of(
                 order,
                 fromStatus,
                 toStatus,

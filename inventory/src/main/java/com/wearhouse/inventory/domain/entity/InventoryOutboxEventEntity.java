@@ -11,7 +11,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
@@ -60,7 +59,6 @@ public class InventoryOutboxEventEntity extends BaseEntity {
     @Column(name = "fail_message", length = 255)
     private String failMessage;
 
-    @Builder
     private InventoryOutboxEventEntity(
             String eventId,
             String eventType,

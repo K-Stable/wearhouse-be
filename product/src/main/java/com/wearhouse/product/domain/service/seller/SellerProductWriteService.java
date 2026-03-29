@@ -99,7 +99,7 @@ public class SellerProductWriteService {
             Long sellerId,
             ProductSeasonEntity season
     ) {
-        ProductEntity product = ProductEntity.create(
+        ProductEntity product = ProductEntity.of(
                 sellerId,
                 request.name(),
                 request.price(),

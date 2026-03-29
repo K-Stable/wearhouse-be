@@ -62,7 +62,7 @@ public class DeliveryCommandService {
 
             DeliveryEntity delivery = deliveriesByOrderId.get(item.orderId());
             if (delivery == null) {
-                delivery = deliveryRepository.save(DeliveryEntity.create(
+                delivery = deliveryRepository.save(DeliveryEntity.of(
                         order,
                         normalize(item.courierCode()),
                         normalize(item.invoiceNo()),
@@ -186,7 +186,7 @@ public class DeliveryCommandService {
             OrderStatus toStatus,
             String reasonCode
     ) {
-        orderStatusHistoryRepository.save(OrderStatusHistoryEntity.create(
+        orderStatusHistoryRepository.save(OrderStatusHistoryEntity.of(
                 order,
                 fromStatus,
                 toStatus,

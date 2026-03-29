@@ -8,7 +8,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -49,7 +48,6 @@ public class BuyerAddressEntity extends BaseEntity {
     @Column(name = "is_default", nullable = false)
     private boolean isDefault;
 
-    @Builder
     private BuyerAddressEntity(
             String userType,
             Long userId,
@@ -72,7 +70,7 @@ public class BuyerAddressEntity extends BaseEntity {
         this.isDefault = isDefault;
     }
 
-    public static BuyerAddressEntity create(
+    public static BuyerAddressEntity of(
             String userType,
             Long userId,
             String label,
@@ -83,17 +81,17 @@ public class BuyerAddressEntity extends BaseEntity {
             String address2,
             boolean isDefault
     ) {
-        return BuyerAddressEntity.builder()
-                .userType(userType)
-                .userId(userId)
-                .label(label)
-                .recipientName(recipientName)
-                .recipientPhone(recipientPhone)
-                .zipCode(zipCode)
-                .address1(address1)
-                .address2(address2)
-                .isDefault(isDefault)
-                .build();
+        return new BuyerAddressEntity(
+                userType,
+                userId,
+                label,
+                recipientName,
+                recipientPhone,
+                zipCode,
+                address1,
+                address2,
+                isDefault
+        );
     }
 
     public void update(

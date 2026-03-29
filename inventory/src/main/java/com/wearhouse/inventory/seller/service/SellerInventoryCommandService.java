@@ -30,7 +30,7 @@ public class SellerInventoryCommandService {
         String normalizedProductStatus = normalizeProductStatus(request.productStatus());
 
         InventoryStockEntity stock = inventoryStockRepository.findBySkuId(request.skuId())
-                .orElseGet(() -> InventoryStockEntity.create(
+                .orElseGet(() -> InventoryStockEntity.of(
                         request.skuId(),
                         request.availableQty(),
                         request.sellerId(),

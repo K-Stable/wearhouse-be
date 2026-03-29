@@ -23,7 +23,7 @@ public class SellerProductSeasonCommandService {
     @WriteTx
     public void createProductSeason(LoginUser currentUser, ProductSeasonCreateRequest request) {
         Long sellerId = sellerProductAccessValidator.requireSellerId(currentUser);
-        ProductSeasonEntity productSeason = ProductSeasonEntity.create(sellerId, normalizeSeasonName(request.name()));
+        ProductSeasonEntity productSeason = ProductSeasonEntity.of(sellerId, normalizeSeasonName(request.name()));
         productSeasonRepository.save(productSeason);
     }
 

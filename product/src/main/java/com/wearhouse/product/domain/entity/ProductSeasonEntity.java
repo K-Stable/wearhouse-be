@@ -40,7 +40,7 @@ public class ProductSeasonEntity extends BaseEntity {
         this.name = name;
     }
 
-    public static ProductSeasonEntity create(Long sellerId, String name) {
+    public static ProductSeasonEntity of(Long sellerId, String name) {
         return new ProductSeasonEntity(sellerId, name);
     }
 

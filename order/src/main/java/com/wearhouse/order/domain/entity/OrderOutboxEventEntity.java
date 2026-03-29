@@ -11,7 +11,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
@@ -51,7 +50,6 @@ public class OrderOutboxEventEntity extends BaseEntity {
     @Column(name = "fail_message", length = 255)
     private String failMessage;
 
-    @Builder
     private OrderOutboxEventEntity(
             String eventId,
             String eventType,
@@ -93,41 +91,5 @@ public class OrderOutboxEventEntity extends BaseEntity {
             return value;
         }
         return value.substring(0, maxLength);
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getEventId() {
-        return eventId;
-    }
-
-    public String getEventType() {
-        return eventType;
-    }
-
-    public String getTopic() {
-        return topic;
-    }
-
-    public String getPartitionKey() {
-        return partitionKey;
-    }
-
-    public String getPayload() {
-        return payload;
-    }
-
-    public OrderOutboxStatus getStatus() {
-        return status;
-    }
-
-    public LocalDateTime getSentAt() {
-        return sentAt;
-    }
-
-    public String getFailMessage() {
-        return failMessage;
     }
 }

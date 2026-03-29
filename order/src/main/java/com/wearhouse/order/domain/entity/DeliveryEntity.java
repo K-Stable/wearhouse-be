@@ -53,7 +53,7 @@ public class DeliveryEntity extends BaseEntity {
         this.status = status;
     }
 
-    public static DeliveryEntity create(
+    public static DeliveryEntity of(
             OrderEntity order,
             String courierCode,
             String invoiceNo,
