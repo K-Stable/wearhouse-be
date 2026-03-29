@@ -7,8 +7,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class PaymentRuntimePropertiesValidator {
 
-    private final String paymentPrepareTopic;
-    private final String paymentEventTopic;
+    private final PaymentKafkaTopicsProperties paymentKafkaTopicsProperties;
     private final long paymentKafkaSendTimeoutMs;
     private final int pendingTimeoutMinutes;
     private final long timeoutCheckIntervalMs;
@@ -20,8 +19,7 @@ public class PaymentRuntimePropertiesValidator {
     private final long payTimeoutMs;
 
     public PaymentRuntimePropertiesValidator(
-            @Value("${wearhouse.kafka.payment-prepare-topic:}") String paymentPrepareTopic,
-            @Value("${wearhouse.kafka.payment-event-topic:}") String paymentEventTopic,
+            PaymentKafkaTopicsProperties paymentKafkaTopicsProperties,
             @Value("${wearhouse.payment.kafka.send-timeout-ms:0}") long paymentKafkaSendTimeoutMs,
             @Value("${wearhouse.payment.mock.pending-timeout-minutes:0}") int pendingTimeoutMinutes,
             @Value("${wearhouse.payment.mock.timeout-check-interval-ms:0}") long timeoutCheckIntervalMs,
@@ -32,8 +30,7 @@ public class PaymentRuntimePropertiesValidator {
             @Value("${wearhouse.pay.secret-key:}") String paySecretKey,
             @Value("${wearhouse.pay.timeout-ms:0}") long payTimeoutMs
     ) {
-        this.paymentPrepareTopic = paymentPrepareTopic;
-        this.paymentEventTopic = paymentEventTopic;
+        this.paymentKafkaTopicsProperties = paymentKafkaTopicsProperties;
         this.paymentKafkaSendTimeoutMs = paymentKafkaSendTimeoutMs;
         this.pendingTimeoutMinutes = pendingTimeoutMinutes;
         this.timeoutCheckIntervalMs = timeoutCheckIntervalMs;
@@ -47,8 +44,8 @@ public class PaymentRuntimePropertiesValidator {
 
     @PostConstruct
     void validate() {
-        requireText("wearhouse.kafka.payment-prepare-topic", paymentPrepareTopic);
-        requireText("wearhouse.kafka.payment-event-topic", paymentEventTopic);
+        requireText("wearhouse.kafka.payment-prepare-topic", paymentKafkaTopicsProperties.getPaymentPrepareTopic());
+        requireText("wearhouse.kafka.payment-event-topic", paymentKafkaTopicsProperties.getPaymentEventTopic());
         requirePositive("wearhouse.payment.kafka.send-timeout-ms", paymentKafkaSendTimeoutMs);
         requirePositive("wearhouse.payment.mock.pending-timeout-minutes", pendingTimeoutMinutes);
         requirePositive("wearhouse.payment.mock.timeout-check-interval-ms", timeoutCheckIntervalMs);

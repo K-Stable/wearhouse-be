@@ -18,7 +18,7 @@ public class OrderKafkaConsumer {
     private final OrderSagaService orderSagaService;
 
 
-    @KafkaListener(topics = "${wearhouse.kafka.inventory-event-topic:wearhouse.inventory.event.v1}")
+    @KafkaListener(topics = "#{@orderKafkaTopicsProperties.inventoryEventTopic}")
     public void consumeInventoryEvent(
             String message,
             Acknowledgment acknowledgment,
@@ -43,7 +43,7 @@ public class OrderKafkaConsumer {
         );
     }
 
-    @KafkaListener(topics = "${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
+    @KafkaListener(topics = "#{@orderKafkaTopicsProperties.paymentEventTopic}")
     public void consumePaymentEvent(
             String message,
             Acknowledgment acknowledgment,

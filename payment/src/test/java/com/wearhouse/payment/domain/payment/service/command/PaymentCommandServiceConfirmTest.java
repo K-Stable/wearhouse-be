@@ -12,6 +12,7 @@ import com.wearhouse.payment.internal.dto.response.PaymentConfirmResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.internal.service.PaymentInternalConfirmService;
+import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
 import com.wearhouse.payment.stablepay.client.WalletServerGateway;
 import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
 import com.wearhouse.payment.transaction.service.PaymentTransactionUpdateService;
@@ -45,9 +46,9 @@ class PaymentCommandServiceConfirmTest {
                 paymentTransactionCreateService,
                 paymentTransactionUpdateService,
                 walletServerGateway,
-                paymentDomainEventPublisher
+                paymentDomainEventPublisher,
+                new PaymentKafkaTopicsProperties()
         );
-        ReflectionTestUtils.setField(paymentInternalConfirmService, "paymentEventTopic", "wearhouse.payment.event.v1");
         ReflectionTestUtils.setField(paymentInternalConfirmService, "internalSharedSecret", "internal-secret");
     }
 

@@ -8,6 +8,7 @@ import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.kafka.dto.PaymentPrepareRequestedEvent;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.support.PaymentIdGenerator;
+import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
 import jakarta.annotation.PostConstruct;
@@ -37,8 +38,7 @@ public class PaymentCommandService {
     private final PaymentTransactionCreateService paymentTransactionCreateService;
     private final PaymentDomainEventPublisher paymentDomainEventPublisher;
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
-    @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
-    private String paymentEventTopic;
+    private final PaymentKafkaTopicsProperties paymentKafkaTopicsProperties;
     @Value("${wearhouse.payment.mock.pending-timeout-minutes:30}")
     private int pendingTimeoutMinutes;
     @Value("${wearhouse.payment.mock.fail-methods:FAIL}")
@@ -190,7 +190,7 @@ public class PaymentCommandService {
                 .eventType("PaymentAuthorized")
                 .aggregateType("ORDER")
                 .aggregateId(String.valueOf(orderId))
-                .topic(paymentEventTopic)
+                .topic(paymentKafkaTopicsProperties.getPaymentEventTopic())
                 .partitionKey(String.valueOf(orderId))
                 .payload(payload)
                 .build();
@@ -218,7 +218,7 @@ public class PaymentCommandService {
                 .eventType("PaymentFailed")
                 .aggregateType("ORDER")
                 .aggregateId(String.valueOf(orderId))
-                .topic(paymentEventTopic)
+                .topic(paymentKafkaTopicsProperties.getPaymentEventTopic())
                 .partitionKey(String.valueOf(orderId))
                 .payload(payload)
                 .build();

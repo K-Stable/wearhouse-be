@@ -7,6 +7,7 @@ import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
 import com.wearhouse.payment.support.PaymentIdGenerator;
+import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
 import com.wearhouse.payment.webhook.dto.request.PayWebhookRequest;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -14,7 +15,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -27,8 +27,7 @@ public class PaymentWebhookService {
     private final PaymentWebhookDedupService paymentWebhookDedupService;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final PaymentDomainEventPublisher paymentDomainEventPublisher;
-    @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
-    private String paymentEventTopic;
+    private final PaymentKafkaTopicsProperties paymentKafkaTopicsProperties;
 
     @WriteTx
     public void handle(String timestamp, String signature, String rawBody) {
@@ -101,7 +100,7 @@ public class PaymentWebhookService {
                 .eventType("PaymentAuthorized")
                 .aggregateType("ORDER")
                 .aggregateId(String.valueOf(transaction.getOrderId()))
-                .topic(paymentEventTopic)
+                .topic(paymentKafkaTopicsProperties.getPaymentEventTopic())
                 .partitionKey(String.valueOf(transaction.getOrderId()))
                 .payload(payload)
                 .build());
@@ -140,7 +139,7 @@ public class PaymentWebhookService {
                 .eventType("PaymentFailed")
                 .aggregateType("ORDER")
                 .aggregateId(String.valueOf(transaction.getOrderId()))
-                .topic(paymentEventTopic)
+                .topic(paymentKafkaTopicsProperties.getPaymentEventTopic())
                 .partitionKey(String.valueOf(transaction.getOrderId()))
                 .payload(payload)
                 .build());

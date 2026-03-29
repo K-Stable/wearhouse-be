@@ -11,6 +11,7 @@ import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.domain.payment.model.PaymentStatus;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
+import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
 import com.wearhouse.payment.webhook.dto.request.PayWebhookRequest;
 import com.wearhouse.payment.webhook.dto.request.PayWebhookRequest.PaymentWebhookPayload;
 import com.wearhouse.payment.webhook.service.PaymentWebhookDedupService;
@@ -24,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentWebhookServiceTest {
@@ -46,9 +46,9 @@ class PaymentWebhookServiceTest {
                 paymentWebhookValidationService,
                 paymentWebhookDedupService,
                 paymentTransactionRepository,
-                paymentDomainEventPublisher
+                paymentDomainEventPublisher,
+                new PaymentKafkaTopicsProperties()
         );
-        ReflectionTestUtils.setField(paymentWebhookService, "paymentEventTopic", "wearhouse.payment.event.v1");
     }
 
     @Test

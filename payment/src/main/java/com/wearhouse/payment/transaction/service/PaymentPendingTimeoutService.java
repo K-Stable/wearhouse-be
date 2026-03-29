@@ -6,6 +6,7 @@ import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
 import com.wearhouse.payment.support.PaymentIdGenerator;
+import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -24,8 +25,7 @@ public class PaymentPendingTimeoutService {
     private final PaymentTransactionUpdateService paymentTransactionUpdateService;
     private final PaymentDomainEventPublisher paymentDomainEventPublisher;
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
-    @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
-    private String paymentEventTopic;
+    private final PaymentKafkaTopicsProperties paymentKafkaTopicsProperties;
     @Value("${wearhouse.payment.mock.timeout-batch-size:200}")
     private int timeoutBatchSize;
 
@@ -76,7 +76,7 @@ public class PaymentPendingTimeoutService {
                 .eventType("PaymentFailed")
                 .aggregateType("ORDER")
                 .aggregateId(String.valueOf(orderId))
-                .topic(paymentEventTopic)
+                .topic(paymentKafkaTopicsProperties.getPaymentEventTopic())
                 .partitionKey(String.valueOf(orderId))
                 .payload(payload)
                 .build();

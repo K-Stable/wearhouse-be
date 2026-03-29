@@ -11,6 +11,7 @@ import com.wearhouse.payment.internal.dto.request.WalletPrepareRequest;
 import com.wearhouse.payment.internal.dto.response.WalletPrepareResponse;
 import com.wearhouse.payment.stablepay.client.WalletServerGateway;
 import com.wearhouse.payment.support.PaymentIdGenerator;
+import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
 import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
 import com.wearhouse.payment.transaction.service.PaymentTransactionUpdateService;
 import java.time.LocalDateTime;
@@ -33,8 +34,7 @@ public class PaymentInternalPrepareService {
     private final PaymentTransactionUpdateService paymentTransactionUpdateService;
     private final WalletServerGateway walletServerGateway;
     private final PaymentDomainEventPublisher paymentDomainEventPublisher;
-    @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
-    private String paymentEventTopic;
+    private final PaymentKafkaTopicsProperties paymentKafkaTopicsProperties;
     @Value("${wearhouse.payment.mock.pending-timeout-minutes:30}")
     private int pendingTimeoutMinutes;
     @Value("${wearhouse.order.internal.shared-secret:wearhouse-order-internal-secret}")
@@ -143,7 +143,7 @@ public class PaymentInternalPrepareService {
                 .eventType("PaymentFailed")
                 .aggregateType("ORDER")
                 .aggregateId(String.valueOf(orderId))
-                .topic(paymentEventTopic)
+                .topic(paymentKafkaTopicsProperties.getPaymentEventTopic())
                 .partitionKey(String.valueOf(orderId))
                 .payload(payload)
                 .build();

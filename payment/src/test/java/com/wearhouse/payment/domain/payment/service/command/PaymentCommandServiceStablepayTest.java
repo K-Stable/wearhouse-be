@@ -11,6 +11,7 @@ import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.internal.service.PaymentCommandService;
 import com.wearhouse.payment.kafka.dto.PaymentPrepareRequestedEvent;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
+import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
 import java.math.BigDecimal;
@@ -42,9 +43,9 @@ class PaymentCommandServiceStablepayTest {
                 paymentInboxRepository,
                 paymentTransactionCreateService,
                 paymentDomainEventPublisher,
-                paymentKafkaFlowMetrics
+                paymentKafkaFlowMetrics,
+                new PaymentKafkaTopicsProperties()
         );
-        ReflectionTestUtils.setField(paymentCommandService, "paymentEventTopic", "wearhouse.payment.event.v1");
         ReflectionTestUtils.setField(paymentCommandService, "pendingTimeoutMinutes", 30);
         ReflectionTestUtils.setField(paymentCommandService, "failMethodsRaw", "FAIL");
         ReflectionTestUtils.setField(paymentCommandService, "timeoutMethodsRaw", "TIMEOUT");
