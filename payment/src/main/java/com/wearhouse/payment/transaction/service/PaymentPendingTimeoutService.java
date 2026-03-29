@@ -21,6 +21,7 @@ public class PaymentPendingTimeoutService {
     private static final String TIMEOUT_REASON_CODE = "PAYMENT_TIMEOUT";
 
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final PaymentTransactionUpdateService paymentTransactionUpdateService;
     private final PaymentDomainEventPublisher paymentDomainEventPublisher;
     private final PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
     @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
@@ -33,7 +34,7 @@ public class PaymentPendingTimeoutService {
         int failedCount = 0;
         LocalDateTime now = LocalDateTime.now();
         for (PaymentTransactionEntity candidate : paymentTransactionRepository.findTimeoutCandidates(now, timeoutBatchSize)) {
-            int updated = paymentTransactionRepository.markFailedIfPending(
+            int updated = paymentTransactionUpdateService.markFailedIfPending(
                     candidate.getOrderId(),
                     TIMEOUT_REASON_CODE,
                     now
@@ -82,4 +83,3 @@ public class PaymentPendingTimeoutService {
         paymentDomainEventPublisher.publish(event);
     }
 }
-

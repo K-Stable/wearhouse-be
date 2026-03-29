@@ -9,12 +9,11 @@ import static org.mockito.Mockito.when;
 
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.internal.service.PaymentCommandService;
+import com.wearhouse.payment.kafka.dto.PaymentPrepareRequestedEvent;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
-import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
+import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
 import java.math.BigDecimal;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,7 +28,7 @@ class PaymentCommandServiceStablepayTest {
     @Mock
     private PaymentInboxRepository paymentInboxRepository;
     @Mock
-    private PaymentTransactionRepository paymentTransactionRepository;
+    private PaymentTransactionCreateService paymentTransactionCreateService;
     @Mock
     private PaymentDomainEventPublisher paymentDomainEventPublisher;
     @Mock
@@ -41,7 +40,7 @@ class PaymentCommandServiceStablepayTest {
     void setUp() {
         paymentCommandService = new PaymentCommandService(
                 paymentInboxRepository,
-                paymentTransactionRepository,
+                paymentTransactionCreateService,
                 paymentDomainEventPublisher,
                 paymentKafkaFlowMetrics
         );
@@ -56,17 +55,18 @@ class PaymentCommandServiceStablepayTest {
     void stablepay_prepare는_pending만_생성하고_authorized_이벤트를_발행하지_않는다() {
         when(paymentInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(true);
-        when(paymentTransactionRepository.findByOrderId(1L)).thenReturn(Optional.empty());
+        when(paymentTransactionCreateService.findByOrderId(1L)).thenReturn(Optional.empty());
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", 1L);
-        payload.put("orderNo", "O202603190001");
-        payload.put("amount", new BigDecimal("10000"));
-        payload.put("paymentMethod", "STABLE");
+        PaymentPrepareRequestedEvent payload = new PaymentPrepareRequestedEvent(
+                1L,
+                "O202603190001",
+                new BigDecimal("10000"),
+                "STABLE"
+        );
 
         paymentCommandService.handlePaymentPrepareRequested("evt_1", "topic", "1", "{}", payload);
 
-        verify(paymentTransactionRepository).insertPending(
+        verify(paymentTransactionCreateService).insertPending(
                 anyString(),
                 eq(1L),
                 eq("O202603190001"),

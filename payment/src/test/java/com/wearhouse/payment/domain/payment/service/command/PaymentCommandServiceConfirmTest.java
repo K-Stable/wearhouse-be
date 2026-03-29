@@ -12,8 +12,9 @@ import com.wearhouse.payment.internal.dto.response.PaymentConfirmResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.internal.service.PaymentInternalConfirmService;
-import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
 import com.wearhouse.payment.stablepay.client.WalletServerGateway;
+import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
+import com.wearhouse.payment.transaction.service.PaymentTransactionUpdateService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -28,7 +29,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 class PaymentCommandServiceConfirmTest {
 
     @Mock
-    private PaymentTransactionRepository paymentTransactionRepository;
+    private PaymentTransactionCreateService paymentTransactionCreateService;
+    @Mock
+    private PaymentTransactionUpdateService paymentTransactionUpdateService;
     @Mock
     private WalletServerGateway walletServerGateway;
     @Mock
@@ -39,7 +42,8 @@ class PaymentCommandServiceConfirmTest {
     @BeforeEach
     void setUp() {
         paymentInternalConfirmService = new PaymentInternalConfirmService(
-                paymentTransactionRepository,
+                paymentTransactionCreateService,
+                paymentTransactionUpdateService,
                 walletServerGateway,
                 paymentDomainEventPublisher
         );
@@ -59,7 +63,7 @@ class PaymentCommandServiceConfirmTest {
         );
         pending.bindStablepaySession("pay_key_1", null, null, null, null, null, null, null);
 
-        when(paymentTransactionRepository.findByOrderId(1L)).thenReturn(Optional.of(pending));
+        when(paymentTransactionCreateService.findByOrderId(1L)).thenReturn(Optional.of(pending));
         when(walletServerGateway.walletConfirm(any(), any())).thenReturn(WalletServerGateway.WalletConfirmResult.authorized(
                 "pid_1",
                 "cmd_1",
@@ -74,7 +78,7 @@ class PaymentCommandServiceConfirmTest {
 
         assertThat(response.paymentStatus()).isEqualTo("AUTHORIZED");
         assertThat(pending.getStatus().name()).isEqualTo("AUTHORIZED");
-        verify(paymentTransactionRepository).save(pending);
+        verify(paymentTransactionUpdateService).save(pending);
         verify(paymentDomainEventPublisher).publish(any());
     }
 
@@ -88,7 +92,7 @@ class PaymentCommandServiceConfirmTest {
                 "STABLE",
                 LocalDateTime.now().plusMinutes(30)
         );
-        when(paymentTransactionRepository.findByOrderId(1L)).thenReturn(Optional.of(pending));
+        when(paymentTransactionCreateService.findByOrderId(1L)).thenReturn(Optional.of(pending));
 
         assertThatThrownBy(() -> paymentInternalConfirmService.confirm(
                 new PaymentConfirmRequest(1L, "O202603190001", "pay_key_1", new BigDecimal("9999")),
@@ -97,6 +101,6 @@ class PaymentCommandServiceConfirmTest {
 
         verify(walletServerGateway, never()).walletConfirm(any(), any());
         verify(paymentDomainEventPublisher, never()).publish(any());
-        verify(paymentTransactionRepository, never()).save(any());
+        verify(paymentTransactionUpdateService, never()).save(any());
     }
 }

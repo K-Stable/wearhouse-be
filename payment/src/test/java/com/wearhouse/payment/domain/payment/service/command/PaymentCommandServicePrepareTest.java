@@ -10,11 +10,11 @@ import com.wearhouse.payment.internal.dto.response.WalletPrepareResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.internal.service.PaymentInternalPrepareService;
-import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
 import com.wearhouse.payment.stablepay.client.WalletServerGateway;
+import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
+import com.wearhouse.payment.transaction.service.PaymentTransactionUpdateService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,7 +26,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 class PaymentCommandServicePrepareTest {
 
     @Mock
-    private PaymentTransactionRepository paymentTransactionRepository;
+    private PaymentTransactionCreateService paymentTransactionCreateService;
+    @Mock
+    private PaymentTransactionUpdateService paymentTransactionUpdateService;
     @Mock
     private WalletServerGateway walletServerGateway;
     @Mock
@@ -37,7 +39,8 @@ class PaymentCommandServicePrepareTest {
     @BeforeEach
     void setUp() {
         paymentInternalPrepareService = new PaymentInternalPrepareService(
-                paymentTransactionRepository,
+                paymentTransactionCreateService,
+                paymentTransactionUpdateService,
                 walletServerGateway,
                 paymentDomainEventPublisher
         );
@@ -56,7 +59,8 @@ class PaymentCommandServicePrepareTest {
                 "STABLE",
                 LocalDateTime.now().plusMinutes(30)
         );
-        when(paymentTransactionRepository.findByOrderId(1L)).thenReturn(Optional.of(pending));
+        when(paymentTransactionCreateService.getOrCreateStablePending(1L, "O202603230001", new BigDecimal("10000"), 30))
+                .thenReturn(pending);
         when(walletServerGateway.walletPrepare(any(), any())).thenReturn(
                 new WalletServerGateway.WalletPrepareResult(
                         "cs_1",
@@ -84,6 +88,6 @@ class PaymentCommandServicePrepareTest {
         assertThat(response.checkoutSessionId()).isEqualTo("cs_1");
         assertThat(response.checkoutUrl()).isEqualTo("https://wallet.example/checkout/cs_1");
         assertThat(response.appLaunchUrl()).isEqualTo("wallet://checkout/cs_1");
-        verify(paymentTransactionRepository).save(pending);
+        verify(paymentTransactionUpdateService).save(pending);
     }
 }

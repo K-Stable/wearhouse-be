@@ -7,11 +7,12 @@ import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEvent;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.domain.payment.model.PaymentStatus;
-import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
 import com.wearhouse.payment.internal.dto.request.PaymentConfirmRequest;
 import com.wearhouse.payment.internal.dto.response.PaymentConfirmResponse;
 import com.wearhouse.payment.stablepay.client.WalletServerGateway;
 import com.wearhouse.payment.support.PaymentIdGenerator;
+import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
+import com.wearhouse.payment.transaction.service.PaymentTransactionUpdateService;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -26,7 +27,8 @@ public class PaymentInternalConfirmService {
     private static final String DEFAULT_REASON_CODE = "PAYMENT_FAILED";
     private static final String CONFIRM_IDEMPOTENCY_PREFIX = "confirm:";
 
-    private final PaymentTransactionRepository paymentTransactionRepository;
+    private final PaymentTransactionCreateService paymentTransactionCreateService;
+    private final PaymentTransactionUpdateService paymentTransactionUpdateService;
     private final WalletServerGateway walletServerGateway;
     private final PaymentDomainEventPublisher paymentDomainEventPublisher;
     @Value("${wearhouse.kafka.payment-event-topic:wearhouse.payment.event.v1}")
@@ -42,7 +44,7 @@ public class PaymentInternalConfirmService {
         assertInternalSecret(internalSecret);
         validateConfirmRequest(request);
 
-        PaymentTransactionEntity transaction = paymentTransactionRepository.findByOrderId(request.orderId())
+        PaymentTransactionEntity transaction = paymentTransactionCreateService.findByOrderId(request.orderId())
                 .orElseThrow(() -> new IllegalArgumentException("해당 주문의 결제 정보를 찾을 수 없습니다."));
         validateConfirmTarget(transaction, request);
 
@@ -83,7 +85,7 @@ public class PaymentInternalConfirmService {
                     result.commandStatus(),
                     now
             );
-            paymentTransactionRepository.save(transaction);
+            paymentTransactionUpdateService.save(transaction);
             publishPaymentAuthorized(
                     transaction.getOrderId(),
                     transaction.getOrderNo(),
@@ -110,7 +112,7 @@ public class PaymentInternalConfirmService {
                     result.commandStatus(),
                     now
             );
-            paymentTransactionRepository.save(transaction);
+            paymentTransactionUpdateService.save(transaction);
             publishPaymentFailed(
                     transaction.getOrderId(),
                     transaction.getOrderNo(),
