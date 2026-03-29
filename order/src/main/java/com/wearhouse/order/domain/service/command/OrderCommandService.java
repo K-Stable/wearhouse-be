@@ -155,8 +155,8 @@ public class OrderCommandService {
         ApiResponse<PaymentConfirmInternalResponse> confirmResponse = orderPaymentClient.confirmStablepayPayment(
                 orderProperties.getInternal().getSharedSecret(),
                 new PaymentConfirmInternalRequest(
+                        order.getId(),
                         request.orderId(),
-                        orderNo,
                         request.paymentKey(),
                         request.amount()
                 )
@@ -293,7 +293,7 @@ public class OrderCommandService {
         if (order.getBuyerId() == null || !order.getBuyerId().equals(buyerId)) {
             throw new ErrorException(OrderErrorCode.ORDER_NOT_FOUND);
         }
-        if (!order.getId().equals(request.orderId())) {
+        if (order.getOrderNo() == null || !order.getOrderNo().equals(request.orderId())) {
             throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "orderId 값이 주문 정보와 일치하지 않습니다.");
         }
         if (!OrderStatusPolicy.PAYMENT_CONFIRMABLE_STATUSES.contains(order.getStatus())) {

@@ -5,14 +5,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.wearhouse.payment.domain.payment.dto.request.PaymentPrepareRequest;
-import com.wearhouse.payment.domain.payment.dto.response.PaymentPrepareResponse;
+import com.wearhouse.payment.domain.payment.dto.request.WalletPrepareRequest;
+import com.wearhouse.payment.domain.payment.dto.response.WalletPrepareResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.infra.pay.PayConfirmGateway;
-import com.wearhouse.payment.infra.pay.PayPrepareGateway;
+import com.wearhouse.payment.infra.pay.WalletServerGateway;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -32,9 +31,7 @@ class PaymentCommandServicePrepareTest {
     @Mock
     private PaymentTransactionRepository paymentTransactionRepository;
     @Mock
-    private PayConfirmGateway payConfirmGateway;
-    @Mock
-    private PayPrepareGateway payPrepareGateway;
+    private WalletServerGateway walletServerGateway;
     @Mock
     private PaymentDomainEventPublisher paymentDomainEventPublisher;
     @Mock
@@ -47,8 +44,7 @@ class PaymentCommandServicePrepareTest {
         paymentCommandService = new PaymentCommandService(
                 paymentInboxRepository,
                 paymentTransactionRepository,
-                payConfirmGateway,
-                payPrepareGateway,
+                walletServerGateway,
                 paymentDomainEventPublisher,
                 paymentKafkaFlowMetrics
         );
@@ -72,26 +68,18 @@ class PaymentCommandServicePrepareTest {
                 LocalDateTime.now().plusMinutes(30)
         );
         when(paymentTransactionRepository.findByOrderId(1L)).thenReturn(Optional.of(pending));
-        when(payPrepareGateway.prepare(any(), any())).thenReturn(
-                new PayPrepareGateway.PayPrepareResult(
+        when(walletServerGateway.walletPrepare(any(), any())).thenReturn(
+                new WalletServerGateway.WalletPrepareResult(
                         "cs_1",
                         "https://wallet.example/checkout/cs_1",
                         "wallet://checkout/cs_1",
-                        "READY",
                         null,
-                        null,
-                        "m_1",
-                        "n_1",
-                        "d_1",
-                        "h_1",
-                        null,
-                        null,
-                        null
+                        "READY"
                 )
         );
 
-        PaymentPrepareResponse response = paymentCommandService.prepareStablepayPayment(
-                new PaymentPrepareRequest(
+        WalletPrepareResponse response = paymentCommandService.walletPrepare(
+                new WalletPrepareRequest(
                         1L,
                         "O202603230001",
                         "customer-1",

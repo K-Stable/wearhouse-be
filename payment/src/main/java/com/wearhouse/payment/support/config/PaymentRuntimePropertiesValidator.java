@@ -17,6 +17,7 @@ public class PaymentRuntimePropertiesValidator {
     private final String payWebhookSecret;
     private final String payApiBaseUrl;
     private final String paySecretKey;
+    private final long payTimeoutMs;
 
     public PaymentRuntimePropertiesValidator(
             @Value("${wearhouse.kafka.payment-prepare-topic:}") String paymentPrepareTopic,
@@ -28,7 +29,8 @@ public class PaymentRuntimePropertiesValidator {
             @Value("${wearhouse.order.internal.shared-secret:}") String orderInternalSharedSecret,
             @Value("${wearhouse.pay.webhook.secret:}") String payWebhookSecret,
             @Value("${wearhouse.pay.api-base-url:}") String payApiBaseUrl,
-            @Value("${wearhouse.pay.secret-key:}") String paySecretKey
+            @Value("${wearhouse.pay.secret-key:}") String paySecretKey,
+            @Value("${wearhouse.pay.timeout-ms:0}") long payTimeoutMs
     ) {
         this.paymentPrepareTopic = paymentPrepareTopic;
         this.paymentEventTopic = paymentEventTopic;
@@ -40,6 +42,7 @@ public class PaymentRuntimePropertiesValidator {
         this.payWebhookSecret = payWebhookSecret;
         this.payApiBaseUrl = payApiBaseUrl;
         this.paySecretKey = paySecretKey;
+        this.payTimeoutMs = payTimeoutMs;
     }
 
     @PostConstruct
@@ -54,6 +57,7 @@ public class PaymentRuntimePropertiesValidator {
         requireText("wearhouse.pay.webhook.secret", payWebhookSecret);
         requireText("wearhouse.pay.api-base-url", payApiBaseUrl);
         requireText("wearhouse.pay.secret-key", paySecretKey);
+        requirePositive("wearhouse.pay.timeout-ms", payTimeoutMs);
     }
 
     private void requireText(String key, String value) {

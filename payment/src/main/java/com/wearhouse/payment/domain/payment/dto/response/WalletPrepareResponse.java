@@ -1,6 +1,6 @@
 package com.wearhouse.payment.domain.payment.dto.response;
 
-public record PaymentPrepareResponse(
+public record WalletPrepareResponse(
         String checkoutSessionId,
         String checkoutUrl,
         String appLaunchUrl,

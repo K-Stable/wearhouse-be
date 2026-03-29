@@ -163,6 +163,7 @@ class OrderCommandServiceOrchestrationTest {
         given(paymentPending.getStatus()).willReturn(OrderStatus.PAYMENT_PENDING);
         given(paymentPending.getId()).willReturn(1L);
         given(paymentPending.getBuyerId()).willReturn(1L);
+        given(paymentPending.getOrderNo()).willReturn("O202603190001");
         OrderInfo stableInfo = mock(OrderInfo.class);
         given(stableInfo.getPaymentMethod()).willReturn(PaymentMethod.STABLE);
         given(paymentPending.getOrderInfo()).willReturn(stableInfo);
@@ -186,7 +187,7 @@ class OrderCommandServiceOrchestrationTest {
         OrderPaymentConfirmResponse response = orderCommandService.confirmPayment(
                 1L,
                 "O202603190001",
-                new OrderPaymentConfirmRequest(1L, "pay_key_1", new BigDecimal("10000"))
+                new OrderPaymentConfirmRequest("O202603190001", "pay_key_1", new BigDecimal("10000"))
         );
 
         assertThat(response.status()).isEqualTo(OrderStatus.CONFIRMED.name());
@@ -199,6 +200,7 @@ class OrderCommandServiceOrchestrationTest {
         given(paymentPending.getStatus()).willReturn(OrderStatus.PAYMENT_PENDING);
         given(paymentPending.getId()).willReturn(2L);
         given(paymentPending.getBuyerId()).willReturn(1L);
+        given(paymentPending.getOrderNo()).willReturn("O202603190002");
         OrderInfo cardInfo = mock(OrderInfo.class);
         given(cardInfo.getPaymentMethod()).willReturn(PaymentMethod.CARD);
         given(paymentPending.getOrderInfo()).willReturn(cardInfo);
@@ -213,7 +215,7 @@ class OrderCommandServiceOrchestrationTest {
         OrderPaymentConfirmResponse response = orderCommandService.confirmPayment(
                 1L,
                 "O202603190002",
-                new OrderPaymentConfirmRequest(2L, null, new BigDecimal("10000"))
+                new OrderPaymentConfirmRequest("O202603190002", "card_ignore", new BigDecimal("10000"))
         );
 
         assertThat(response.status()).isEqualTo(OrderStatus.CONFIRMED.name());
