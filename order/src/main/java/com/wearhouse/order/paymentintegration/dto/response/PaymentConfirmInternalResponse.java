@@ -1,4 +1,4 @@
-package com.wearhouse.order.payment.dto.response;
+package com.wearhouse.order.paymentintegration.dto.response;
 
 public record PaymentConfirmInternalResponse(
         Long orderId,

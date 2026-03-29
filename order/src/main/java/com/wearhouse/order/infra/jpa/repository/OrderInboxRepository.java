@@ -1,7 +1,6 @@
 package com.wearhouse.order.infra.jpa.repository;
 
 import com.wearhouse.order.domain.entity.OrderInboxEventEntity;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -21,16 +20,7 @@ public class OrderInboxRepository {
             String partitionKey,
             String payload
     ) {
-        OrderInboxEventEntity entity = OrderInboxEventEntity.received(
-                eventId,
-                consumerName
-        );
-        try {
-            orderInboxEventRepository.saveAndFlush(entity);
-            return true;
-        } catch (DataIntegrityViolationException exception) {
-            return false;
-        }
+        return orderInboxEventRepository.insertIgnoreReceived(eventId, consumerName) > 0;
     }
 
     public void markProcessed(String eventId, String consumerName) {

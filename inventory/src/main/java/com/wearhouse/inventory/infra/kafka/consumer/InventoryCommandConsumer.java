@@ -2,7 +2,7 @@ package com.wearhouse.inventory.infra.kafka.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.support.kafka.dto.KafkaMessageEnvelope;
-import com.wearhouse.inventory.domain.service.buyer.command.BuyerInventoryCommandService;
+import com.wearhouse.inventory.buyer.service.BuyerInventoryCommandService;
 import com.wearhouse.inventory.kafka.dto.InventoryReleaseRequestedEvent;
 import com.wearhouse.inventory.kafka.dto.InventoryReserveRequestedEvent;
 

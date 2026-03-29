@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class BuyerOrderCancelService {
 
-    private final OrderCancelOrchestrationService orderCancelOrchestrationService;
+    private final BuyerOrderCancelOrchestrationService orderCancelOrchestrationService;
 
     public OrderCancelResponse cancelOrder(String orderNo, OrderCancelRequest request) {
         return orderCancelOrchestrationService.cancelOrder(orderNo, request);

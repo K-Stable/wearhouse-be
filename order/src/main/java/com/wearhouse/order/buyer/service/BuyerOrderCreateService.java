@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class BuyerOrderCreateService {
 
-    private final OrderCreateOrchestrationService orderCreateOrchestrationService;
+    private final BuyerOrderCreateOrchestrationService orderCreateOrchestrationService;
 
     public OrderCreateResponse createOrder(OrderCreateRequest request) {
         return orderCreateOrchestrationService.createOrder(request);

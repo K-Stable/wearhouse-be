@@ -15,7 +15,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -61,7 +60,6 @@ public class OrderItemEntity extends BaseEntity {
     @Column(name = "status", nullable = false, length = 30)
     private OrderItemStatus status;
 
-    @Builder
     private OrderItemEntity(
             OrderEntity order,
             Long productId,
@@ -86,7 +84,7 @@ public class OrderItemEntity extends BaseEntity {
         this.status = status;
     }
 
-    public static OrderItemEntity create(
+    public static OrderItemEntity of(
             OrderEntity order,
             Long productId,
             Long optionId,
@@ -114,49 +112,5 @@ public class OrderItemEntity extends BaseEntity {
 
     public void updateStatus(OrderItemStatus status) {
         this.status = status;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public OrderEntity getOrder() {
-        return order;
-    }
-
-    public Long getProductId() {
-        return productId;
-    }
-
-    public Long getOptionId() {
-        return optionId;
-    }
-
-    public Long getSellerId() {
-        return sellerId;
-    }
-
-    public String getProductNameSnapshot() {
-        return productNameSnapshot;
-    }
-
-    public String getOptionNameSnapshot() {
-        return optionNameSnapshot;
-    }
-
-    public BigDecimal getUnitPrice() {
-        return unitPrice;
-    }
-
-    public Integer getQuantity() {
-        return quantity;
-    }
-
-    public BigDecimal getLineAmount() {
-        return lineAmount;
-    }
-
-    public OrderItemStatus getStatus() {
-        return status;
     }
 }

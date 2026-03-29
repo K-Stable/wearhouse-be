@@ -1,4 +1,4 @@
-package com.wearhouse.order.payment.dto.request;
+package com.wearhouse.order.paymentintegration.dto.request;
 
 import java.math.BigDecimal;
 

@@ -17,7 +17,7 @@ import com.wearhouse.inventory.domain.event.InventoryDomainEventPublisher;
 import com.wearhouse.inventory.domain.repository.InventoryInboxRepository;
 import com.wearhouse.inventory.domain.repository.InventoryReservationRepository;
 import com.wearhouse.inventory.domain.repository.InventoryStockRepository;
-import com.wearhouse.inventory.domain.service.buyer.command.BuyerInventoryCommandService;
+import com.wearhouse.inventory.buyer.service.BuyerInventoryCommandService;
 import com.wearhouse.inventory.infra.product.InventoryProductStatusClient;
 import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService;
 import com.wearhouse.inventory.infra.redis.InventoryHotSkuLockService.LockAcquireException;

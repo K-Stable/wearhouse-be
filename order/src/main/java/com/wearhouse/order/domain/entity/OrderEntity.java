@@ -21,7 +21,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -86,7 +85,6 @@ public class OrderEntity extends BaseEntity {
     @OrderBy("id ASC")
     private List<OrderItemEntity> items = new ArrayList<>();
 
-    @Builder
     private OrderEntity(
             String orderNo,
             Long buyerId,
@@ -113,7 +111,7 @@ public class OrderEntity extends BaseEntity {
         this.orderedAt = orderedAt;
     }
 
-    public static OrderEntity create(
+    public static OrderEntity of(
             String orderNo,
             Long buyerId,
             OrderStatus status,
@@ -151,7 +149,7 @@ public class OrderEntity extends BaseEntity {
             Integer quantity,
             BigDecimal lineAmount
     ) {
-        OrderItemEntity item = OrderItemEntity.create(
+        OrderItemEntity item = OrderItemEntity.of(
                 this,
                 productId,
                 optionId,
@@ -178,94 +176,24 @@ public class OrderEntity extends BaseEntity {
     }
 
     public void markItemsReserved() {
-        for (OrderItemEntity item : items) {
-            item.updateStatus(OrderItemStatus.RESERVED);
-        }
+        changeItemsStatus(OrderItemStatus.RESERVED);
     }
 
     public void markItemsConfirmed() {
-        for (OrderItemEntity item : items) {
-            item.updateStatus(OrderItemStatus.CONFIRMED);
-        }
+        changeItemsStatus(OrderItemStatus.CONFIRMED);
     }
 
     public void markItemsCancelled() {
-        for (OrderItemEntity item : items) {
-            item.updateStatus(OrderItemStatus.CANCELLED);
-        }
+        changeItemsStatus(OrderItemStatus.CANCELLED);
     }
 
     public void markItemsPendingReserve() {
+        changeItemsStatus(OrderItemStatus.PENDING_RESERVE);
+    }
+
+    private void changeItemsStatus(OrderItemStatus status) {
         for (OrderItemEntity item : items) {
-            item.updateStatus(OrderItemStatus.PENDING_RESERVE);
+            item.updateStatus(status);
         }
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getOrderNo() {
-        return orderNo;
-    }
-
-    public Long getBuyerId() {
-        return buyerId;
-    }
-
-    public OrderStatus getStatus() {
-        return status;
-    }
-
-    public BigDecimal getTotalAmount() {
-        return totalAmount;
-    }
-
-    public String getCurrency() {
-        return currency;
-    }
-
-    public BigDecimal getItemAmount() {
-        return itemAmount;
-    }
-
-    public BigDecimal getShippingFee() {
-        return shippingFee;
-    }
-
-    public BigDecimal getDiscountAmount() {
-        return discountAmount;
-    }
-
-    public BigDecimal getPointUsedAmount() {
-        return pointUsedAmount;
-    }
-
-    public OrderInfo getOrderInfo() {
-        return orderInfo;
-    }
-
-    public String getFailReasonCode() {
-        return failReasonCode;
-    }
-
-    public LocalDateTime getOrderedAt() {
-        return orderedAt;
-    }
-
-    public LocalDateTime getConfirmedAt() {
-        return confirmedAt;
-    }
-
-    public LocalDateTime getCancelledAt() {
-        return cancelledAt;
-    }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public List<OrderItemEntity> getItems() {
-        return items;
     }
 }

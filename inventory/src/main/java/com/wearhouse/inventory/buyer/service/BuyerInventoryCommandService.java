@@ -1,4 +1,4 @@
-package com.wearhouse.inventory.domain.service.buyer.command;
+package com.wearhouse.inventory.buyer.service;
 
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.transactional.WriteTx;

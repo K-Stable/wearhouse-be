@@ -1,4 +1,4 @@
-package com.wearhouse.order.payment.service;
+package com.wearhouse.order.paymentintegration.service;
 
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.response.ApiResponse;
@@ -15,11 +15,11 @@ import com.wearhouse.order.domain.model.PaymentMethod;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
-import com.wearhouse.order.payment.client.OrderPaymentClient;
-import com.wearhouse.order.payment.dto.request.PaymentConfirmInternalRequest;
-import com.wearhouse.order.payment.dto.request.PaymentPrepareInternalRequest;
-import com.wearhouse.order.payment.dto.response.PaymentConfirmInternalResponse;
-import com.wearhouse.order.payment.dto.response.PaymentPrepareInternalResponse;
+import com.wearhouse.order.paymentintegration.client.OrderPaymentIntegrationClient;
+import com.wearhouse.order.paymentintegration.dto.request.PaymentConfirmInternalRequest;
+import com.wearhouse.order.paymentintegration.dto.request.PaymentPrepareInternalRequest;
+import com.wearhouse.order.paymentintegration.dto.response.PaymentConfirmInternalResponse;
+import com.wearhouse.order.paymentintegration.dto.response.PaymentPrepareInternalResponse;
 import com.wearhouse.order.support.config.OrderInternalProperties;
 import com.wearhouse.order.support.config.OrderProperties;
 import jakarta.persistence.EntityManager;
@@ -33,14 +33,14 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class OrderPaymentOrchestrationService {
+public class OrderPaymentIntegrationService {
 
     private static final String REASON_PAYMENT_PREPARED = "PAYMENT_PREPARED";
 
     private final OrderRepository orderRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderSagaRepository orderSagaRepository;
-    private final OrderPaymentClient orderPaymentClient;
+    private final OrderPaymentIntegrationClient orderPaymentIntegrationClient;
     private final OrderProperties orderProperties;
     private final OrderInternalProperties orderInternalProperties;
     private final EntityManager entityManager;
@@ -74,7 +74,7 @@ public class OrderPaymentOrchestrationService {
         }
 
         validateStablePaymentConfirmRequest(request);
-        ApiResponse<PaymentConfirmInternalResponse> confirmResponse = orderPaymentClient.confirmStablepayPayment(
+        ApiResponse<PaymentConfirmInternalResponse> confirmResponse = orderPaymentIntegrationClient.confirmStablepayPayment(
                 orderInternalProperties.sharedSecret(),
                 new PaymentConfirmInternalRequest(
                         order.getId(),
@@ -110,7 +110,7 @@ public class OrderPaymentOrchestrationService {
         String customerKey = resolveCustomerKey(prepareTarget.getBuyerId(), prepareTarget.getOrderNo());
         String customerId = UUID.nameUUIDFromBytes(customerKey.getBytes(StandardCharsets.UTF_8)).toString();
 
-        ApiResponse<PaymentPrepareInternalResponse> prepareResponse = orderPaymentClient.prepareStablepayPayment(
+        ApiResponse<PaymentPrepareInternalResponse> prepareResponse = orderPaymentIntegrationClient.prepareStablepayPayment(
                 orderInternalProperties.sharedSecret(),
                 new PaymentPrepareInternalRequest(
                         prepareTarget.getId(),

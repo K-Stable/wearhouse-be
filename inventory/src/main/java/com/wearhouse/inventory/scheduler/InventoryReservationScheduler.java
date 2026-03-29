@@ -1,7 +1,7 @@
-package com.wearhouse.inventory.domain.service.command;
+package com.wearhouse.inventory.scheduler;
 
 import com.wearhouse.common.global.transactional.WriteTx;
-import com.wearhouse.inventory.domain.service.buyer.command.BuyerInventoryCommandService;
+import com.wearhouse.inventory.buyer.service.BuyerInventoryCommandService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;

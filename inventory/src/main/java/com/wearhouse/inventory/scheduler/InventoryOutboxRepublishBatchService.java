@@ -1,4 +1,4 @@
-package com.wearhouse.inventory.domain.service.command;
+package com.wearhouse.inventory.scheduler;
 
 import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.common.support.config.OutboxProperties;

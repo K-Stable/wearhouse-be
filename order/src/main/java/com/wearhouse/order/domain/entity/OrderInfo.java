@@ -5,8 +5,10 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import lombok.Getter;
 
 @Embeddable
+@Getter
 public class OrderInfo {
 
     @Enumerated(EnumType.STRING)
@@ -62,33 +64,5 @@ public class OrderInfo {
             String deliveryRequest
     ) {
         return new OrderInfo(paymentMethod, recipientName, recipientPhone, zipCode, address1, address2, deliveryRequest);
-    }
-
-    public PaymentMethod getPaymentMethod() {
-        return paymentMethod;
-    }
-
-    public String getRecipientName() {
-        return recipientName;
-    }
-
-    public String getRecipientPhone() {
-        return recipientPhone;
-    }
-
-    public String getZipCode() {
-        return zipCode;
-    }
-
-    public String getAddress1() {
-        return address1;
-    }
-
-    public String getAddress2() {
-        return address2;
-    }
-
-    public String getDeliveryRequest() {
-        return deliveryRequest;
     }
 }

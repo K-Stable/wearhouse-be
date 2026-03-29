@@ -2,7 +2,7 @@ package com.wearhouse.order.buyer.service;
 
 import com.wearhouse.order.buyer.dto.request.OrderPaymentConfirmRequest;
 import com.wearhouse.order.buyer.dto.response.OrderPaymentConfirmResponse;
-import com.wearhouse.order.payment.service.OrderPaymentOrchestrationService;
+import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -10,9 +10,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class BuyerOrderPaymentConfirmService {
 
-    private final OrderPaymentOrchestrationService orderPaymentOrchestrationService;
+    private final OrderPaymentIntegrationService orderPaymentIntegrationService;
 
     public OrderPaymentConfirmResponse confirmPayment(Long buyerId, String orderNo, OrderPaymentConfirmRequest request) {
-        return orderPaymentOrchestrationService.confirmPayment(buyerId, orderNo, request);
+        return orderPaymentIntegrationService.confirmPayment(buyerId, orderNo, request);
     }
 }

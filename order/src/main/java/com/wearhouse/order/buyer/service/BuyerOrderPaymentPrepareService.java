@@ -1,7 +1,7 @@
 package com.wearhouse.order.buyer.service;
 
 import com.wearhouse.order.buyer.dto.response.OrderPaymentPrepareResponse;
-import com.wearhouse.order.payment.service.OrderPaymentOrchestrationService;
+import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -9,9 +9,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class BuyerOrderPaymentPrepareService {
 
-    private final OrderPaymentOrchestrationService orderPaymentOrchestrationService;
+    private final OrderPaymentIntegrationService orderPaymentIntegrationService;
 
     public OrderPaymentPrepareResponse preparePayment(Long buyerId, String orderNo, String idempotencyKey) {
-        return orderPaymentOrchestrationService.preparePayment(buyerId, orderNo, idempotencyKey);
+        return orderPaymentIntegrationService.preparePayment(buyerId, orderNo, idempotencyKey);
     }
 }

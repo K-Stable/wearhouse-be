@@ -274,7 +274,7 @@ public class OrderSagaService {
                 .build();
         orderDomainEventPublisher.publish(event);
 
-        // 주문 상태는 wallet prepare 응답 성공 시점(OrderPaymentOrchestrationService)에서 PAYMENT_PENDING으로 전이한다.
+        // 주문 상태는 wallet prepare 응답 성공 시점(OrderPaymentIntegrationService)에서 PAYMENT_PENDING으로 전이한다.
     }
 
     private void publishInventoryReleaseRequested(OrderEntity order, String reasonCode) {

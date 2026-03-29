@@ -1,4 +1,4 @@
-package com.wearhouse.inventory.domain.service.command;
+package com.wearhouse.order.scheduler;
 
 import com.wearhouse.common.global.transactional.WriteTx;
 import lombok.RequiredArgsConstructor;
@@ -9,13 +9,13 @@ import org.springframework.stereotype.Component;
 @Component
 @ConditionalOnProperty(name = "wearhouse.outbox.relay.enabled", havingValue = "true")
 @RequiredArgsConstructor
-public class InventoryOutboxRelayScheduler {
+public class OrderOutboxRelayScheduler {
 
-    private final InventoryOutboxRepublishBatchService inventoryOutboxRepublishBatchService;
+    private final OrderOutboxRepublishBatchService orderOutboxRepublishBatchService;
 
     @WriteTx
     @Scheduled(fixedDelayString = "${wearhouse.outbox.republish-interval-ms:500}")
     public void publishOutboxEvents() {
-        inventoryOutboxRepublishBatchService.publishOutboxEvents();
+        orderOutboxRepublishBatchService.publishOutboxEvents();
     }
 }

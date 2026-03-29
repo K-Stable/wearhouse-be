@@ -146,7 +146,7 @@ class OrderSagaServiceFlowTest {
     }
 
     private OrderEntity testOrder(Long orderId, OrderStatus status) {
-        OrderEntity order = OrderEntity.create(
+        OrderEntity order = OrderEntity.of(
                 "ORDER-" + orderId,
                 1000L + orderId,
                 status,

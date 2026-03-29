@@ -21,7 +21,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         OrderUserInternalProperties.class,
         OutboxProperties.class
 })
-@EnableFeignClients(basePackages = {"com.wearhouse.common.infra.feign", "com.wearhouse.order.payment.client"})
+@EnableFeignClients(basePackages = {"com.wearhouse.common.infra.feign", "com.wearhouse.order.paymentintegration.client"})
 @SpringBootApplication(scanBasePackages = "com.wearhouse")
 public class OrderApplication {
 

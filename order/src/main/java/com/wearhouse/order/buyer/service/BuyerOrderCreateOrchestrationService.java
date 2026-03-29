@@ -25,7 +25,7 @@ import com.wearhouse.order.domain.model.PaymentMethod;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
-import com.wearhouse.order.payment.service.OrderPaymentOrchestrationService;
+import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationService;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import com.wearhouse.order.support.config.OrderInventoryInternalProperties;
 import java.math.BigDecimal;
@@ -43,7 +43,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
-public class OrderCreateOrchestrationService {
+public class BuyerOrderCreateOrchestrationService {
 
     private static final String AGGREGATE_TYPE_ORDER = "ORDER";
     private static final String REASON_ORDER_CREATED = "ORDER_CREATED";
@@ -56,7 +56,7 @@ public class OrderCreateOrchestrationService {
     private final OrderKafkaTopicsProperties kafkaTopicsProperties;
     private final OrderInventoryInternalProperties orderInventoryInternalProperties;
     private final TransactionTemplate transactionTemplate;
-    private final OrderPaymentOrchestrationService orderPaymentOrchestrationService;
+    private final OrderPaymentIntegrationService orderPaymentIntegrationService;
 
     public OrderCreateResponse createOrder(OrderCreateRequest request) {
         OrderCreateContext context = transactionTemplate.execute(status -> {
@@ -85,7 +85,7 @@ public class OrderCreateOrchestrationService {
                 .payAmount(context.amountSummary().payAmount());
 
         if (request.paymentMethod() == PaymentMethod.STABLE && request.buyerId() != null) {
-            OrderPaymentPrepareResponse prepareResponse = orderPaymentOrchestrationService.preparePayment(
+            OrderPaymentPrepareResponse prepareResponse = orderPaymentIntegrationService.preparePayment(
                     request.buyerId(),
                     context.orderNo(),
                     null
@@ -129,7 +129,7 @@ public class OrderCreateOrchestrationService {
                 request.deliveryRequest()
         );
 
-        return OrderEntity.create(
+        return OrderEntity.of(
                 orderNo,
                 request.buyerId(),
                 OrderStatus.PENDING_RESERVE,

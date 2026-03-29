@@ -26,7 +26,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class OrderCancelOrchestrationService {
+public class BuyerOrderCancelOrchestrationService {
 
     private static final String AGGREGATE_TYPE_ORDER = "ORDER";
     private static final String DEFAULT_CANCEL_REASON = "BUYER_CANCEL";
@@ -183,4 +183,3 @@ public class OrderCancelOrchestrationService {
         );
     }
 }
-
