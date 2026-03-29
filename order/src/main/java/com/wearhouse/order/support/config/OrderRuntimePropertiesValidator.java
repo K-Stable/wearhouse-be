@@ -1,9 +1,11 @@
 package com.wearhouse.order.support.config;
 
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class OrderRuntimePropertiesValidator {
 
     private final OrderKafkaTopicsProperties kafkaTopicsProperties;
@@ -11,20 +13,6 @@ public class OrderRuntimePropertiesValidator {
     private final OrderInternalProperties orderInternalProperties;
     private final OrderInventoryInternalProperties orderInventoryInternalProperties;
     private final OrderUserInternalProperties orderUserInternalProperties;
-
-    public OrderRuntimePropertiesValidator(
-            OrderKafkaTopicsProperties kafkaTopicsProperties,
-            OrderProperties orderProperties,
-            OrderInternalProperties orderInternalProperties,
-            OrderInventoryInternalProperties orderInventoryInternalProperties,
-            OrderUserInternalProperties orderUserInternalProperties
-    ) {
-        this.kafkaTopicsProperties = kafkaTopicsProperties;
-        this.orderProperties = orderProperties;
-        this.orderInternalProperties = orderInternalProperties;
-        this.orderInventoryInternalProperties = orderInventoryInternalProperties;
-        this.orderUserInternalProperties = orderUserInternalProperties;
-    }
 
     @PostConstruct
     void validate() {

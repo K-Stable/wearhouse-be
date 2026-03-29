@@ -1,21 +1,15 @@
 package com.wearhouse.inventory.support.config;
 
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class InventoryRuntimePropertiesValidator {
 
     private final InventoryKafkaTopicsProperties inventoryKafkaTopicsProperties;
     private final InventoryProperties inventoryProperties;
-
-    public InventoryRuntimePropertiesValidator(
-            InventoryKafkaTopicsProperties inventoryKafkaTopicsProperties,
-            InventoryProperties inventoryProperties
-    ) {
-        this.inventoryKafkaTopicsProperties = inventoryKafkaTopicsProperties;
-        this.inventoryProperties = inventoryProperties;
-    }
 
     @PostConstruct
     void validate() {

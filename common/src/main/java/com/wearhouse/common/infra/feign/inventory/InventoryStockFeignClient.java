@@ -1,6 +1,8 @@
 package com.wearhouse.common.infra.feign.inventory;
 
 import com.wearhouse.common.global.response.ApiResponse;
+import com.wearhouse.common.infra.feign.inventory.dto.InventoryAvailabilityCheckRequest;
+import com.wearhouse.common.infra.feign.inventory.dto.InventoryAvailabilityCheckResponse;
 import com.wearhouse.common.infra.feign.inventory.dto.InventoryOrderPreviewRequest;
 import com.wearhouse.common.infra.feign.inventory.dto.InventoryOrderPreviewResponse;
 import com.wearhouse.common.infra.feign.inventory.dto.InventorySellerResolveRequest;
@@ -32,6 +34,14 @@ public interface InventoryStockFeignClient {
             @RequestHeader("X-Passport-Sig") String signature,
             @RequestHeader("X-Passport-Ts") String timestamp,
             @PathVariable("skuId") Long skuId
+    );
+
+    @PostMapping("/stocks/availability/check")
+    InventoryAvailabilityCheckResponse checkAvailability(
+            @RequestHeader("X-Passport-User") String encodedUser,
+            @RequestHeader("X-Passport-Sig") String signature,
+            @RequestHeader("X-Passport-Ts") String timestamp,
+            @RequestBody InventoryAvailabilityCheckRequest request
     );
 
     @DeleteMapping("/stocks/products/{productId}")

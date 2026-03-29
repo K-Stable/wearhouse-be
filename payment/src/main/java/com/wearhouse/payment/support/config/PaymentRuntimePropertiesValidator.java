@@ -1,9 +1,11 @@
 package com.wearhouse.payment.support.config;
 
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class PaymentRuntimePropertiesValidator {
 
     private final PaymentKafkaTopicsProperties paymentKafkaTopicsProperties;
@@ -12,22 +14,6 @@ public class PaymentRuntimePropertiesValidator {
     private final PaymentOrderInternalProperties paymentOrderInternalProperties;
     private final PaymentPayProperties paymentPayProperties;
     private final PaymentWebhookProperties paymentWebhookProperties;
-
-    public PaymentRuntimePropertiesValidator(
-            PaymentKafkaTopicsProperties paymentKafkaTopicsProperties,
-            PaymentKafkaRuntimeProperties paymentKafkaRuntimeProperties,
-            PaymentMockProperties paymentMockProperties,
-            PaymentOrderInternalProperties paymentOrderInternalProperties,
-            PaymentPayProperties paymentPayProperties,
-            PaymentWebhookProperties paymentWebhookProperties
-    ) {
-        this.paymentKafkaTopicsProperties = paymentKafkaTopicsProperties;
-        this.paymentKafkaRuntimeProperties = paymentKafkaRuntimeProperties;
-        this.paymentMockProperties = paymentMockProperties;
-        this.paymentOrderInternalProperties = paymentOrderInternalProperties;
-        this.paymentPayProperties = paymentPayProperties;
-        this.paymentWebhookProperties = paymentWebhookProperties;
-    }
 
     @PostConstruct
     void validate() {

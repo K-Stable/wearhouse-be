@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -152,17 +153,28 @@ public class BuyerProductQueryService {
     private Map<Long, Integer> loadStockQuantities(List<ProductOptionEntity> options) {
         Map<Long, Integer> stockByOptionId = new HashMap<>();
         for (ProductOptionEntity option : options) {
-            if (option.getId() == null) {
-                stockByOptionId.put(null, option.getStockQuantity());
-                continue;
+            stockByOptionId.put(option.getId(), option.getStockQuantity());
+        }
+
+        List<Long> optionIds = options.stream()
+                .map(ProductOptionEntity::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (optionIds.isEmpty()) {
+            return stockByOptionId;
+        }
+
+        try {
+            Map<Long, Integer> availableByOptionId = productInventoryClient.getAvailableQtyBulk(optionIds);
+            for (Long optionId : optionIds) {
+                Integer availableQty = availableByOptionId.get(optionId);
+                if (availableQty != null) {
+                    stockByOptionId.put(optionId, availableQty);
+                }
             }
-            Integer availableQty;
-            try {
-                availableQty = productInventoryClient.getAvailableQty(option.getId());
-            } catch (RuntimeException exception) {
-                availableQty = option.getStockQuantity();
-            }
-            stockByOptionId.put(option.getId(), availableQty);
+        } catch (RuntimeException ignored) {
+            // inventory 조회 실패 시 product DB stock 값으로 응답한다.
         }
         return stockByOptionId;
     }

@@ -1,5 +1,6 @@
 package com.wearhouse.order;
 
+import com.wearhouse.common.support.config.OutboxProperties;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import com.wearhouse.order.support.config.OrderInternalProperties;
 import com.wearhouse.order.support.config.OrderInventoryInternalProperties;
@@ -17,7 +18,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         OrderProperties.class,
         OrderInternalProperties.class,
         OrderInventoryInternalProperties.class,
-        OrderUserInternalProperties.class
+        OrderUserInternalProperties.class,
+        OutboxProperties.class
 })
 @EnableFeignClients(basePackages = {"com.wearhouse.common.infra.feign", "com.wearhouse.order.payment.client"})
 @SpringBootApplication(scanBasePackages = "com.wearhouse")

@@ -1,5 +1,6 @@
 package com.wearhouse.payment;
 
+import com.wearhouse.common.support.config.OutboxProperties;
 import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
 import com.wearhouse.payment.support.config.PaymentKafkaRuntimeProperties;
 import com.wearhouse.payment.support.config.PaymentMockProperties;
@@ -18,7 +19,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         PaymentMockProperties.class,
         PaymentOrderInternalProperties.class,
         PaymentPayProperties.class,
-        PaymentWebhookProperties.class
+        PaymentWebhookProperties.class,
+        OutboxProperties.class
 })
 @SpringBootApplication(scanBasePackages = "com.wearhouse")
 public class PaymentApplication {
