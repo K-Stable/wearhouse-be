@@ -1,6 +1,6 @@
 package com.wearhouse.payment.kafka.handler;
 
-import com.wearhouse.payment.internal.service.PaymentCommandService;
+import com.wearhouse.payment.internal.service.PaymentInternalCommandService;
 import com.wearhouse.payment.kafka.dto.PaymentPrepareRequestedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PaymentPrepareRequestedHandler {
 
-    private final PaymentCommandService paymentCommandService;
+    private final PaymentInternalCommandService paymentInternalCommandService;
 
     public void handle(
             String eventId,
@@ -18,6 +18,6 @@ public class PaymentPrepareRequestedHandler {
             String rawPayload,
             PaymentPrepareRequestedEvent payload
     ) {
-        paymentCommandService.handlePaymentPrepareRequested(eventId, topic, partitionKey, rawPayload, payload);
+        paymentInternalCommandService.handlePaymentPrepareRequested(eventId, topic, partitionKey, rawPayload, payload);
     }
 }

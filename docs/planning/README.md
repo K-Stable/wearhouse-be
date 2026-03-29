@@ -19,6 +19,7 @@
 13. `infra-runbook.md`
 14. `image-platform-mismatch-troubleshooting.md`
 15. `product-load-test-report-2026-03-29.md`
+16. `service-structure-naming-convention.md`
 
 ## 작성 규칙
 

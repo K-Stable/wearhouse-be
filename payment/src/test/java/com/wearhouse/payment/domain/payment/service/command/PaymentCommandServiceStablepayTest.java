@@ -7,7 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.wearhouse.payment.internal.service.PaymentCommandService;
+import com.wearhouse.payment.internal.service.PaymentInternalCommandService;
 import com.wearhouse.payment.kafka.dto.PaymentPrepareRequestedEvent;
 import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
@@ -34,18 +34,18 @@ class PaymentCommandServiceStablepayTest {
     @Mock
     private PaymentEventPublishService paymentEventPublishService;
 
-    private PaymentCommandService paymentCommandService;
+    private PaymentInternalCommandService paymentInternalCommandService;
 
     @BeforeEach
     void setUp() {
-        paymentCommandService = new PaymentCommandService(
+        paymentInternalCommandService = new PaymentInternalCommandService(
                 paymentInboxRepository,
                 paymentTransactionCreateService,
                 paymentEventPublishService,
                 paymentKafkaFlowMetrics,
                 new PaymentMockProperties(30, 10000L, 200, "FAIL", "TIMEOUT")
         );
-        paymentCommandService.init();
+        paymentInternalCommandService.init();
     }
 
     @Test
@@ -61,7 +61,7 @@ class PaymentCommandServiceStablepayTest {
                 "STABLE"
         );
 
-        paymentCommandService.handlePaymentPrepareRequested("evt_1", "topic", "1", "{}", payload);
+        paymentInternalCommandService.handlePaymentPrepareRequested("evt_1", "topic", "1", "{}", payload);
 
         verify(paymentTransactionCreateService).insertPending(
                 anyString(),
