@@ -18,15 +18,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.global.error.GlobalExceptionHandler;
 import com.wearhouse.common.global.response.GlobalResponseBodyAdvice;
-import com.wearhouse.inventory.domain.dto.request.InventoryAvailabilityCheckRequest;
-import com.wearhouse.inventory.domain.dto.request.InventoryAvailabilityCheckRequest.InventoryAvailabilityLineRequest;
-import com.wearhouse.inventory.domain.dto.request.InventoryStockUpsertRequest;
-import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse;
-import com.wearhouse.inventory.domain.dto.response.InventoryAvailabilityCheckResponse.InventoryAvailabilityLineResponse;
-import com.wearhouse.inventory.domain.dto.response.InventoryStockResponse;
-import com.wearhouse.inventory.domain.service.buyer.query.BuyerInventoryQueryService;
-import com.wearhouse.inventory.domain.service.seller.command.SellerInventoryCommandService;
-import com.wearhouse.inventory.domain.service.seller.query.SellerInventoryQueryService;
+import com.wearhouse.inventory.buyer.controller.BuyerInventoryController;
+import com.wearhouse.inventory.buyer.dto.request.InventoryAvailabilityCheckRequest;
+import com.wearhouse.inventory.buyer.dto.request.InventoryAvailabilityCheckRequest.InventoryAvailabilityLineRequest;
+import com.wearhouse.inventory.seller.dto.request.InventoryStockUpsertRequest;
+import com.wearhouse.inventory.buyer.dto.response.InventoryAvailabilityCheckResponse;
+import com.wearhouse.inventory.buyer.dto.response.InventoryAvailabilityCheckResponse.InventoryAvailabilityLineResponse;
+import com.wearhouse.inventory.seller.controller.SellerInventoryController;
+import com.wearhouse.inventory.seller.dto.response.InventoryStockResponse;
+import com.wearhouse.inventory.buyer.service.BuyerInventoryQueryService;
+import com.wearhouse.inventory.seller.service.SellerInventoryCommandService;
+import com.wearhouse.inventory.seller.service.SellerInventoryQueryService;
 import com.wearhouse.inventory.support.config.InventoryProperties;
 import java.math.BigDecimal;
 import java.util.List;
@@ -43,8 +45,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest({
-        InventorySellerController.class,
-        InventoryBuyerController.class
+        SellerInventoryController.class,
+        BuyerInventoryController.class
 })
 @AutoConfigureMockMvc(addFilters = false)
 @AutoConfigureRestDocs

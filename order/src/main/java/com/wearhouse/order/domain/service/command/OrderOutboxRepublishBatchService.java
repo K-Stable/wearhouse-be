@@ -4,7 +4,7 @@ import com.wearhouse.common.global.transactional.WriteTx;
 import com.wearhouse.common.support.config.OutboxProperties;
 import com.wearhouse.order.infra.jpa.repository.OrderOutboxRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderOutboxRepository.OutboxCandidate;
-import com.wearhouse.order.infra.kafka.producer.OrderKafkaProducer;
+import com.wearhouse.order.kafka.publisher.OrderKafkaProducer;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

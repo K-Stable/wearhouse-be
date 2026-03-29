@@ -6,7 +6,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @EnableScheduling
-@EnableFeignClients(basePackages = {"com.wearhouse.common.infra.feign", "com.wearhouse.order.infra.payment"})
+@EnableFeignClients(basePackages = {"com.wearhouse.common.infra.feign", "com.wearhouse.order.payment.client"})
 @SpringBootApplication(scanBasePackages = "com.wearhouse")
 public class OrderApplication {
 

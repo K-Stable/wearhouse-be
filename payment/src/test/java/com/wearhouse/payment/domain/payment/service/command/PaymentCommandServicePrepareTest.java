@@ -5,14 +5,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.wearhouse.payment.domain.payment.dto.request.WalletPrepareRequest;
-import com.wearhouse.payment.domain.payment.dto.response.WalletPrepareResponse;
+import com.wearhouse.payment.internal.dto.request.WalletPrepareRequest;
+import com.wearhouse.payment.internal.dto.response.WalletPrepareResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
-import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
+import com.wearhouse.payment.internal.service.PaymentInternalPrepareService;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.infra.pay.WalletServerGateway;
-import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
+import com.wearhouse.payment.stablepay.client.WalletServerGateway;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -27,34 +26,24 @@ import org.springframework.test.util.ReflectionTestUtils;
 class PaymentCommandServicePrepareTest {
 
     @Mock
-    private PaymentInboxRepository paymentInboxRepository;
-    @Mock
     private PaymentTransactionRepository paymentTransactionRepository;
     @Mock
     private WalletServerGateway walletServerGateway;
     @Mock
     private PaymentDomainEventPublisher paymentDomainEventPublisher;
-    @Mock
-    private PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
 
-    private PaymentCommandService paymentCommandService;
+    private PaymentInternalPrepareService paymentInternalPrepareService;
 
     @BeforeEach
     void setUp() {
-        paymentCommandService = new PaymentCommandService(
-                paymentInboxRepository,
+        paymentInternalPrepareService = new PaymentInternalPrepareService(
                 paymentTransactionRepository,
                 walletServerGateway,
-                paymentDomainEventPublisher,
-                paymentKafkaFlowMetrics
+                paymentDomainEventPublisher
         );
-        ReflectionTestUtils.setField(paymentCommandService, "paymentEventTopic", "wearhouse.payment.event.v1");
-        ReflectionTestUtils.setField(paymentCommandService, "pendingTimeoutMinutes", 30);
-        ReflectionTestUtils.setField(paymentCommandService, "timeoutBatchSize", 100);
-        ReflectionTestUtils.setField(paymentCommandService, "failMethodsRaw", "FAIL");
-        ReflectionTestUtils.setField(paymentCommandService, "timeoutMethodsRaw", "TIMEOUT");
-        ReflectionTestUtils.setField(paymentCommandService, "internalSharedSecret", "internal-secret");
-        paymentCommandService.init();
+        ReflectionTestUtils.setField(paymentInternalPrepareService, "paymentEventTopic", "wearhouse.payment.event.v1");
+        ReflectionTestUtils.setField(paymentInternalPrepareService, "pendingTimeoutMinutes", 30);
+        ReflectionTestUtils.setField(paymentInternalPrepareService, "internalSharedSecret", "internal-secret");
     }
 
     @Test
@@ -78,7 +67,7 @@ class PaymentCommandServicePrepareTest {
                 )
         );
 
-        WalletPrepareResponse response = paymentCommandService.walletPrepare(
+        WalletPrepareResponse response = paymentInternalPrepareService.prepare(
                 new WalletPrepareRequest(
                         1L,
                         "O202603230001",

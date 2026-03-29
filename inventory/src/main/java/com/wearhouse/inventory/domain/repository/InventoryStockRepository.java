@@ -1,6 +1,6 @@
 package com.wearhouse.inventory.domain.repository;
 
-import com.wearhouse.inventory.domain.dto.response.SellerInventoryItemResponse;
+import com.wearhouse.inventory.seller.dto.response.SellerInventoryItemResponse;
 import com.wearhouse.inventory.domain.entity.InventoryStockEntity;
 import java.util.Collection;
 import java.util.List;
@@ -25,7 +25,7 @@ public interface InventoryStockRepository extends JpaRepository<InventoryStockEn
     List<InventoryStockEntity> findAllByProductIdAndSellerId(Long productId, Long sellerId);
 
     @Query("""
-            SELECT new com.wearhouse.inventory.domain.dto.response.SellerInventoryItemResponse(
+            SELECT new com.wearhouse.inventory.seller.dto.response.SellerInventoryItemResponse(
                 stock.skuId,
                 stock.productId,
                 stock.mainImageUrl,

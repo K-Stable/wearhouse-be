@@ -8,9 +8,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
+import com.wearhouse.payment.internal.service.PaymentCommandService;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.infra.pay.WalletServerGateway;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -31,8 +31,6 @@ class PaymentCommandServiceStablepayTest {
     @Mock
     private PaymentTransactionRepository paymentTransactionRepository;
     @Mock
-    private WalletServerGateway walletServerGateway;
-    @Mock
     private PaymentDomainEventPublisher paymentDomainEventPublisher;
     @Mock
     private PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
@@ -44,16 +42,13 @@ class PaymentCommandServiceStablepayTest {
         paymentCommandService = new PaymentCommandService(
                 paymentInboxRepository,
                 paymentTransactionRepository,
-                walletServerGateway,
                 paymentDomainEventPublisher,
                 paymentKafkaFlowMetrics
         );
         ReflectionTestUtils.setField(paymentCommandService, "paymentEventTopic", "wearhouse.payment.event.v1");
         ReflectionTestUtils.setField(paymentCommandService, "pendingTimeoutMinutes", 30);
-        ReflectionTestUtils.setField(paymentCommandService, "timeoutBatchSize", 100);
         ReflectionTestUtils.setField(paymentCommandService, "failMethodsRaw", "FAIL");
         ReflectionTestUtils.setField(paymentCommandService, "timeoutMethodsRaw", "TIMEOUT");
-        ReflectionTestUtils.setField(paymentCommandService, "internalSharedSecret", "internal-secret");
         paymentCommandService.init();
     }
 

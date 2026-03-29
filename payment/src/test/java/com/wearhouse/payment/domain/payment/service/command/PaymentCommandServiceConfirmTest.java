@@ -7,14 +7,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.wearhouse.payment.domain.payment.dto.request.PaymentConfirmRequest;
-import com.wearhouse.payment.domain.payment.dto.response.PaymentConfirmResponse;
+import com.wearhouse.payment.internal.dto.request.PaymentConfirmRequest;
+import com.wearhouse.payment.internal.dto.response.PaymentConfirmResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
 import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
-import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
+import com.wearhouse.payment.internal.service.PaymentInternalConfirmService;
 import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.infra.pay.WalletServerGateway;
-import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
+import com.wearhouse.payment.stablepay.client.WalletServerGateway;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -29,34 +28,23 @@ import org.springframework.test.util.ReflectionTestUtils;
 class PaymentCommandServiceConfirmTest {
 
     @Mock
-    private PaymentInboxRepository paymentInboxRepository;
-    @Mock
     private PaymentTransactionRepository paymentTransactionRepository;
     @Mock
     private WalletServerGateway walletServerGateway;
     @Mock
     private PaymentDomainEventPublisher paymentDomainEventPublisher;
-    @Mock
-    private PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
 
-    private PaymentCommandService paymentCommandService;
+    private PaymentInternalConfirmService paymentInternalConfirmService;
 
     @BeforeEach
     void setUp() {
-        paymentCommandService = new PaymentCommandService(
-                paymentInboxRepository,
+        paymentInternalConfirmService = new PaymentInternalConfirmService(
                 paymentTransactionRepository,
                 walletServerGateway,
-                paymentDomainEventPublisher,
-                paymentKafkaFlowMetrics
+                paymentDomainEventPublisher
         );
-        ReflectionTestUtils.setField(paymentCommandService, "paymentEventTopic", "wearhouse.payment.event.v1");
-        ReflectionTestUtils.setField(paymentCommandService, "pendingTimeoutMinutes", 30);
-        ReflectionTestUtils.setField(paymentCommandService, "timeoutBatchSize", 100);
-        ReflectionTestUtils.setField(paymentCommandService, "failMethodsRaw", "FAIL");
-        ReflectionTestUtils.setField(paymentCommandService, "timeoutMethodsRaw", "TIMEOUT");
-        ReflectionTestUtils.setField(paymentCommandService, "internalSharedSecret", "internal-secret");
-        paymentCommandService.init();
+        ReflectionTestUtils.setField(paymentInternalConfirmService, "paymentEventTopic", "wearhouse.payment.event.v1");
+        ReflectionTestUtils.setField(paymentInternalConfirmService, "internalSharedSecret", "internal-secret");
     }
 
     @Test
@@ -79,7 +67,7 @@ class PaymentCommandServiceConfirmTest {
                 "0xtx"
         ));
 
-        PaymentConfirmResponse response = paymentCommandService.confirmStablepayPayment(
+        PaymentConfirmResponse response = paymentInternalConfirmService.confirm(
                 new PaymentConfirmRequest(1L, "O202603190001", "pay_key_1", new BigDecimal("10000")),
                 "internal-secret"
         );
@@ -102,7 +90,7 @@ class PaymentCommandServiceConfirmTest {
         );
         when(paymentTransactionRepository.findByOrderId(1L)).thenReturn(Optional.of(pending));
 
-        assertThatThrownBy(() -> paymentCommandService.confirmStablepayPayment(
+        assertThatThrownBy(() -> paymentInternalConfirmService.confirm(
                 new PaymentConfirmRequest(1L, "O202603190001", "pay_key_1", new BigDecimal("9999")),
                 "internal-secret"
         )).isInstanceOf(IllegalArgumentException.class);
