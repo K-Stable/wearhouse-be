@@ -25,6 +25,7 @@ public class WalletServerGateway {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final String clientKey;
     private final String secretKey;
     private final String preparePath;
     private final String confirmPath;
@@ -35,6 +36,7 @@ public class WalletServerGateway {
             PaymentPayProperties paymentPayProperties
     ) {
         String apiBaseUrl = paymentPayProperties.apiBaseUrl();
+        String clientKey = paymentPayProperties.clientKey();
         String secretKey = paymentPayProperties.secretKey();
         String preparePath = paymentPayProperties.preparePath();
         String confirmPath = paymentPayProperties.confirmPath();
@@ -51,6 +53,7 @@ public class WalletServerGateway {
                 .baseUrl(sanitizeBaseUrl(apiBaseUrl))
                 .build();
         this.objectMapper = objectMapper;
+        this.clientKey = clientKey;
         this.secretKey = secretKey;
         this.preparePath = preparePath;
         this.confirmPath = confirmPath;
@@ -58,7 +61,7 @@ public class WalletServerGateway {
 
     public WalletPrepareResult walletPrepare(WalletPrepareRequest request, String idempotencyKey) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("orderId", requireOrderNo(request.orderNo()));
+        body.put("orderNo", requireOrderNo(request.orderNo()));
         body.put("orderName", request.orderName());
         body.put("amount", toAmountInt(request.amount()));
         body.put("successUrl", request.successUrl());
@@ -79,7 +82,7 @@ public class WalletServerGateway {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("paymentKey", request.paymentKey());
         body.put("amount", toAmountInt(request.amount()));
-        body.put("orderId", requireOrderNo(request.orderNo()));
+        body.put("orderNo", requireOrderNo(request.orderNo()));
 
         String raw = executePost(confirmPath, body, idempotencyKey, "confirm");
         JsonNode node = extractDataNode(raw, "confirm");
@@ -109,9 +112,10 @@ public class WalletServerGateway {
             RestClient.RequestBodySpec spec = restClient.post()
                     .uri(path)
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header("x-client-key", clientKey)
                     .header("x-secret-key", secretKey);
             if (idempotencyKey != null && !idempotencyKey.isBlank()) {
-                spec.header("idempotency-key", idempotencyKey);
+                spec.header("Idempotency-Key", idempotencyKey);
             }
             String raw = spec.body(body).retrieve().body(String.class);
             validateSuccessEnvelope(raw, phase);

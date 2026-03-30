@@ -14,6 +14,10 @@ public record PaymentPayProperties(
         String apiBaseUrl,
 
         @NotBlank
+        @DefaultValue("pay_client_key")
+        String clientKey,
+
+        @NotBlank
         @DefaultValue("pay_secret_key")
         String secretKey,
 
@@ -22,7 +26,7 @@ public record PaymentPayProperties(
         long timeoutMs,
 
         @NotBlank
-        @DefaultValue("/v1/merchant/checkout-sessions")
+        @DefaultValue("/api/v1/merchant/checkout-sessions")
         String preparePath,
 
         @NotBlank

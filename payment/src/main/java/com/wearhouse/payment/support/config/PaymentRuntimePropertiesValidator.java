@@ -29,6 +29,7 @@ public class PaymentRuntimePropertiesValidator {
         requireText("wearhouse.pay.webhook.secret", paymentWebhookProperties.secret());
         requireNonNegative("wearhouse.pay.webhook.allowed-skew-seconds", paymentWebhookProperties.allowedSkewSeconds());
         requireText("wearhouse.pay.api-base-url", paymentPayProperties.apiBaseUrl());
+        requireText("wearhouse.pay.client-key", paymentPayProperties.clientKey());
         requireText("wearhouse.pay.secret-key", paymentPayProperties.secretKey());
         requireText("wearhouse.pay.prepare-path", paymentPayProperties.preparePath());
         requireText("wearhouse.pay.confirm-path", paymentPayProperties.confirmPath());
