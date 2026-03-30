@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.global.error.GlobalExceptionHandler;
 import com.wearhouse.common.global.response.GlobalResponseBodyAdvice;
+import com.wearhouse.common.security.current.LoginUser;
 import com.wearhouse.order.buyer.controller.BuyerOrderController;
 import com.wearhouse.order.buyer.dto.request.OrderCancelRequest;
 import com.wearhouse.order.buyer.dto.request.OrderCreateRequest;
@@ -35,6 +36,7 @@ import com.wearhouse.order.domain.model.PaymentMethod;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +46,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.restdocs.payload.JsonFieldType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -67,6 +72,11 @@ class OrderControllerDocsTest {
 
     @MockitoBean
     private BuyerOrderQueryService buyerOrderQueryService;
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     @DisplayName("주문 생성 API 문서화")
@@ -151,6 +161,8 @@ class OrderControllerDocsTest {
     @Test
     @DisplayName("주문 상세 조회 API 문서화")
     void getOrder() throws Exception {
+        authenticateBuyer(1L);
+
         OrderDetailResponse response = OrderDetailResponse.builder()
                 .orderNo("O202603060001")
                 .buyerId(1L)
@@ -231,6 +243,8 @@ class OrderControllerDocsTest {
     @Test
     @DisplayName("주문 목록 조회 API 문서화")
     void getOrders() throws Exception {
+        authenticateBuyer(1L);
+
         given(buyerOrderQueryService.getBuyerOrders(eq(1L), eq(20))).willReturn(List.of(
                 OrderSummaryResponse.builder()
                         .orderNo("O202603060001")
@@ -265,6 +279,8 @@ class OrderControllerDocsTest {
     @Test
     @DisplayName("주문 취소 API 문서화")
     void cancelOrder() throws Exception {
+        authenticateBuyer(1L);
+
         OrderCancelRequest request = OrderCancelRequest.builder()
                 .reasonCode("BUYER_CHANGED_MIND")
                 .build();
@@ -303,5 +319,17 @@ class OrderControllerDocsTest {
                                 fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
                         )
                 ));
+    }
+
+    private void authenticateBuyer(Long userId) {
+        LoginUser buyer = new LoginUser(userId, "BUYER", List.of("ROLE_BUYER"), 1L);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                buyer,
+                null,
+                List.of()
+        );
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
     }
 }
