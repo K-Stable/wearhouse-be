@@ -168,6 +168,31 @@ services:
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
 
+  tempo:
+    image: grafana/tempo:2.7.2
+    container_name: wearhouse-tempo
+    command: [ "-config.file=/etc/tempo/tempo.yml" ]
+    volumes:
+      - ./docker/monitoring/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo-data:/tmp/tempo
+    ports:
+      - "${TEMPO_PORT:-3200}:3200"
+      - "${TEMPO_OTLP_GRPC_PORT:-4317}:4317"
+      - "${TEMPO_OTLP_HTTP_PORT:-4318}:4318"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.113.0
+    container_name: wearhouse-otel-collector
+    command: [ "--config=/etc/otelcol-contrib/config.yml" ]
+    depends_on:
+      - tempo
+    volumes:
+      - ./docker/monitoring/otel-collector/config.yml:/etc/otelcol-contrib/config.yml:ro
+    ports:
+      - "${OTEL_COLLECTOR_OTLP_GRPC_PORT:-4319}:4317"
+      - "${OTEL_COLLECTOR_OTLP_HTTP_PORT:-4320}:4318"
+      - "${OTEL_COLLECTOR_PROM_PORT:-9464}:9464"
+
   service-discovery:
     build:
       context: .
@@ -222,6 +247,9 @@ services:
       AUTH_INTERNAL_SHARED_SECRET: ${AUTH_INTERNAL_SHARED_SECRET:-wearhouse-internal-shared-secret}
       AUTH_USER_CHANGED_CHANNEL: ${AUTH_USER_CHANGED_CHANNEL:-wearhouse.auth.user-changed.v1}
       PASSPORT_SHARED_SECRET: ${PASSPORT_SHARED_SECRET:-wearhouse-passport-shared-secret}
+      TRACING_ENABLED: ${TRACING_ENABLED:-true}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318/v1/traces}
     ports:
       - "${AUTH_SERVER_PORT:-8101}:8101"
 
@@ -259,6 +287,9 @@ services:
       SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
       SPRING_MAIL_SMTP_AUTH: ${SPRING_MAIL_SMTP_AUTH:-true}
       SPRING_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:-true}
+      TRACING_ENABLED: ${TRACING_ENABLED:-true}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318/v1/traces}
     ports:
       - "${USER_SERVER_PORT:-8102}:8102"
 
@@ -286,6 +317,9 @@ services:
       REDIS_HOST: redis-auth
       REDIS_PORT: 6379
       PASSPORT_SHARED_SECRET: ${PASSPORT_SHARED_SECRET:-wearhouse-passport-shared-secret}
+      TRACING_ENABLED: ${TRACING_ENABLED:-true}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318/v1/traces}
     ports:
       - "${PRODUCT_SERVER_PORT:-8103}:8103"
 
@@ -311,6 +345,9 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       CART_DB_NAME: ${CART_DB_NAME:-wearhouse_cart}
       PASSPORT_SHARED_SECRET: ${PASSPORT_SHARED_SECRET:-wearhouse-passport-shared-secret}
+      TRACING_ENABLED: ${TRACING_ENABLED:-true}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318/v1/traces}
     ports:
       - "${CART_SERVER_PORT:-8108}:8108"
 
@@ -341,6 +378,9 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KAFKA_TEST_TOPIC: ${KAFKA_TEST_TOPIC:-wearhouse.test.topic}
       ORDER_KAFKA_CONSUMER_GROUP: ${ORDER_KAFKA_CONSUMER_GROUP:-order-service-group}
+      TRACING_ENABLED: ${TRACING_ENABLED:-true}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318/v1/traces}
     ports:
       - "${ORDER_SERVER_PORT:-8104}:8104"
 
@@ -372,6 +412,9 @@ services:
       PAYMENT_KAFKA_CONSUMER_GROUP: ${PAYMENT_KAFKA_CONSUMER_GROUP:-payment-service-group}
       WALLET_API_BASE_URL: ${WALLET_API_BASE_URL:-https://api.kst-wallet.xyz}
       WALLET_SECRET_KEY: ${WALLET_SECRET_KEY}
+      TRACING_ENABLED: ${TRACING_ENABLED:-true}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318/v1/traces}
     ports:
       - "${PAYMENT_SERVER_PORT:-8105}:8105"
 
@@ -401,6 +444,9 @@ services:
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       INVENTORY_KAFKA_CONSUMER_GROUP: ${INVENTORY_KAFKA_CONSUMER_GROUP:-inventory-service-group}
+      TRACING_ENABLED: ${TRACING_ENABLED:-true}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318/v1/traces}
     ports:
       - "${INVENTORY_SERVER_PORT:-8106}:8106"
 
@@ -434,6 +480,9 @@ services:
       PASSPORT_USER_INDEX_TTL_SECONDS: ${PASSPORT_USER_INDEX_TTL_SECONDS:-1800}
       REDIS_HOST: redis-auth
       REDIS_PORT: 6379
+      TRACING_ENABLED: ${TRACING_ENABLED:-true}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318/v1/traces}
     ports:
       - "${API_GATEWAY_SERVER_PORT:-8000}:8000"
 
@@ -444,3 +493,4 @@ volumes:
   prometheus-data:
   grafana-data:
   alertmanager-data:
+  tempo-data:

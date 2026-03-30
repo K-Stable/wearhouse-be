@@ -17,6 +17,7 @@ import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.common.util.OrderIdGenerator;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
+import com.wearhouse.order.support.monitoring.OrderInventoryReservationMetrics;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class OrderSagaService {
     private final OrderInboxRepository orderInboxRepository;
     private final OrderDomainEventPublisher orderDomainEventPublisher;
     private final OrderKafkaTopicsProperties kafkaTopicsProperties;
+    private final OrderInventoryReservationMetrics orderInventoryReservationMetrics;
 
 
     @WriteTx
@@ -113,6 +115,7 @@ public class OrderSagaService {
         order.updateStatus(OrderStatus.RESERVED, null, null, null);
         order.markItemsReserved();
         saveStatusHistory(order, currentStatus, OrderStatus.RESERVED, eventId, "STOCK_RESERVED");
+        orderInventoryReservationMetrics.recordReserveSucceeded();
         transitionSaga(order.getId(), OrderSagaState.WAITING_PAYMENT_PREPARE, eventId, null);
         publishPaymentPrepareRequested(order);
     }
@@ -131,6 +134,7 @@ public class OrderSagaService {
         String reasonCode = resolveReasonCode(payload.reasonCode(), DEFAULT_STOCK_RESERVE_FAIL_REASON);
         order.updateStatus(OrderStatus.RESERVE_FAILED, reasonCode, null, null);
         saveStatusHistory(order, currentStatus, OrderStatus.RESERVE_FAILED, eventId, reasonCode);
+        orderInventoryReservationMetrics.recordReserveFailed();
         transitionSaga(order.getId(), OrderSagaState.RESERVE_FAILED, eventId, reasonCode);
     }
 

@@ -28,6 +28,7 @@ import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationService;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import com.wearhouse.order.support.config.OrderInventoryInternalProperties;
+import com.wearhouse.order.support.monitoring.OrderInventoryReservationMetrics;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -57,6 +58,7 @@ public class BuyerOrderCreateOrchestrationService {
     private final OrderInventoryInternalProperties orderInventoryInternalProperties;
     private final TransactionTemplate transactionTemplate;
     private final OrderPaymentIntegrationService orderPaymentIntegrationService;
+    private final OrderInventoryReservationMetrics orderInventoryReservationMetrics;
 
     public OrderCreateResponse createOrder(Long authenticatedBuyerId, OrderCreateRequest request) {
         OrderCreateRequest normalizedRequest = normalizeRequest(authenticatedBuyerId, request);
@@ -245,6 +247,7 @@ public class BuyerOrderCreateOrchestrationService {
                 kafkaTopicsProperties.inventoryReserveTopic(),
                 payload
         );
+        orderInventoryReservationMetrics.recordReserveRequested();
     }
 
     private InventoryReserveRequestedPayload buildInventoryReservePayload(
