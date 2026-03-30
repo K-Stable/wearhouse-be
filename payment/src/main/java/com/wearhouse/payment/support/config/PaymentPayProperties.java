@@ -14,10 +14,6 @@ public record PaymentPayProperties(
         String apiBaseUrl,
 
         @NotBlank
-        @DefaultValue("pay_client_key")
-        String clientKey,
-
-        @NotBlank
         @DefaultValue("pay_secret_key")
         String secretKey,
 

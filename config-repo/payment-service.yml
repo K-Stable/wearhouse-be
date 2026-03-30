@@ -35,9 +35,8 @@ wearhouse:
     internal:
       shared-secret: ${ORDER_INTERNAL_SHARED_SECRET:wearhouse-order-internal-secret}
   pay:
-    api-base-url: ${PAY_API_BASE_URL:${WALLET_API_BASE_URL:https://api.kst-wallet.xyz}}
-    client-key: ${PAY_CLIENT_KEY:${WALLET_CLIENT_KEY:pay_client_key}}
-    secret-key: ${PAY_SECRET_KEY:${WALLET_SECRET_KEY:pay_secret_key}}
+    api-base-url: ${WALLET_API_BASE_URL:https://api.kst-wallet.xyz}
+    secret-key: ${WALLET_SECRET_KEY:pay_secret_key}
     timeout-ms: ${PAY_TIMEOUT_MS:10000}
     confirm-path: ${PAY_CONFIRM_PATH:/api/v1/merchant/payments/confirm}
     prepare-path: ${PAY_PREPARE_PATH:/api/v1/merchant/checkout-sessions}

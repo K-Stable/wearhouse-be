@@ -25,7 +25,6 @@ public class WalletServerGateway {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
-    private final String clientKey;
     private final String secretKey;
     private final String preparePath;
     private final String confirmPath;
@@ -36,7 +35,6 @@ public class WalletServerGateway {
             PaymentPayProperties paymentPayProperties
     ) {
         String apiBaseUrl = paymentPayProperties.apiBaseUrl();
-        String clientKey = paymentPayProperties.clientKey();
         String secretKey = paymentPayProperties.secretKey();
         String preparePath = paymentPayProperties.preparePath();
         String confirmPath = paymentPayProperties.confirmPath();
@@ -53,7 +51,6 @@ public class WalletServerGateway {
                 .baseUrl(sanitizeBaseUrl(apiBaseUrl))
                 .build();
         this.objectMapper = objectMapper;
-        this.clientKey = clientKey;
         this.secretKey = secretKey;
         this.preparePath = preparePath;
         this.confirmPath = confirmPath;
@@ -112,7 +109,6 @@ public class WalletServerGateway {
             RestClient.RequestBodySpec spec = restClient.post()
                     .uri(path)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .header("x-client-key", clientKey)
                     .header("x-secret-key", secretKey);
             if (idempotencyKey != null && !idempotencyKey.isBlank()) {
                 spec.header("Idempotency-Key", idempotencyKey);
