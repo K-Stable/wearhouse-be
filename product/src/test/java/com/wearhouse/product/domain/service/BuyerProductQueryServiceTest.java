@@ -5,6 +5,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wearhouse.common.support.s3.S3StorageService;
+import com.wearhouse.product.buyer.mapper.BuyerProductResponseMapper;
 import com.wearhouse.product.domain.dto.response.BuyerProductDetailResponse;
 import com.wearhouse.product.domain.entity.ProductEntity;
 import com.wearhouse.product.domain.model.BuyerProductSortType;
@@ -14,13 +15,16 @@ import com.wearhouse.product.domain.model.ProductStatus;
 import com.wearhouse.product.domain.repository.ProductRepository;
 import com.wearhouse.product.domain.repository.ProductSeasonRepository;
 import com.wearhouse.product.domain.service.buyer.BuyerProductQueryService;
+import com.wearhouse.product.domain.service.common.ProductImageUrlResolver;
+import com.wearhouse.product.domain.service.common.ProductStockResolver;
 import com.wearhouse.product.infra.inventory.ProductInventoryClient;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -40,12 +44,24 @@ class BuyerProductQueryServiceTest {
     @Mock
     private S3StorageService s3StorageService;
 
-    @InjectMocks
     private BuyerProductQueryService buyerProductQueryService;
+
+    @BeforeEach
+    void setUp() {
+        ProductImageUrlResolver productImageUrlResolver = new ProductImageUrlResolver(s3StorageService);
+        ProductStockResolver productStockResolver = new ProductStockResolver(productInventoryClient);
+        BuyerProductResponseMapper buyerProductResponseMapper = new BuyerProductResponseMapper(productImageUrlResolver);
+        buyerProductQueryService = new BuyerProductQueryService(
+                productRepository,
+                productSeasonRepository,
+                productStockResolver,
+                buyerProductResponseMapper
+        );
+    }
 
     @Test
     void getBuyerProductDetailShouldIncludeOptionStockQuantity() {
-        ProductEntity product = ProductEntity.create(
+        ProductEntity product = ProductEntity.of(
                 11L,
                 "Debug Product",
                 new BigDecimal("50000"),
@@ -66,12 +82,12 @@ class BuyerProductQueryServiceTest {
                 Category.OUTER,
                 501L
         )).thenReturn(List.of());
-        when(productInventoryClient.getAvailableQty(1001L)).thenReturn(7);
+        when(productInventoryClient.getAvailableQtyBulk(List.of(1001L))).thenReturn(Map.of(1001L, 7));
 
         BuyerProductDetailResponse response = buyerProductQueryService.getBuyerProductDetail(501L);
 
         assertEquals(7, response.options().get(0).stockQuantity());
-        verify(productInventoryClient).getAvailableQty(1001L);
+        verify(productInventoryClient).getAvailableQtyBulk(List.of(1001L));
     }
 
     @Test
@@ -114,7 +130,7 @@ class BuyerProductQueryServiceTest {
 
     @Test
     void getBuyerProductDetailShouldResolveMainImageKeyToUrl() {
-        ProductEntity product = ProductEntity.create(
+        ProductEntity product = ProductEntity.of(
                 11L,
                 "Debug Product",
                 new BigDecimal("50000"),

@@ -7,14 +7,16 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.wearhouse.payment.domain.payment.dto.request.PaymentConfirmRequest;
-import com.wearhouse.payment.domain.payment.dto.response.PaymentConfirmResponse;
+import com.wearhouse.payment.internal.dto.request.PaymentConfirmRequest;
+import com.wearhouse.payment.internal.dto.response.PaymentConfirmResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
-import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
-import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.infra.pay.WalletServerGateway;
-import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
+import com.wearhouse.payment.internal.mapper.PaymentInternalResponseMapper;
+import com.wearhouse.payment.internal.service.PaymentInternalConfirmService;
+import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
+import com.wearhouse.payment.support.config.PaymentOrderInternalProperties;
+import com.wearhouse.payment.stablepay.client.WalletServerGateway;
+import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
+import com.wearhouse.payment.transaction.service.PaymentTransactionUpdateService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -23,40 +25,31 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentCommandServiceConfirmTest {
 
     @Mock
-    private PaymentInboxRepository paymentInboxRepository;
+    private PaymentTransactionCreateService paymentTransactionCreateService;
     @Mock
-    private PaymentTransactionRepository paymentTransactionRepository;
+    private PaymentTransactionUpdateService paymentTransactionUpdateService;
     @Mock
     private WalletServerGateway walletServerGateway;
     @Mock
-    private PaymentDomainEventPublisher paymentDomainEventPublisher;
-    @Mock
-    private PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
+    private PaymentEventPublishService paymentEventPublishService;
 
-    private PaymentCommandService paymentCommandService;
+    private PaymentInternalConfirmService paymentInternalConfirmService;
 
     @BeforeEach
     void setUp() {
-        paymentCommandService = new PaymentCommandService(
-                paymentInboxRepository,
-                paymentTransactionRepository,
+        paymentInternalConfirmService = new PaymentInternalConfirmService(
+                paymentTransactionCreateService,
+                paymentTransactionUpdateService,
                 walletServerGateway,
-                paymentDomainEventPublisher,
-                paymentKafkaFlowMetrics
+                paymentEventPublishService,
+                new PaymentOrderInternalProperties("internal-secret"),
+                new PaymentInternalResponseMapper()
         );
-        ReflectionTestUtils.setField(paymentCommandService, "paymentEventTopic", "wearhouse.payment.event.v1");
-        ReflectionTestUtils.setField(paymentCommandService, "pendingTimeoutMinutes", 30);
-        ReflectionTestUtils.setField(paymentCommandService, "timeoutBatchSize", 100);
-        ReflectionTestUtils.setField(paymentCommandService, "failMethodsRaw", "FAIL");
-        ReflectionTestUtils.setField(paymentCommandService, "timeoutMethodsRaw", "TIMEOUT");
-        ReflectionTestUtils.setField(paymentCommandService, "internalSharedSecret", "internal-secret");
-        paymentCommandService.init();
     }
 
     @Test
@@ -71,7 +64,7 @@ class PaymentCommandServiceConfirmTest {
         );
         pending.bindStablepaySession("pay_key_1", null, null, null, null, null, null, null);
 
-        when(paymentTransactionRepository.findByOrderId(1L)).thenReturn(Optional.of(pending));
+        when(paymentTransactionCreateService.findByOrderId(1L)).thenReturn(Optional.of(pending));
         when(walletServerGateway.walletConfirm(any(), any())).thenReturn(WalletServerGateway.WalletConfirmResult.authorized(
                 "pid_1",
                 "cmd_1",
@@ -79,15 +72,22 @@ class PaymentCommandServiceConfirmTest {
                 "0xtx"
         ));
 
-        PaymentConfirmResponse response = paymentCommandService.confirmStablepayPayment(
+        PaymentConfirmResponse response = paymentInternalConfirmService.confirm(
                 new PaymentConfirmRequest(1L, "O202603190001", "pay_key_1", new BigDecimal("10000")),
                 "internal-secret"
         );
 
         assertThat(response.paymentStatus()).isEqualTo("AUTHORIZED");
         assertThat(pending.getStatus().name()).isEqualTo("AUTHORIZED");
-        verify(paymentTransactionRepository).save(pending);
-        verify(paymentDomainEventPublisher).publish(any());
+        verify(paymentTransactionUpdateService).save(pending);
+        verify(paymentEventPublishService).publishAuthorized(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
     }
 
     @Test
@@ -100,15 +100,30 @@ class PaymentCommandServiceConfirmTest {
                 "STABLE",
                 LocalDateTime.now().plusMinutes(30)
         );
-        when(paymentTransactionRepository.findByOrderId(1L)).thenReturn(Optional.of(pending));
+        when(paymentTransactionCreateService.findByOrderId(1L)).thenReturn(Optional.of(pending));
 
-        assertThatThrownBy(() -> paymentCommandService.confirmStablepayPayment(
+        assertThatThrownBy(() -> paymentInternalConfirmService.confirm(
                 new PaymentConfirmRequest(1L, "O202603190001", "pay_key_1", new BigDecimal("9999")),
                 "internal-secret"
         )).isInstanceOf(IllegalArgumentException.class);
 
         verify(walletServerGateway, never()).walletConfirm(any(), any());
-        verify(paymentDomainEventPublisher, never()).publish(any());
-        verify(paymentTransactionRepository, never()).save(any());
+        verify(paymentEventPublishService, never()).publishAuthorized(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+        verify(paymentEventPublishService, never()).publishFailed(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+        verify(paymentTransactionUpdateService, never()).save(any());
     }
 }

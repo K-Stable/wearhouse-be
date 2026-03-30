@@ -13,6 +13,7 @@ import com.wearhouse.common.support.s3.S3StorageService;
 import com.wearhouse.product.domain.dto.request.ProductImagePresignedUploadRequest;
 import com.wearhouse.product.domain.dto.response.ProductImagePresignedUploadResponse;
 import com.wearhouse.product.domain.model.ProductImageType;
+import com.wearhouse.product.domain.service.seller.SellerProductAccessValidator;
 import com.wearhouse.product.domain.service.seller.SellerProductImageService;
 import com.wearhouse.product.support.config.ProductImageStorageProperties;
 import java.util.List;
@@ -27,11 +28,15 @@ class SellerProductImageServiceTest {
     @Mock
     private S3StorageService s3StorageService;
 
+    @Mock
+    private SellerProductAccessValidator sellerProductAccessValidator;
+
     @Test
     void issuePresignedUploadUrlShouldBuildMainImageKeyAndReturnUrls() {
         ProductImageStorageProperties properties = new ProductImageStorageProperties();
         properties.setKeyPrefix("prod");
-        SellerProductImageService service = new SellerProductImageService(s3StorageService, properties);
+        SellerProductImageService service =
+                new SellerProductImageService(s3StorageService, properties, sellerProductAccessValidator);
 
         LoginUser seller = new LoginUser(11L, "SELLER", List.of("ROLE_SELLER"), 1L);
         ProductImagePresignedUploadRequest request = new ProductImagePresignedUploadRequest(
@@ -39,6 +44,7 @@ class SellerProductImageServiceTest {
                 "image/jpeg",
                 ProductImageType.MAIN
         );
+        when(sellerProductAccessValidator.requireSellerId(seller)).thenReturn(11L);
         when(s3StorageService.uploadImage(any(), eq("image/jpeg")))
                 .thenReturn(new S3PresignedUploadResult("https://upload.example.com/presigned"));
         when(s3StorageService.getImageUrl(any()))
@@ -50,6 +56,7 @@ class SellerProductImageServiceTest {
         assertTrue(response.imageKey().startsWith("prod/products/seller-11/main/"));
         assertTrue(response.imageKey().endsWith(".jpg"));
         assertEquals("https://cdn.example.com/prod/products/seller-11/main/yyyy/mm/dd/uuid.jpg", response.imageUrl());
+        verify(sellerProductAccessValidator).requireSellerId(seller);
         verify(s3StorageService).uploadImage(any(), eq("image/jpeg"));
         verify(s3StorageService).getImageUrl(response.imageKey());
     }

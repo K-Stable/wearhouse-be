@@ -11,7 +11,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -65,7 +64,6 @@ public class InventoryStockEntity extends BaseEntity {
     @Column(name = "version", nullable = false)
     private Long version;
 
-    @Builder
     private InventoryStockEntity(
             Long skuId,
             Integer availableQty,
@@ -94,7 +92,7 @@ public class InventoryStockEntity extends BaseEntity {
         syncProductStatusByAvailableQty();
     }
 
-    public static InventoryStockEntity create(
+    public static InventoryStockEntity of(
             Long skuId,
             Integer availableQty,
             Long sellerId,

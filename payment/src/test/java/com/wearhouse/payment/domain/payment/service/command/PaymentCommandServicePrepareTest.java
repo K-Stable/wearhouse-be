@@ -5,56 +5,50 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.wearhouse.payment.domain.payment.dto.request.WalletPrepareRequest;
-import com.wearhouse.payment.domain.payment.dto.response.WalletPrepareResponse;
+import com.wearhouse.payment.internal.dto.request.WalletPrepareRequest;
+import com.wearhouse.payment.internal.dto.response.WalletPrepareResponse;
 import com.wearhouse.payment.domain.payment.entity.PaymentTransactionEntity;
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
-import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
-import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.infra.pay.WalletServerGateway;
-import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
+import com.wearhouse.payment.internal.mapper.PaymentInternalResponseMapper;
+import com.wearhouse.payment.internal.service.PaymentInternalPrepareService;
+import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
+import com.wearhouse.payment.support.config.PaymentMockProperties;
+import com.wearhouse.payment.support.config.PaymentOrderInternalProperties;
+import com.wearhouse.payment.stablepay.client.WalletServerGateway;
+import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
+import com.wearhouse.payment.transaction.service.PaymentTransactionUpdateService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentCommandServicePrepareTest {
 
     @Mock
-    private PaymentInboxRepository paymentInboxRepository;
+    private PaymentTransactionCreateService paymentTransactionCreateService;
     @Mock
-    private PaymentTransactionRepository paymentTransactionRepository;
+    private PaymentTransactionUpdateService paymentTransactionUpdateService;
     @Mock
     private WalletServerGateway walletServerGateway;
     @Mock
-    private PaymentDomainEventPublisher paymentDomainEventPublisher;
-    @Mock
-    private PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
+    private PaymentEventPublishService paymentEventPublishService;
 
-    private PaymentCommandService paymentCommandService;
+    private PaymentInternalPrepareService paymentInternalPrepareService;
 
     @BeforeEach
     void setUp() {
-        paymentCommandService = new PaymentCommandService(
-                paymentInboxRepository,
-                paymentTransactionRepository,
+        paymentInternalPrepareService = new PaymentInternalPrepareService(
+                paymentTransactionCreateService,
+                paymentTransactionUpdateService,
                 walletServerGateway,
-                paymentDomainEventPublisher,
-                paymentKafkaFlowMetrics
+                paymentEventPublishService,
+                new PaymentMockProperties(30, 10000L, 200, "FAIL", "TIMEOUT"),
+                new PaymentOrderInternalProperties("internal-secret"),
+                new PaymentInternalResponseMapper()
         );
-        ReflectionTestUtils.setField(paymentCommandService, "paymentEventTopic", "wearhouse.payment.event.v1");
-        ReflectionTestUtils.setField(paymentCommandService, "pendingTimeoutMinutes", 30);
-        ReflectionTestUtils.setField(paymentCommandService, "timeoutBatchSize", 100);
-        ReflectionTestUtils.setField(paymentCommandService, "failMethodsRaw", "FAIL");
-        ReflectionTestUtils.setField(paymentCommandService, "timeoutMethodsRaw", "TIMEOUT");
-        ReflectionTestUtils.setField(paymentCommandService, "internalSharedSecret", "internal-secret");
-        paymentCommandService.init();
     }
 
     @Test
@@ -67,7 +61,8 @@ class PaymentCommandServicePrepareTest {
                 "STABLE",
                 LocalDateTime.now().plusMinutes(30)
         );
-        when(paymentTransactionRepository.findByOrderId(1L)).thenReturn(Optional.of(pending));
+        when(paymentTransactionCreateService.getOrCreateStablePending(1L, "O202603230001", new BigDecimal("10000"), 30))
+                .thenReturn(pending);
         when(walletServerGateway.walletPrepare(any(), any())).thenReturn(
                 new WalletServerGateway.WalletPrepareResult(
                         "cs_1",
@@ -78,7 +73,7 @@ class PaymentCommandServicePrepareTest {
                 )
         );
 
-        WalletPrepareResponse response = paymentCommandService.walletPrepare(
+        WalletPrepareResponse response = paymentInternalPrepareService.prepare(
                 new WalletPrepareRequest(
                         1L,
                         "O202603230001",
@@ -95,6 +90,6 @@ class PaymentCommandServicePrepareTest {
         assertThat(response.checkoutSessionId()).isEqualTo("cs_1");
         assertThat(response.checkoutUrl()).isEqualTo("https://wallet.example/checkout/cs_1");
         assertThat(response.appLaunchUrl()).isEqualTo("wallet://checkout/cs_1");
-        verify(paymentTransactionRepository).save(pending);
+        verify(paymentTransactionUpdateService).save(pending);
     }
 }

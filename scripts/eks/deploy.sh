@@ -83,7 +83,7 @@ set +a
 : "${PASSPORT_SHARED_SECRET:=wearhouse-passport-shared-secret}"
 : "${USER_AUTH_INTERNAL_SHARED_SECRET:=$AUTH_INTERNAL_SHARED_SECRET}"
 : "${ORDER_INTERNAL_SHARED_SECRET:=wearhouse-order-internal-secret}"
-: "${PAY_SECRET_KEY:=pay_secret_key}"
+: "${WALLET_SECRET_KEY:=pay_secret_key}"
 : "${SPRING_MAIL_USERNAME:=}"
 : "${SPRING_MAIL_PASSWORD:=}"
 : "${S3_ACCESS_KEY:=}"
@@ -163,7 +163,7 @@ kubectl -n "$NAMESPACE" create secret generic wearhouse-secrets \
   --from-literal=PASSPORT_SHARED_SECRET="$PASSPORT_SHARED_SECRET" \
   --from-literal=USER_AUTH_INTERNAL_SHARED_SECRET="$USER_AUTH_INTERNAL_SHARED_SECRET" \
   --from-literal=ORDER_INTERNAL_SHARED_SECRET="$ORDER_INTERNAL_SHARED_SECRET" \
-  --from-literal=PAY_SECRET_KEY="$PAY_SECRET_KEY" \
+  --from-literal=WALLET_SECRET_KEY="$WALLET_SECRET_KEY" \
   --from-literal=SPRING_MAIL_USERNAME="$SPRING_MAIL_USERNAME" \
   --from-literal=SPRING_MAIL_PASSWORD="$SPRING_MAIL_PASSWORD" \
   --from-literal=S3_ACCESS_KEY="$S3_ACCESS_KEY" \

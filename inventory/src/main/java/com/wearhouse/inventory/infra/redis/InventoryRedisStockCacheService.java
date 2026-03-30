@@ -32,8 +32,8 @@ public class InventoryRedisStockCacheService {
     ) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.inventoryStockRepository = inventoryStockRepository;
-        this.stockCacheTtlSeconds = inventoryProperties.getCache().getStockTtlSeconds();
-        this.stockKeyPrefix = inventoryProperties.getCache().getStockKeyPrefix();
+        this.stockCacheTtlSeconds = inventoryProperties.cache().stockTtlSeconds();
+        this.stockKeyPrefix = inventoryProperties.cache().stockKeyPrefix();
     }
 
     public AtomicAvailabilityCheckResult checkAvailabilityAtomically(Map<Long, Integer> requestedBySku) {

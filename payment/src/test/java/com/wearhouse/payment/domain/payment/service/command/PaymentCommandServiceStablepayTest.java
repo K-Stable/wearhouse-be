@@ -7,21 +7,22 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.wearhouse.payment.domain.payment.event.PaymentDomainEventPublisher;
+import com.wearhouse.payment.internal.service.PaymentInternalCommandService;
+import com.wearhouse.payment.kafka.dto.PaymentPrepareRequestedEvent;
+import com.wearhouse.payment.kafka.publisher.PaymentEventPublishService;
 import com.wearhouse.payment.infra.jpa.repository.PaymentInboxRepository;
-import com.wearhouse.payment.infra.jpa.repository.PaymentTransactionRepository;
-import com.wearhouse.payment.infra.pay.WalletServerGateway;
+import com.wearhouse.payment.support.config.PaymentKafkaTopicsProperties;
+import com.wearhouse.payment.support.config.PaymentMockProperties;
 import com.wearhouse.payment.support.monitoring.PaymentKafkaFlowMetrics;
+import com.wearhouse.payment.transaction.service.PaymentTransactionCreateService;
 import java.math.BigDecimal;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentCommandServiceStablepayTest {
@@ -29,49 +30,45 @@ class PaymentCommandServiceStablepayTest {
     @Mock
     private PaymentInboxRepository paymentInboxRepository;
     @Mock
-    private PaymentTransactionRepository paymentTransactionRepository;
-    @Mock
-    private WalletServerGateway walletServerGateway;
-    @Mock
-    private PaymentDomainEventPublisher paymentDomainEventPublisher;
+    private PaymentTransactionCreateService paymentTransactionCreateService;
     @Mock
     private PaymentKafkaFlowMetrics paymentKafkaFlowMetrics;
+    @Mock
+    private PaymentEventPublishService paymentEventPublishService;
 
-    private PaymentCommandService paymentCommandService;
+    private PaymentInternalCommandService paymentInternalCommandService;
 
     @BeforeEach
     void setUp() {
-        paymentCommandService = new PaymentCommandService(
+        paymentInternalCommandService = new PaymentInternalCommandService(
                 paymentInboxRepository,
-                paymentTransactionRepository,
-                walletServerGateway,
-                paymentDomainEventPublisher,
-                paymentKafkaFlowMetrics
+                paymentTransactionCreateService,
+                paymentEventPublishService,
+                paymentKafkaFlowMetrics,
+                new PaymentKafkaTopicsProperties("wearhouse.payment.command.v1", "wearhouse.payment.event.v1"),
+                new PaymentMockProperties(30, 10000L, 200, "FAIL", "TIMEOUT"),
+                new ObjectMapper()
         );
-        ReflectionTestUtils.setField(paymentCommandService, "paymentEventTopic", "wearhouse.payment.event.v1");
-        ReflectionTestUtils.setField(paymentCommandService, "pendingTimeoutMinutes", 30);
-        ReflectionTestUtils.setField(paymentCommandService, "timeoutBatchSize", 100);
-        ReflectionTestUtils.setField(paymentCommandService, "failMethodsRaw", "FAIL");
-        ReflectionTestUtils.setField(paymentCommandService, "timeoutMethodsRaw", "TIMEOUT");
-        ReflectionTestUtils.setField(paymentCommandService, "internalSharedSecret", "internal-secret");
-        paymentCommandService.init();
+        paymentInternalCommandService.init();
     }
 
     @Test
     void stablepay_prepare는_pending만_생성하고_authorized_이벤트를_발행하지_않는다() {
         when(paymentInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(true);
-        when(paymentTransactionRepository.findByOrderId(1L)).thenReturn(Optional.empty());
+        when(paymentTransactionCreateService.findByOrderId(1L)).thenReturn(Optional.empty());
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", 1L);
-        payload.put("orderNo", "O202603190001");
-        payload.put("amount", new BigDecimal("10000"));
-        payload.put("paymentMethod", "STABLE");
+        PaymentPrepareRequestedEvent payload = new PaymentPrepareRequestedEvent(
+                1L,
+                "O202603190001",
+                10L,
+                new BigDecimal("10000"),
+                "STABLE"
+        );
 
-        paymentCommandService.handlePaymentPrepareRequested("evt_1", "topic", "1", "{}", payload);
+        paymentInternalCommandService.handlePaymentPrepareRequested("evt_1", payload);
 
-        verify(paymentTransactionRepository).insertPending(
+        verify(paymentTransactionCreateService).insertPending(
                 anyString(),
                 eq(1L),
                 eq("O202603190001"),
@@ -79,6 +76,21 @@ class PaymentCommandServiceStablepayTest {
                 eq("STABLE"),
                 any()
         );
-        verify(paymentDomainEventPublisher, never()).publish(any());
+        verify(paymentEventPublishService, never()).publishAuthorized(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+        verify(paymentEventPublishService, never()).publishFailed(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
     }
 }

@@ -4,27 +4,21 @@ import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.common.global.pagination.CursorPageResponse;
 import com.wearhouse.common.global.pagination.CursorPaginationSupport;
 import com.wearhouse.common.global.transactional.ReadTx;
-import com.wearhouse.common.support.s3.S3StorageService;
+import com.wearhouse.product.buyer.mapper.BuyerProductResponseMapper;
 import com.wearhouse.product.domain.dto.response.BuyerProductDetailResponse;
 import com.wearhouse.product.domain.dto.response.BuyerProductListResponse;
 import com.wearhouse.product.domain.dto.response.ProductOptionResponse;
 import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
 import com.wearhouse.product.domain.entity.ProductEntity;
-import com.wearhouse.product.domain.entity.ProductImageEntity;
-import com.wearhouse.product.domain.entity.ProductOptionEntity;
 import com.wearhouse.product.domain.entity.ProductSeasonEntity;
 import com.wearhouse.product.domain.exception.ProductErrorCode;
 import com.wearhouse.product.domain.model.BuyerProductSortType;
 import com.wearhouse.product.domain.model.Category;
-import com.wearhouse.product.domain.model.ProductImageType;
 import com.wearhouse.product.domain.model.ProductStatus;
 import com.wearhouse.product.domain.repository.ProductRepository;
 import com.wearhouse.product.domain.repository.ProductSeasonRepository;
-import com.wearhouse.product.infra.inventory.ProductInventoryClient;
-import java.util.Comparator;
-import java.util.HashMap;
+import com.wearhouse.product.domain.service.common.ProductStockResolver;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -38,8 +32,8 @@ public class BuyerProductQueryService {
 
     private final ProductRepository productRepository;
     private final ProductSeasonRepository productSeasonRepository;
-    private final ProductInventoryClient productInventoryClient;
-    private final S3StorageService s3StorageService;
+    private final ProductStockResolver productStockResolver;
+    private final BuyerProductResponseMapper buyerProductResponseMapper;
 
     @ReadTx
     public CursorPageResponse<BuyerProductListResponse> getBuyerProducts(
@@ -56,7 +50,12 @@ public class BuyerProductQueryService {
                 normalizedSort,
                 pageLimit + 1
         );
-        return CursorPaginationSupport.toCursorPage(products, pageLimit, ProductEntity::getId, this::toBuyerListResponse);
+        return CursorPaginationSupport.toCursorPage(
+                products,
+                pageLimit,
+                ProductEntity::getId,
+                buyerProductResponseMapper::toBuyerListResponse
+        );
     }
 
     @ReadTx
@@ -70,7 +69,7 @@ public class BuyerProductQueryService {
                 seasons,
                 pageLimit,
                 ProductSeasonEntity::getId,
-                this::toSeasonListResponse
+                buyerProductResponseMapper::toSeasonListResponse
         );
     }
 
@@ -83,93 +82,16 @@ public class BuyerProductQueryService {
                 .findTop8ByStatusAndCategoryAndIdNotOrderByIdDesc(ProductStatus.RELEASED, product.getCategory(), product.getId());
         List<BuyerProductListResponse> similarItems = similarProducts.isEmpty()
                 ? null
-                : similarProducts.stream().limit(4).map(this::toBuyerListResponse).toList();
-
-        return new BuyerProductDetailResponse(
-                product.getId(),
-                product.getName(),
-                product.getPrice(),
-                formatCategory(product.getCategory()),
-                product.getDetails(),
-                product.getSizeGuide(),
-                product.getShipping(),
-                extractMainImageUrl(product),
-                extractImages(product, ProductImageType.PREVIEW),
-                extractImages(product, ProductImageType.DETAIL),
-                toOptionResponses(product.getOptions()),
-                similarItems
-        );
-    }
-
-    private BuyerProductListResponse toBuyerListResponse(ProductEntity product) {
-        return new BuyerProductListResponse(
-                product.getId(),
-                product.getName(),
-                product.getPrice(),
-                extractMainImageUrl(product)
-        );
-    }
-
-    private ProductSeasonListResponse toSeasonListResponse(ProductSeasonEntity season) {
-        return new ProductSeasonListResponse(
-                season.getId(),
-                season.getName()
-        );
-    }
-
-    private String extractMainImageUrl(ProductEntity product) {
-        return product.getImages().stream()
-                .filter(image -> image.getImageType() == ProductImageType.MAIN)
-                .sorted(Comparator.comparing(ProductImageEntity::getSortOrder).thenComparing(ProductImageEntity::getId))
-                .map(ProductImageEntity::getImageUrl)
-                .map(s3StorageService::getImageUrl)
-                .findFirst()
-                .orElse(null);
-    }
-
-    private List<String> extractImages(ProductEntity product, ProductImageType imageType) {
-        return product.getImages().stream()
-                .filter(image -> image.getImageType() == imageType)
-                .sorted(Comparator.comparing(ProductImageEntity::getSortOrder).thenComparing(ProductImageEntity::getId))
-                .map(ProductImageEntity::getImageUrl)
-                .map(s3StorageService::getImageUrl)
+                : similarProducts.stream()
+                .limit(4)
+                .map(buyerProductResponseMapper::toBuyerListResponse)
                 .toList();
-    }
 
-    private List<ProductOptionResponse> toOptionResponses(List<ProductOptionEntity> options) {
-        Map<Long, Integer> stockQuantities = loadStockQuantities(options);
-        return options.stream()
-                .sorted(Comparator.comparing(ProductOptionEntity::getSortOrder).thenComparing(ProductOptionEntity::getId))
-                .map(option -> new ProductOptionResponse(
-                        option.getId(),
-                        option.getSize(),
-                        option.getColor(),
-                        stockQuantities.getOrDefault(option.getId(), option.getStockQuantity())
-                ))
-                .toList();
-    }
+        Map<Long, Integer> stockQuantities = productStockResolver.resolveOptionStocks(product.getOptions());
+        List<ProductOptionResponse> optionResponses =
+                buyerProductResponseMapper.toOptionResponses(product.getOptions(), stockQuantities);
 
-    private Map<Long, Integer> loadStockQuantities(List<ProductOptionEntity> options) {
-        Map<Long, Integer> stockByOptionId = new HashMap<>();
-        for (ProductOptionEntity option : options) {
-            if (option.getId() == null) {
-                stockByOptionId.put(null, option.getStockQuantity());
-                continue;
-            }
-            Integer availableQty;
-            try {
-                availableQty = productInventoryClient.getAvailableQty(option.getId());
-            } catch (RuntimeException exception) {
-                availableQty = option.getStockQuantity();
-            }
-            stockByOptionId.put(option.getId(), availableQty);
-        }
-        return stockByOptionId;
-    }
-
-    private String formatCategory(Category category) {
-        String upper = category.name();
-        return upper.substring(0, 1) + upper.substring(1).toLowerCase(Locale.ROOT);
+        return buyerProductResponseMapper.toBuyerProductDetailResponse(product, optionResponses, similarItems);
     }
 
     private int resolveLimit(Integer limit) {

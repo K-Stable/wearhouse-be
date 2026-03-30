@@ -19,19 +19,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.global.error.GlobalExceptionHandler;
 import com.wearhouse.common.global.response.GlobalResponseBodyAdvice;
-import com.wearhouse.order.domain.controller.OrderController;
-import com.wearhouse.order.domain.dto.request.OrderCancelRequest;
-import com.wearhouse.order.domain.dto.request.OrderCreateRequest;
-import com.wearhouse.order.domain.dto.request.OrderCreateRequest.OrderCreateItemRequest;
-import com.wearhouse.order.domain.dto.response.OrderCancelResponse;
-import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
-import com.wearhouse.order.domain.dto.response.OrderDetailResponse;
-import com.wearhouse.order.domain.dto.response.OrderDetailResponse.OrderItemDetailResponse;
-import com.wearhouse.order.domain.dto.response.OrderSummaryResponse;
+import com.wearhouse.order.buyer.controller.BuyerOrderController;
+import com.wearhouse.order.buyer.dto.request.OrderCancelRequest;
+import com.wearhouse.order.buyer.dto.request.OrderCreateRequest;
+import com.wearhouse.order.buyer.dto.request.OrderCreateRequest.OrderCreateItemRequest;
+import com.wearhouse.order.buyer.dto.response.OrderCancelResponse;
+import com.wearhouse.order.buyer.dto.response.OrderCreateResponse;
+import com.wearhouse.order.buyer.dto.response.OrderDetailResponse;
+import com.wearhouse.order.buyer.dto.response.OrderDetailResponse.OrderItemDetailResponse;
+import com.wearhouse.order.buyer.dto.response.OrderSummaryResponse;
+import com.wearhouse.order.buyer.service.BuyerOrderCancelService;
+import com.wearhouse.order.buyer.service.BuyerOrderCreateService;
+import com.wearhouse.order.buyer.service.BuyerOrderQueryService;
 import com.wearhouse.order.domain.model.PaymentMethod;
-import com.wearhouse.order.domain.service.command.DeliveryCommandService;
-import com.wearhouse.order.domain.service.command.OrderCommandService;
-import com.wearhouse.order.domain.service.query.OrderQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -47,7 +47,7 @@ import org.springframework.restdocs.payload.JsonFieldType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(OrderController.class)
+@WebMvcTest(BuyerOrderController.class)
 @AutoConfigureRestDocs
 @AutoConfigureMockMvc(addFilters = false)
 @Import({GlobalResponseBodyAdvice.class, GlobalExceptionHandler.class})
@@ -60,13 +60,13 @@ class OrderControllerDocsTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private OrderCommandService orderCommandService;
+    private BuyerOrderCreateService buyerOrderCreateService;
 
     @MockitoBean
-    private DeliveryCommandService deliveryCommandService;
+    private BuyerOrderCancelService buyerOrderCancelService;
 
     @MockitoBean
-    private OrderQueryService orderQueryService;
+    private BuyerOrderQueryService buyerOrderQueryService;
 
     @Test
     @DisplayName("주문 생성 API 문서화")
@@ -103,9 +103,9 @@ class OrderControllerDocsTest {
                 .appLaunchUrl("wallet://checkout/cs_test_1")
                 .checkoutExpiresAt("2026-03-06T12:30:00Z")
                 .build();
-        given(orderCommandService.createOrder(any(OrderCreateRequest.class))).willReturn(response);
+        given(buyerOrderCreateService.createGuestOrder(any(OrderCreateRequest.class))).willReturn(response);
 
-        mockMvc.perform(post("/api/v1/orders")
+        mockMvc.perform(post("/api/v1/buyer/guest/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -182,9 +182,9 @@ class OrderControllerDocsTest {
                         .status("CONFIRMED")
                         .build()))
                 .build();
-        given(orderQueryService.getOrderDetail(eq("O202603060001"))).willReturn(response);
+        given(buyerOrderQueryService.getOrderDetail(eq(1L), eq("O202603060001"))).willReturn(response);
 
-        mockMvc.perform(get("/api/v1/orders/{orderNo}", "O202603060001"))
+        mockMvc.perform(get("/api/v1/buyer/orders/{orderNo}", "O202603060001"))
                 .andExpect(status().isOk())
                 .andDo(document("order-get",
                         getDocumentRequest(),
@@ -231,7 +231,7 @@ class OrderControllerDocsTest {
     @Test
     @DisplayName("주문 목록 조회 API 문서화")
     void getOrders() throws Exception {
-        given(orderQueryService.getBuyerOrders(eq(1L), eq(20))).willReturn(List.of(
+        given(buyerOrderQueryService.getBuyerOrders(eq(1L), eq(20))).willReturn(List.of(
                 OrderSummaryResponse.builder()
                         .orderNo("O202603060001")
                         .status("CONFIRMED")
@@ -240,15 +240,13 @@ class OrderControllerDocsTest {
                         .build()
         ));
 
-        mockMvc.perform(get("/api/v1/orders")
-                        .queryParam("buyerId", "1")
+        mockMvc.perform(get("/api/v1/buyer/orders")
                         .queryParam("limit", "20"))
                 .andExpect(status().isOk())
                 .andDo(document("order-list",
                         getDocumentRequest(),
                         getDocumentResponse(),
                         queryParameters(
-                                parameterWithName("buyerId").description("구매자 ID"),
                                 parameterWithName("limit").optional().description("조회 건수(기본 20)")
                         ),
                         responseFields(
@@ -278,9 +276,10 @@ class OrderControllerDocsTest {
                 .cancelledAt(LocalDateTime.of(2026, 3, 6, 13, 30, 0))
                 .build();
 
-        given(orderCommandService.cancelOrder(eq("O202603060001"), any(OrderCancelRequest.class))).willReturn(response);
+        given(buyerOrderCancelService.cancelOrder(eq(1L), eq("O202603060001"), any(OrderCancelRequest.class)))
+                .willReturn(response);
 
-        mockMvc.perform(post("/api/v1/orders/{orderNo}/cancel", "O202603060001")
+        mockMvc.perform(post("/api/v1/buyer/orders/{orderNo}/cancel", "O202603060001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

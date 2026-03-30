@@ -2,9 +2,11 @@ package com.wearhouse.user;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @SpringBootApplication(scanBasePackages = "com.wearhouse")
+@ConfigurationPropertiesScan
 @EnableFeignClients(basePackages = {
         "com.wearhouse.user",
         "com.wearhouse.common.infra.feign.orderquery"

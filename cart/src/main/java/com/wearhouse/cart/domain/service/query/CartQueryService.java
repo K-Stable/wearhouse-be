@@ -3,6 +3,7 @@ package com.wearhouse.cart.domain.service.query;
 import com.wearhouse.cart.domain.dto.response.BuyerCartItemResponse;
 import com.wearhouse.cart.domain.dto.response.BuyerCartItemsResponse;
 import com.wearhouse.cart.domain.entity.CartItemEntity;
+import com.wearhouse.cart.domain.mapper.CartResponseMapper;
 import com.wearhouse.cart.domain.repository.CartItemRepository;
 import com.wearhouse.cart.domain.service.CartServiceSupport;
 import com.wearhouse.common.global.transactional.ReadTx;
@@ -17,13 +18,14 @@ import org.springframework.stereotype.Service;
 public class CartQueryService {
 
     private final CartItemRepository cartItemRepository;
+    private final CartResponseMapper cartResponseMapper;
 
     @ReadTx
     public BuyerCartItemsResponse getBuyerCartItems(LoginUser currentUser) {
         Long buyerId = CartServiceSupport.extractBuyerId(currentUser);
         List<CartItemEntity> cartItems = cartItemRepository.findAllByBuyerIdOrderByUpdatedAtDescIdDesc(buyerId);
         List<BuyerCartItemResponse> items = cartItems.stream()
-                .map(CartServiceSupport::toCartItemResponse)
+                .map(cartResponseMapper::toCartItemResponse)
                 .toList();
 
         BigDecimal totalPrice = items.stream()

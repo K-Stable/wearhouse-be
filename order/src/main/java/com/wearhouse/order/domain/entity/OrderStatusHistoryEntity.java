@@ -14,7 +14,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -52,7 +51,6 @@ public class OrderStatusHistoryEntity {
     @Column(name = "changed_at", nullable = false)
     private LocalDateTime changedAt;
 
-    @Builder
     private OrderStatusHistoryEntity(
             OrderEntity order,
             OrderStatus fromStatus,
@@ -71,7 +69,7 @@ public class OrderStatusHistoryEntity {
         this.changedAt = changedAt;
     }
 
-    public static OrderStatusHistoryEntity create(
+    public static OrderStatusHistoryEntity of(
             OrderEntity order,
             OrderStatus fromStatus,
             OrderStatus toStatus,
@@ -87,37 +85,5 @@ public class OrderStatusHistoryEntity {
                 reasonCode,
                 LocalDateTime.now()
         );
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public OrderEntity getOrder() {
-        return order;
-    }
-
-    public OrderStatus getFromStatus() {
-        return fromStatus;
-    }
-
-    public OrderStatus getToStatus() {
-        return toStatus;
-    }
-
-    public String getEventId() {
-        return eventId;
-    }
-
-    public String getChangedBy() {
-        return changedBy;
-    }
-
-    public String getReasonCode() {
-        return reasonCode;
-    }
-
-    public LocalDateTime getChangedAt() {
-        return changedAt;
     }
 }

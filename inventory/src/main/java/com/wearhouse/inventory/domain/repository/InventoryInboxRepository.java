@@ -1,7 +1,6 @@
 package com.wearhouse.inventory.domain.repository;
 
 import com.wearhouse.inventory.domain.entity.InventoryInboxEventEntity;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -15,22 +14,9 @@ public class InventoryInboxRepository {
 
     public boolean tryReceive(
             String eventId,
-            String consumerName,
-            String eventType,
-            String topic,
-            String partitionKey,
-            String payload
+            String consumerName
     ) {
-        InventoryInboxEventEntity entity = InventoryInboxEventEntity.received(
-                eventId,
-                consumerName
-        );
-        try {
-            inventoryInboxEventRepository.saveAndFlush(entity);
-            return true;
-        } catch (DataIntegrityViolationException exception) {
-            return false;
-        }
+        return inventoryInboxEventRepository.insertIgnoreReceived(eventId, consumerName) > 0;
     }
 
     public void markProcessed(String eventId, String consumerName) {
@@ -38,7 +24,7 @@ public class InventoryInboxRepository {
                 .ifPresent(InventoryInboxEventEntity::markProcessed);
     }
 
-    public void markFailed(String eventId, String consumerName, String reasonCode, String reasonMessage) {
+    public void markFailed(String eventId, String consumerName) {
         inventoryInboxEventRepository.findByEventIdAndConsumerName(eventId, consumerName)
                 .ifPresent(InventoryInboxEventEntity::markFailed);
     }

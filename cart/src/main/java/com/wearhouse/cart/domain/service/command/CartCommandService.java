@@ -5,6 +5,7 @@ import com.wearhouse.cart.domain.dto.request.CartItemUpsertRequest;
 import com.wearhouse.cart.domain.dto.response.BuyerCartItemResponse;
 import com.wearhouse.cart.domain.entity.CartItemEntity;
 import com.wearhouse.cart.domain.exception.CartErrorCode;
+import com.wearhouse.cart.domain.mapper.CartResponseMapper;
 import com.wearhouse.cart.domain.repository.CartItemRepository;
 import com.wearhouse.cart.domain.service.CartServiceSupport;
 import com.wearhouse.common.global.error.ErrorException;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 public class CartCommandService {
 
     private final CartItemRepository cartItemRepository;
+    private final CartResponseMapper cartResponseMapper;
 
     @WriteTx
     public List<BuyerCartItemResponse> upsertCartItems(LoginUser currentUser, CartItemUpsertRequest request) {
@@ -41,7 +43,7 @@ public class CartCommandService {
         CartItemEntity cartItem = cartItemRepository.findByIdAndBuyerId(cartItemId, buyerId)
                 .orElseThrow(() -> new ErrorException(CartErrorCode.CART_ITEM_NOT_FOUND));
         cartItem.updateQuantity(request.quantity());
-        return CartServiceSupport.toCartItemResponse(cartItem);
+        return cartResponseMapper.toCartItemResponse(cartItem);
     }
 
     @WriteTx
@@ -67,7 +69,7 @@ public class CartCommandService {
                 buyerId,
                 request.productId(),
                 item.optionId()
-        ).orElseGet(() -> CartItemEntity.create(
+        ).orElseGet(() -> CartItemEntity.of(
                 buyerId,
                 request.productId(),
                 item.optionId(),
@@ -93,7 +95,7 @@ public class CartCommandService {
         }
 
         CartItemEntity saved = cartItemRepository.save(cartItem);
-        return CartServiceSupport.toCartItemResponse(saved);
+        return cartResponseMapper.toCartItemResponse(saved);
     }
 
     private List<CartItemUpsertRequest.CartOptionRequest> mergeOptionItems(

@@ -2,13 +2,13 @@ package com.wearhouse.inventory.infra.kafka.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.support.kafka.dto.KafkaMessageEnvelope;
-import com.wearhouse.inventory.domain.service.buyer.command.BuyerInventoryCommandService;
-import java.util.Map;
+import com.wearhouse.inventory.buyer.service.BuyerInventoryCommandService;
+import com.wearhouse.inventory.kafka.dto.InventoryReleaseRequestedEvent;
+import com.wearhouse.inventory.kafka.dto.InventoryReserveRequestedEvent;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 @RequiredArgsConstructor
@@ -22,23 +22,18 @@ public class InventoryCommandConsumer {
     @KafkaListener(topics = "${wearhouse.kafka.inventory-command-topic:wearhouse.inventory.command.v1}")
     public void consume(
             String message,
-            Acknowledgment acknowledgment,
-            @Header(name = "kafka_receivedTopic", required = false) String topic,
-            @Header(name = "kafka_receivedMessageKey", required = false) String key
+            Acknowledgment acknowledgment
     ) throws Exception {
         String eventType = "unknown";
         try {
             KafkaMessageEnvelope envelope = objectMapper.readValue(message, KafkaMessageEnvelope.class);
             String eventId = envelope.eventId();
             eventType = safeEventType(envelope.eventType());
-            Map<String, Object> payload = requirePayload(envelope.payload());
 
             if ("InventoryReserveRequested".equals(eventType)) {
+                InventoryReserveRequestedEvent payload = requirePayload(envelope.payload(), InventoryReserveRequestedEvent.class);
                 buyerInventoryCommandService.onReserveRequested(
                         eventId,
-                        topic,
-                        key,
-                        message,
                         payload
                 );
                 // reserve 처리 완료 이후 ack
@@ -47,11 +42,9 @@ public class InventoryCommandConsumer {
             }
 
             if ("InventoryReleaseRequested".equals(eventType)) {
+                InventoryReleaseRequestedEvent payload = requirePayload(envelope.payload(), InventoryReleaseRequestedEvent.class);
                 buyerInventoryCommandService.onReleaseRequested(
                         eventId,
-                        topic,
-                        key,
-                        message,
                         payload
                 );
             }
@@ -62,9 +55,9 @@ public class InventoryCommandConsumer {
         }
     }
 
-    private Map<String, Object> requirePayload(Map<String, Object> payload) {
+    private <T> T requirePayload(Object payload, Class<T> type) {
         if (payload != null) {
-            return payload;
+            return objectMapper.convertValue(payload, type);
         }
         throw new IllegalArgumentException("inventory event payload 형식이 올바르지 않습니다.");
     }

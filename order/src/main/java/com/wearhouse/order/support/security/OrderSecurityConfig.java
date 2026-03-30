@@ -1,6 +1,6 @@
 package com.wearhouse.order.support.security;
 
-import com.wearhouse.common.security.passport.order.OrderPassportAuthenticationFilter;
+import com.wearhouse.common.security.passport.authentication.OrderPassportAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,14 +26,10 @@ public class OrderSecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/v1/internal/**", "/actuator/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/buyer/guest/orders/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/buyer/orders/**").hasRole("BUYER")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/orders").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/orders/").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/orders/**").hasRole("BUYER")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/seller/orders/**").hasRole("SELLER")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/seller/orders/**").hasRole("SELLER")
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/seller/orders/**").hasRole("SELLER")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/orders/**").hasRole("BUYER")
+                        .requestMatchers("/api/v1/buyer/guest/orders/**").denyAll()
+                        .requestMatchers("/api/v1/buyer/orders/**").hasRole("BUYER")
+                        .requestMatchers("/api/v1/seller/orders/**").hasRole("SELLER")
+                        .requestMatchers("/api/v1/orders/**").hasRole("BUYER")
                         .anyRequest().denyAll()
                 )
                 .addFilterBefore(orderPassportAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

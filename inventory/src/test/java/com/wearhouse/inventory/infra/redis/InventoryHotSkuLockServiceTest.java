@@ -71,10 +71,16 @@ class InventoryHotSkuLockServiceTest {
     }
 
     private InventoryHotSkuLockService newService() {
-        InventoryProperties inventoryProperties = new InventoryProperties();
-        inventoryProperties.getLock().setWaitTimeMs(1200L);
-        inventoryProperties.getLock().setLeaseTimeMs(3000L);
-        inventoryProperties.getLock().setKeyPrefix("inventory:lock:sku:");
+        InventoryProperties inventoryProperties = new InventoryProperties(
+                15,
+                3,
+                30000L,
+                200,
+                "",
+                new InventoryProperties.Lock(1200L, 3000L, 40L, "inventory:lock:sku:"),
+                new InventoryProperties.Cache(30L, "inventory:stock:available:"),
+                new InventoryProperties.Internal("wearhouse-inventory-internal-secret")
+        );
         return new InventoryHotSkuLockService(redissonClient, inventoryProperties);
     }
 }

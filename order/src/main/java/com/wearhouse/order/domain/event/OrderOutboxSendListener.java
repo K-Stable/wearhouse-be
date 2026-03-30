@@ -3,7 +3,7 @@ package com.wearhouse.order.domain.event;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.order.infra.jpa.repository.OrderOutboxRepository;
-import com.wearhouse.order.infra.kafka.producer.OrderKafkaProducer;
+import com.wearhouse.order.kafka.publisher.OrderKafkaProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;

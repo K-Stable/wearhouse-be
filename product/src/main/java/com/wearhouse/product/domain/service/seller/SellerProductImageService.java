@@ -25,12 +25,13 @@ public class SellerProductImageService {
 
     private final S3StorageService s3StorageService;
     private final ProductImageStorageProperties productImageStorageProperties;
+    private final SellerProductAccessValidator sellerProductAccessValidator;
 
     public ProductImagePresignedUploadResponse issuePresignedUploadUrl(
             LoginUser currentUser,
             ProductImagePresignedUploadRequest request
     ) {
-        Long sellerId = requireSellerId(currentUser);
+        Long sellerId = sellerProductAccessValidator.requireSellerId(currentUser);
         validateContentType(request.contentType());
         String imageKey = buildImageKey(sellerId, request.fileName(), request.imageType());
         S3PresignedUploadResult presignedUploadResult =
@@ -41,13 +42,6 @@ public class SellerProductImageService {
                 presignedUploadResult.uploadUrl(),
                 imageUrl
         );
-    }
-
-    private Long requireSellerId(LoginUser currentUser) {
-        if (currentUser == null || currentUser.userId() == null || !currentUser.isSeller()) {
-            throw new ErrorException(ProductErrorCode.FORBIDDEN_PRODUCT_ACCESS);
-        }
-        return currentUser.userId();
     }
 
     private String buildImageKey(Long sellerId, String fileName, ProductImageType imageType) {

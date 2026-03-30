@@ -1,63 +1,38 @@
 package com.wearhouse.payment.support.config;
 
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class PaymentRuntimePropertiesValidator {
 
-    private final String paymentPrepareTopic;
-    private final String paymentEventTopic;
-    private final long paymentKafkaSendTimeoutMs;
-    private final int pendingTimeoutMinutes;
-    private final long timeoutCheckIntervalMs;
-    private final int timeoutBatchSize;
-    private final String orderInternalSharedSecret;
-    private final String payWebhookSecret;
-    private final String payApiBaseUrl;
-    private final String paySecretKey;
-    private final long payTimeoutMs;
-
-    public PaymentRuntimePropertiesValidator(
-            @Value("${wearhouse.kafka.payment-prepare-topic:}") String paymentPrepareTopic,
-            @Value("${wearhouse.kafka.payment-event-topic:}") String paymentEventTopic,
-            @Value("${wearhouse.payment.kafka.send-timeout-ms:0}") long paymentKafkaSendTimeoutMs,
-            @Value("${wearhouse.payment.mock.pending-timeout-minutes:0}") int pendingTimeoutMinutes,
-            @Value("${wearhouse.payment.mock.timeout-check-interval-ms:0}") long timeoutCheckIntervalMs,
-            @Value("${wearhouse.payment.mock.timeout-batch-size:0}") int timeoutBatchSize,
-            @Value("${wearhouse.order.internal.shared-secret:}") String orderInternalSharedSecret,
-            @Value("${wearhouse.pay.webhook.secret:}") String payWebhookSecret,
-            @Value("${wearhouse.pay.api-base-url:}") String payApiBaseUrl,
-            @Value("${wearhouse.pay.secret-key:}") String paySecretKey,
-            @Value("${wearhouse.pay.timeout-ms:0}") long payTimeoutMs
-    ) {
-        this.paymentPrepareTopic = paymentPrepareTopic;
-        this.paymentEventTopic = paymentEventTopic;
-        this.paymentKafkaSendTimeoutMs = paymentKafkaSendTimeoutMs;
-        this.pendingTimeoutMinutes = pendingTimeoutMinutes;
-        this.timeoutCheckIntervalMs = timeoutCheckIntervalMs;
-        this.timeoutBatchSize = timeoutBatchSize;
-        this.orderInternalSharedSecret = orderInternalSharedSecret;
-        this.payWebhookSecret = payWebhookSecret;
-        this.payApiBaseUrl = payApiBaseUrl;
-        this.paySecretKey = paySecretKey;
-        this.payTimeoutMs = payTimeoutMs;
-    }
+    private final PaymentKafkaTopicsProperties paymentKafkaTopicsProperties;
+    private final PaymentKafkaRuntimeProperties paymentKafkaRuntimeProperties;
+    private final PaymentMockProperties paymentMockProperties;
+    private final PaymentOrderInternalProperties paymentOrderInternalProperties;
+    private final PaymentPayProperties paymentPayProperties;
+    private final PaymentWebhookProperties paymentWebhookProperties;
 
     @PostConstruct
     void validate() {
-        requireText("wearhouse.kafka.payment-prepare-topic", paymentPrepareTopic);
-        requireText("wearhouse.kafka.payment-event-topic", paymentEventTopic);
-        requirePositive("wearhouse.payment.kafka.send-timeout-ms", paymentKafkaSendTimeoutMs);
-        requirePositive("wearhouse.payment.mock.pending-timeout-minutes", pendingTimeoutMinutes);
-        requirePositive("wearhouse.payment.mock.timeout-check-interval-ms", timeoutCheckIntervalMs);
-        requirePositive("wearhouse.payment.mock.timeout-batch-size", timeoutBatchSize);
-        requireText("wearhouse.order.internal.shared-secret", orderInternalSharedSecret);
-        requireText("wearhouse.pay.webhook.secret", payWebhookSecret);
-        requireText("wearhouse.pay.api-base-url", payApiBaseUrl);
-        requireText("wearhouse.pay.secret-key", paySecretKey);
-        requirePositive("wearhouse.pay.timeout-ms", payTimeoutMs);
+        requireText("wearhouse.kafka.payment-prepare-topic", paymentKafkaTopicsProperties.paymentPrepareTopic());
+        requireText("wearhouse.kafka.payment-event-topic", paymentKafkaTopicsProperties.paymentEventTopic());
+        requirePositive("wearhouse.payment.kafka.send-timeout-ms", paymentKafkaRuntimeProperties.sendTimeoutMs());
+        requirePositive("wearhouse.payment.mock.pending-timeout-minutes", paymentMockProperties.pendingTimeoutMinutes());
+        requirePositive("wearhouse.payment.mock.timeout-check-interval-ms", paymentMockProperties.timeoutCheckIntervalMs());
+        requirePositive("wearhouse.payment.mock.timeout-batch-size", paymentMockProperties.timeoutBatchSize());
+        requireText("wearhouse.payment.mock.fail-methods", paymentMockProperties.failMethods());
+        requireText("wearhouse.payment.mock.timeout-methods", paymentMockProperties.timeoutMethods());
+        requireText("wearhouse.order.internal.shared-secret", paymentOrderInternalProperties.sharedSecret());
+        requireText("wearhouse.pay.webhook.secret", paymentWebhookProperties.secret());
+        requireNonNegative("wearhouse.pay.webhook.allowed-skew-seconds", paymentWebhookProperties.allowedSkewSeconds());
+        requireText("wearhouse.pay.api-base-url", paymentPayProperties.apiBaseUrl());
+        requireText("wearhouse.pay.secret-key", paymentPayProperties.secretKey());
+        requireText("wearhouse.pay.prepare-path", paymentPayProperties.preparePath());
+        requireText("wearhouse.pay.confirm-path", paymentPayProperties.confirmPath());
+        requirePositive("wearhouse.pay.timeout-ms", paymentPayProperties.timeoutMs());
     }
 
     private void requireText(String key, String value) {
@@ -69,6 +44,12 @@ public class PaymentRuntimePropertiesValidator {
     private void requirePositive(String key, long value) {
         if (value <= 0) {
             throw new IllegalStateException(key + " 값은 1 이상이어야 합니다.");
+        }
+    }
+
+    private void requireNonNegative(String key, long value) {
+        if (value < 0) {
+            throw new IllegalStateException(key + " 값은 0 이상이어야 합니다.");
         }
     }
 }

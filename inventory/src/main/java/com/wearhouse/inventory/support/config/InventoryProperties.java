@@ -3,68 +3,74 @@ package com.wearhouse.inventory.support.config;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
-import lombok.Getter;
-import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
-@Component
-@Getter
-@Setter
 @Validated
 @ConfigurationProperties(prefix = "wearhouse.inventory")
-public class InventoryProperties {
-
-    @Positive
-    private int reservationHoldMinutes = 15;
-
-    @Positive
-    private int optimisticRetryCount = 3;
-
-    @Positive
-    private long reservationExpireIntervalMs = 30000L;
-
-    @Positive
-    private int reservationExpireBatchSize = 200;
-
-    private String hotSkus = "";
-
-    @Valid
-    private Lock lock = new Lock();
-
-    @Valid
-    private Cache cache = new Cache();
-
-    @Valid
-    private Internal internal = new Internal();
-
-    @Getter
-    @Setter
-    public static class Lock {
+public record InventoryProperties(
         @Positive
-        private long waitTimeMs = 1200L;
+        @DefaultValue("15")
+        int reservationHoldMinutes,
+
         @Positive
-        private long leaseTimeMs = 3000L;
+        @DefaultValue("3")
+        int optimisticRetryCount,
+
         @Positive
-        private long retryIntervalMs = 40L;
-        @NotBlank
-        private String keyPrefix = "inventory:lock:sku:";
+        @DefaultValue("30000")
+        long reservationExpireIntervalMs,
+
+        @Positive
+        @DefaultValue("200")
+        int reservationExpireBatchSize,
+
+        @DefaultValue("")
+        String hotSkus,
+
+        @Valid
+        @DefaultValue
+        Lock lock,
+
+        @Valid
+        @DefaultValue
+        Cache cache,
+
+        @Valid
+        @DefaultValue
+        Internal internal
+) {
+    public record Lock(
+            @Positive
+            @DefaultValue("1200")
+            long waitTimeMs,
+            @Positive
+            @DefaultValue("3000")
+            long leaseTimeMs,
+            @Positive
+            @DefaultValue("40")
+            long retryIntervalMs,
+            @NotBlank
+            @DefaultValue("inventory:lock:sku:")
+            String keyPrefix
+    ) {
     }
 
-    @Getter
-    @Setter
-    public static class Cache {
-        @Positive
-        private long stockTtlSeconds = 30L;
-        @NotBlank
-        private String stockKeyPrefix = "inventory:stock:available:";
+    public record Cache(
+            @Positive
+            @DefaultValue("30")
+            long stockTtlSeconds,
+            @NotBlank
+            @DefaultValue("inventory:stock:available:")
+            String stockKeyPrefix
+    ) {
     }
 
-    @Getter
-    @Setter
-    public static class Internal {
-        @NotBlank
-        private String sharedSecret = "wearhouse-inventory-internal-secret";
+    public record Internal(
+            @NotBlank
+            @DefaultValue("wearhouse-inventory-internal-secret")
+            String sharedSecret
+    ) {
     }
 }

@@ -22,7 +22,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -73,7 +72,6 @@ public class ProductEntity extends BaseEntity {
     @JoinColumn(name = "season_id")
     private ProductSeasonEntity productSeason;
 
-    @Builder
     private ProductEntity(
             Long sellerId,
             String name,
@@ -96,7 +94,7 @@ public class ProductEntity extends BaseEntity {
         this.productSeason = productSeason;
     }
 
-    public static ProductEntity create(
+    public static ProductEntity of(
             Long sellerId,
             String name,
             BigDecimal price,
@@ -106,10 +104,10 @@ public class ProductEntity extends BaseEntity {
             String shipping,
             ProductStatus status
     ) {
-        return create(sellerId, name, price, category, details, sizeGuide, shipping, status, null);
+        return of(sellerId, name, price, category, details, sizeGuide, shipping, status, null);
     }
 
-    public static ProductEntity create(
+    public static ProductEntity of(
             Long sellerId,
             String name,
             BigDecimal price,
@@ -120,26 +118,26 @@ public class ProductEntity extends BaseEntity {
             ProductStatus status,
             ProductSeasonEntity productSeason
     ) {
-        return ProductEntity.builder()
-                .sellerId(sellerId)
-                .name(name)
-                .price(price)
-                .category(category)
-                .details(details)
-                .sizeGuide(sizeGuide)
-                .shipping(shipping)
-                .status(status)
-                .productSeason(productSeason)
-                .build();
+        return new ProductEntity(
+                sellerId,
+                name,
+                price,
+                category,
+                details,
+                sizeGuide,
+                shipping,
+                status,
+                productSeason
+        );
     }
 
     public void addOption(String size, String color, Integer stockQuantity, Integer sortOrder) {
-        ProductOptionEntity option = ProductOptionEntity.create(this, size, color, stockQuantity, sortOrder);
+        ProductOptionEntity option = ProductOptionEntity.of(this, size, color, stockQuantity, sortOrder);
         this.options.add(option);
     }
 
     public void addImage(ProductImageType imageType, String imageUrl, Integer sortOrder) {
-        ProductImageEntity image = ProductImageEntity.create(this, imageType, imageUrl, sortOrder);
+        ProductImageEntity image = ProductImageEntity.of(this, imageType, imageUrl, sortOrder);
         this.images.add(image);
     }
 
@@ -149,5 +147,55 @@ public class ProductEntity extends BaseEntity {
 
     public void assignSeason(ProductSeasonEntity season) {
         this.productSeason = season;
+    }
+
+    public void replaceOptions(List<OptionDraft> optionDrafts) {
+        this.options.clear();
+        if (optionDrafts == null || optionDrafts.isEmpty()) {
+            return;
+        }
+        for (OptionDraft optionDraft : optionDrafts) {
+            if (optionDraft == null) {
+                continue;
+            }
+            addOption(
+                    optionDraft.size(),
+                    optionDraft.color(),
+                    optionDraft.stockQuantity(),
+                    optionDraft.sortOrder()
+            );
+        }
+    }
+
+    public void replaceImages(List<ImageDraft> imageDrafts) {
+        this.images.clear();
+        if (imageDrafts == null || imageDrafts.isEmpty()) {
+            return;
+        }
+        for (ImageDraft imageDraft : imageDrafts) {
+            if (imageDraft == null) {
+                continue;
+            }
+            addImage(
+                    imageDraft.imageType(),
+                    imageDraft.imageUrl(),
+                    imageDraft.sortOrder()
+            );
+        }
+    }
+
+    public record OptionDraft(
+            String size,
+            String color,
+            Integer stockQuantity,
+            Integer sortOrder
+    ) {
+    }
+
+    public record ImageDraft(
+            ProductImageType imageType,
+            String imageUrl,
+            Integer sortOrder
+    ) {
     }
 }

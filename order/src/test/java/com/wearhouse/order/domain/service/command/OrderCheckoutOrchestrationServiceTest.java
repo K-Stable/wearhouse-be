@@ -13,11 +13,12 @@ import com.wearhouse.common.global.response.ApiResponse;
 import com.wearhouse.common.infra.feign.inventory.InventoryStockFeignClient;
 import com.wearhouse.common.infra.feign.inventory.dto.InventorySellerResolveResponse;
 import com.wearhouse.common.infra.feign.inventory.dto.InventorySellerResolveResponse.InventorySkuSellerLine;
-import com.wearhouse.order.domain.dto.request.OrderCreateRequest;
-import com.wearhouse.order.domain.dto.request.OrderPaymentConfirmRequest;
-import com.wearhouse.order.domain.dto.response.OrderCreateResponse;
-import com.wearhouse.order.domain.dto.response.OrderPaymentConfirmResponse;
-import com.wearhouse.order.domain.dto.response.OrderPaymentPrepareResponse;
+import com.wearhouse.order.buyer.dto.request.OrderCreateRequest;
+import com.wearhouse.order.buyer.dto.request.OrderPaymentConfirmRequest;
+import com.wearhouse.order.buyer.dto.response.OrderCreateResponse;
+import com.wearhouse.order.buyer.dto.response.OrderPaymentConfirmResponse;
+import com.wearhouse.order.buyer.dto.response.OrderPaymentPrepareResponse;
+import com.wearhouse.order.buyer.service.BuyerOrderCreateOrchestrationService;
 import com.wearhouse.order.domain.entity.OrderEntity;
 import com.wearhouse.order.domain.entity.OrderInfo;
 import com.wearhouse.order.domain.event.OrderDomainEventPublisher;
@@ -26,9 +27,17 @@ import com.wearhouse.order.domain.model.PaymentMethod;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
-import com.wearhouse.order.infra.payment.OrderPaymentClient;
-import com.wearhouse.order.infra.payment.dto.PaymentConfirmInternalResponse;
-import com.wearhouse.order.infra.payment.dto.PaymentPrepareInternalResponse;
+import com.wearhouse.order.paymentintegration.client.OrderPaymentIntegrationClient;
+import com.wearhouse.order.paymentintegration.mapper.OrderPaymentIntegrationResponseMapper;
+import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationGatewayAdapter;
+import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationSleeper;
+import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationService;
+import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationValidator;
+import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationWaiter;
+import com.wearhouse.order.paymentintegration.dto.response.PaymentConfirmInternalResponse;
+import com.wearhouse.order.paymentintegration.dto.response.PaymentPrepareInternalResponse;
+import com.wearhouse.order.support.config.OrderInternalProperties;
+import com.wearhouse.order.support.config.OrderInventoryInternalProperties;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import com.wearhouse.order.support.config.OrderProperties;
 import jakarta.persistence.EntityManager;
@@ -46,12 +55,12 @@ import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
-class OrderCommandServiceOrchestrationTest {
+class OrderCheckoutOrchestrationServiceTest {
 
     @Mock
     private OrderRepository orderRepository;
     @Mock
-    private OrderPaymentClient orderPaymentClient;
+    private OrderPaymentIntegrationClient orderPaymentIntegrationClient;
     @Mock
     private OrderSagaRepository orderSagaRepository;
     @Mock
@@ -61,26 +70,37 @@ class OrderCommandServiceOrchestrationTest {
     @Mock
     private InventoryStockFeignClient inventoryStockFeignClient;
     @Mock
-    private DeliveryCommandService deliveryCommandService;
-    @Mock
     private TransactionTemplate transactionTemplate;
     @Mock
     private EntityManager entityManager;
 
-    private OrderCommandService orderCommandService;
+    private OrderPaymentIntegrationService orderPaymentIntegrationService;
+    private BuyerOrderCreateOrchestrationService orderCreateOrchestrationService;
 
     @BeforeEach
     void setUp() {
-        OrderKafkaTopicsProperties topicsProperties = new OrderKafkaTopicsProperties();
-        topicsProperties.setInventoryReserveTopic("inventory.reserve.topic");
-        topicsProperties.setInventoryCommandTopic("inventory.command.topic");
+        OrderKafkaTopicsProperties topicsProperties = new OrderKafkaTopicsProperties(
+                "inventory.reserve.topic",
+                "inventory.command.topic",
+                "inventory.event.topic",
+                "payment.prepare.topic",
+                "payment.event.topic",
+                "order.event.topic"
+        );
 
-        OrderProperties orderProperties = new OrderProperties();
-        orderProperties.getInternal().setSharedSecret("internal-secret");
-        orderProperties.setPaymentConfirmWaitTimeoutMs(1000L);
-        orderProperties.setPaymentConfirmWaitIntervalMs(10L);
-        orderProperties.setPaymentPrepareWaitTimeoutMs(1000L);
-        orderProperties.setPaymentPrepareWaitIntervalMs(10L);
+        OrderProperties orderProperties = new OrderProperties(
+                1000L,
+                10L,
+                1000L,
+                10L,
+                7L,
+                60000L,
+                "https://mall.wearhouse.com/orders/{orderNo}/payments/success",
+                "https://mall.wearhouse.com/orders/{orderNo}/payments/fail"
+        );
+        OrderInternalProperties orderInternalProperties = new OrderInternalProperties("internal-secret");
+        OrderInventoryInternalProperties orderInventoryInternalProperties =
+                new OrderInventoryInternalProperties("inventory-secret");
 
         lenient().when(transactionTemplate.execute(any()))
                 .thenAnswer(invocation -> {
@@ -88,18 +108,38 @@ class OrderCommandServiceOrchestrationTest {
                     return callback.doInTransaction(mock(TransactionStatus.class));
                 });
 
-        orderCommandService = new OrderCommandService(
+        OrderPaymentIntegrationValidator orderPaymentIntegrationValidator = new OrderPaymentIntegrationValidator();
+        OrderPaymentIntegrationWaiter orderPaymentIntegrationWaiter = new OrderPaymentIntegrationWaiter(
+                orderRepository,
+                entityManager,
+                orderProperties,
+                orderPaymentIntegrationValidator,
+                new OrderPaymentIntegrationSleeper()
+        );
+        OrderPaymentIntegrationGatewayAdapter orderPaymentIntegrationGatewayAdapter = new OrderPaymentIntegrationGatewayAdapter(
+                orderPaymentIntegrationClient,
+                orderInternalProperties,
+                orderProperties
+        );
+        orderPaymentIntegrationService = new OrderPaymentIntegrationService(
+                orderRepository,
+                orderStatusHistoryRepository,
+                orderSagaRepository,
+                new OrderPaymentIntegrationResponseMapper(),
+                orderPaymentIntegrationValidator,
+                orderPaymentIntegrationWaiter,
+                orderPaymentIntegrationGatewayAdapter
+        );
+        orderCreateOrchestrationService = new BuyerOrderCreateOrchestrationService(
                 orderRepository,
                 orderSagaRepository,
                 orderStatusHistoryRepository,
                 orderDomainEventPublisher,
                 inventoryStockFeignClient,
-                orderPaymentClient,
                 topicsProperties,
-                orderProperties,
-                deliveryCommandService,
+                orderInventoryInternalProperties,
                 transactionTemplate,
-                entityManager
+                orderPaymentIntegrationService
         );
         lenient().when(inventoryStockFeignClient.resolveSellers(any(), any()))
                 .thenReturn(ApiResponse.success(new InventorySellerResolveResponse(
@@ -115,7 +155,7 @@ class OrderCommandServiceOrchestrationTest {
     @Test
     void 주문생성은_즉시_응답한다() {
         OrderCreateRequest request = sampleRequest(PaymentMethod.CARD);
-        OrderCreateResponse result = orderCommandService.createOrder(request);
+        OrderCreateResponse result = orderCreateOrchestrationService.createOrder(1L, request);
 
         assertThat(result.orderNo()).isNotBlank();
         assertThat(result.customerId()).isNotBlank();
@@ -141,7 +181,7 @@ class OrderCommandServiceOrchestrationTest {
         given(paymentPending.getOrderInfo()).willReturn(stableInfo);
 
         given(orderRepository.findDetailByOrderNo(any())).willReturn(Optional.of(paymentPending));
-        given(orderPaymentClient.prepareStablepayPayment(eq("internal-secret"), any()))
+        given(orderPaymentIntegrationClient.prepareStablepayPayment(eq("internal-secret"), any()))
                 .willReturn(ApiResponse.success(new PaymentPrepareInternalResponse(
                         "cs-created",
                         "https://wallet.example/checkout/cs-created",
@@ -149,12 +189,12 @@ class OrderCommandServiceOrchestrationTest {
                         "2026-03-26T00:00:00Z"
                 )));
 
-        OrderCreateResponse result = orderCommandService.createOrder(request);
+        OrderCreateResponse result = orderCreateOrchestrationService.createOrder(1L, request);
 
         assertThat(result.orderNo()).isNotBlank();
         assertThat(result.checkoutSessionId()).isEqualTo("cs-created");
         assertThat(result.checkoutUrl()).isEqualTo("https://wallet.example/checkout/cs-created");
-        verify(orderPaymentClient).prepareStablepayPayment(eq("internal-secret"), any());
+        verify(orderPaymentIntegrationClient).prepareStablepayPayment(eq("internal-secret"), any());
     }
 
     @Test
@@ -173,7 +213,7 @@ class OrderCommandServiceOrchestrationTest {
         given(confirmed.getFailReasonCode()).willReturn(null);
 
         given(orderRepository.findDetailByOrderNo("O202603190001")).willReturn(Optional.of(paymentPending));
-        given(orderPaymentClient.confirmStablepayPayment(eq("internal-secret"), any()))
+        given(orderPaymentIntegrationClient.confirmStablepayPayment(eq("internal-secret"), any()))
                 .willReturn(ApiResponse.success(new PaymentConfirmInternalResponse(
                         1L,
                         "O202603190001",
@@ -184,14 +224,14 @@ class OrderCommandServiceOrchestrationTest {
         )));
         given(orderRepository.findDetailById(1L)).willReturn(Optional.of(confirmed));
 
-        OrderPaymentConfirmResponse response = orderCommandService.confirmPayment(
+        OrderPaymentConfirmResponse response = orderPaymentIntegrationService.confirmPayment(
                 1L,
                 "O202603190001",
                 new OrderPaymentConfirmRequest("O202603190001", "pay_key_1", new BigDecimal("10000"))
         );
 
         assertThat(response.status()).isEqualTo(OrderStatus.CONFIRMED.name());
-        verify(orderPaymentClient).confirmStablepayPayment(eq("internal-secret"), any());
+        verify(orderPaymentIntegrationClient).confirmStablepayPayment(eq("internal-secret"), any());
     }
 
     @Test
@@ -212,14 +252,14 @@ class OrderCommandServiceOrchestrationTest {
         given(orderRepository.findDetailByOrderNo("O202603190002")).willReturn(Optional.of(paymentPending));
         given(orderRepository.findDetailById(2L)).willReturn(Optional.of(confirmed));
 
-        OrderPaymentConfirmResponse response = orderCommandService.confirmPayment(
+        OrderPaymentConfirmResponse response = orderPaymentIntegrationService.confirmPayment(
                 1L,
                 "O202603190002",
                 new OrderPaymentConfirmRequest("O202603190002", "card_ignore", new BigDecimal("10000"))
         );
 
         assertThat(response.status()).isEqualTo(OrderStatus.CONFIRMED.name());
-        verify(orderPaymentClient, never()).confirmStablepayPayment(any(), any());
+        verify(orderPaymentIntegrationClient, never()).confirmStablepayPayment(any(), any());
     }
 
     @Test
@@ -236,7 +276,7 @@ class OrderCommandServiceOrchestrationTest {
         given(paymentPending.getOrderInfo()).willReturn(stableInfo);
 
         given(orderRepository.findDetailByOrderNo("O202603190003")).willReturn(Optional.of(paymentPending));
-        given(orderPaymentClient.prepareStablepayPayment(eq("internal-secret"), any()))
+        given(orderPaymentIntegrationClient.prepareStablepayPayment(eq("internal-secret"), any()))
                 .willReturn(ApiResponse.success(new PaymentPrepareInternalResponse(
                         "cs_3",
                         "https://wallet.example/checkout/cs_3",
@@ -244,11 +284,11 @@ class OrderCommandServiceOrchestrationTest {
                         null
                 )));
 
-        OrderPaymentPrepareResponse response = orderCommandService.preparePayment(1L, "O202603190003", "idem-3");
+        OrderPaymentPrepareResponse response = orderPaymentIntegrationService.preparePayment(1L, "O202603190003", "idem-3");
 
         assertThat(response.checkoutSessionId()).isEqualTo("cs_3");
         assertThat(response.checkoutUrl()).isEqualTo("https://wallet.example/checkout/cs_3");
-        verify(orderPaymentClient).prepareStablepayPayment(eq("internal-secret"), any());
+        verify(orderPaymentIntegrationClient).prepareStablepayPayment(eq("internal-secret"), any());
     }
 
     private OrderCreateRequest sampleRequest(PaymentMethod paymentMethod) {

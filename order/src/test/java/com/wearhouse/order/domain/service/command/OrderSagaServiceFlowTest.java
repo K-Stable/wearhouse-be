@@ -15,7 +15,10 @@ import com.wearhouse.order.domain.entity.OrderInfo;
 import com.wearhouse.order.domain.entity.OrderSagaEntity;
 import com.wearhouse.order.domain.event.OrderDomainEvent;
 import com.wearhouse.order.domain.event.OrderDomainEventPublisher;
-import com.wearhouse.order.domain.event.OrderEventType;
+import com.wearhouse.order.common.event.OrderEventType;
+import com.wearhouse.order.kafka.dto.InventoryEventPayload;
+import com.wearhouse.order.kafka.dto.PaymentEventPayload;
+import com.wearhouse.order.saga.service.OrderSagaService;
 import com.wearhouse.order.domain.model.OrderItemStatus;
 import com.wearhouse.order.domain.model.PaymentMethod;
 import com.wearhouse.order.domain.model.OrderStatus;
@@ -26,10 +29,7 @@ import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,10 +57,14 @@ class OrderSagaServiceFlowTest {
 
     @BeforeEach
     void setUp() {
-        OrderKafkaTopicsProperties topicsProperties = new OrderKafkaTopicsProperties();
-        topicsProperties.setPaymentPrepareTopic("wearhouse.payment.command.v1");
-        topicsProperties.setInventoryCommandTopic("wearhouse.inventory.command.v1");
-        topicsProperties.setOrderEventTopic("wearhouse.order.event.v1");
+        OrderKafkaTopicsProperties topicsProperties = new OrderKafkaTopicsProperties(
+                "wearhouse.inventory.command.v1",
+                "wearhouse.inventory.command.v1",
+                "wearhouse.inventory.event.v1",
+                "wearhouse.payment.command.v1",
+                "wearhouse.payment.event.v1",
+                "wearhouse.order.event.v1"
+        );
 
         orderSagaService = new OrderSagaService(
                 orderRepository,
@@ -78,9 +82,10 @@ class OrderSagaServiceFlowTest {
         OrderSagaEntity saga = mock(OrderSagaEntity.class);
         stubCommon(order, saga);
 
-        Map<String, Object> payload = payload(order.getId(), order.getOrderNo());
-        orderSagaService.onInventoryEvent("inv-evt-1", OrderEventType.STOCK_RESERVED, "inventory-event", "1", "{}", order.getId(), payload);
-        orderSagaService.onPaymentEvent("pay-evt-1", OrderEventType.PAYMENT_AUTHORIZED, "payment-event", "1", "{}", order.getId(), payload);
+        InventoryEventPayload inventoryPayload = inventoryPayload(order.getId(), order.getOrderNo(), null);
+        PaymentEventPayload paymentPayload = paymentPayload(order.getId(), order.getOrderNo(), null);
+        orderSagaService.onInventoryEvent("inv-evt-1", OrderEventType.STOCK_RESERVED, inventoryPayload);
+        orderSagaService.onPaymentEvent("pay-evt-1", OrderEventType.PAYMENT_AUTHORIZED, paymentPayload);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(order.getConfirmedAt()).isNotNull();
@@ -104,14 +109,13 @@ class OrderSagaServiceFlowTest {
         OrderSagaEntity saga = mock(OrderSagaEntity.class);
         stubCommon(order, saga);
 
-        Map<String, Object> payload = payload(order.getId(), order.getOrderNo());
-        orderSagaService.onInventoryEvent("inv-evt-2", OrderEventType.STOCK_RESERVED, "inventory-event", "2", "{}", order.getId(), payload);
+        InventoryEventPayload inventoryPayload = inventoryPayload(order.getId(), order.getOrderNo(), null);
+        orderSagaService.onInventoryEvent("inv-evt-2", OrderEventType.STOCK_RESERVED, inventoryPayload);
 
-        Map<String, Object> paymentFailedPayload = payload(order.getId(), order.getOrderNo());
-        paymentFailedPayload.put("reasonCode", "PAYMENT_FAILED");
-        orderSagaService.onPaymentEvent("pay-evt-2", OrderEventType.PAYMENT_FAILED, "payment-event", "2", "{}", order.getId(), paymentFailedPayload);
+        PaymentEventPayload paymentFailedPayload = paymentPayload(order.getId(), order.getOrderNo(), "PAYMENT_FAILED");
+        orderSagaService.onPaymentEvent("pay-evt-2", OrderEventType.PAYMENT_FAILED, paymentFailedPayload);
 
-        orderSagaService.onInventoryEvent("inv-evt-3", OrderEventType.INVENTORY_RELEASED, "inventory-event", "2", "{}", order.getId(), payload);
+        orderSagaService.onInventoryEvent("inv-evt-3", OrderEventType.INVENTORY_RELEASED, inventoryPayload);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PAYMENT_FAILED);
         assertThat(order.getCancelledAt()).isNull();
@@ -134,7 +138,7 @@ class OrderSagaServiceFlowTest {
     }
 
     private void stubCommon(OrderEntity order, OrderSagaEntity saga) {
-        when(orderInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        when(orderInboxRepository.tryReceive(anyString(), anyString()))
                 .thenReturn(true);
         when(orderRepository.findDetailById(eq(order.getId()))).thenReturn(Optional.of(order));
         when(orderSagaRepository.findByOrder_Id(eq(order.getId()))).thenReturn(Optional.of(saga));
@@ -142,7 +146,7 @@ class OrderSagaServiceFlowTest {
     }
 
     private OrderEntity testOrder(Long orderId, OrderStatus status) {
-        OrderEntity order = OrderEntity.create(
+        OrderEntity order = OrderEntity.of(
                 "ORDER-" + orderId,
                 1000L + orderId,
                 status,
@@ -169,11 +173,11 @@ class OrderSagaServiceFlowTest {
         return order;
     }
 
-    private Map<String, Object> payload(Long orderId, String orderNo) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderId", orderId);
-        payload.put("orderNo", orderNo);
-        payload.put("items", new ArrayList<>());
-        return payload;
+    private InventoryEventPayload inventoryPayload(Long orderId, String orderNo, String reasonCode) {
+        return new InventoryEventPayload(orderId, orderNo, reasonCode);
+    }
+
+    private PaymentEventPayload paymentPayload(Long orderId, String orderNo, String reasonCode) {
+        return new PaymentEventPayload(orderId, orderNo, reasonCode);
     }
 }

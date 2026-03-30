@@ -53,7 +53,11 @@ spring:
               uri: lb://cart-service
               predicates:
                 - Path=/api/v1/buyer/carts/**
-            - id: order-service
+            - id: order-service-buyer
+              uri: lb://order-service
+              predicates:
+                - Path=/api/v1/buyer/orders/**,/api/v1/buyer/guest/orders/**
+            - id: order-service-legacy
               uri: lb://order-service
               predicates:
                 - Path=/api/v1/orders/**
@@ -64,7 +68,7 @@ spring:
             - id: order-service-compat
               uri: lb://order-service
               predicates:
-                - Path=/order-service/api/v1/orders/**,/order-service/api/v1/seller/orders/**
+                - Path=/order-service/api/v1/orders/**,/order-service/api/v1/buyer/orders/**,/order-service/api/v1/buyer/guest/orders/**,/order-service/api/v1/seller/orders/**
               filters:
                 - StripPrefix=1
             - id: order-service-internal

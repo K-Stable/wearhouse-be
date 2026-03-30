@@ -11,7 +11,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -64,7 +63,6 @@ public class CartItemEntity extends BaseEntity {
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
-    @Builder
     private CartItemEntity(
             Long buyerId,
             Long productId,
@@ -87,7 +85,7 @@ public class CartItemEntity extends BaseEntity {
         this.quantity = quantity;
     }
 
-    public static CartItemEntity create(
+    public static CartItemEntity of(
             Long buyerId,
             Long productId,
             Long optionId,
@@ -98,17 +96,17 @@ public class CartItemEntity extends BaseEntity {
             BigDecimal price,
             Integer quantity
     ) {
-        return CartItemEntity.builder()
-                .buyerId(buyerId)
-                .productId(productId)
-                .optionId(optionId)
-                .productName(productName)
-                .mainImageUrl(mainImageUrl)
-                .size(size)
-                .color(color)
-                .price(price)
-                .quantity(quantity)
-                .build();
+        return new CartItemEntity(
+                buyerId,
+                productId,
+                optionId,
+                productName,
+                mainImageUrl,
+                size,
+                color,
+                price,
+                quantity
+        );
     }
 
     public void updateSnapshot(

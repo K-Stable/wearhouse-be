@@ -10,7 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -36,17 +35,13 @@ public class ProductSeasonEntity extends BaseEntity {
     @OneToMany(mappedBy = "productSeason", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductEntity> products = new ArrayList<>();
 
-    @Builder
     private ProductSeasonEntity(Long sellerId, String name) {
         this.sellerId = sellerId;
         this.name = name;
     }
 
-    public static ProductSeasonEntity create(Long sellerId, String name) {
-        return ProductSeasonEntity.builder()
-                .sellerId(sellerId)
-                .name(name)
-                .build();
+    public static ProductSeasonEntity of(Long sellerId, String name) {
+        return new ProductSeasonEntity(sellerId, name);
     }
 
     public void addProduct(ProductEntity product) {
