@@ -58,19 +58,20 @@ public class BuyerOrderCreateOrchestrationService {
     private final TransactionTemplate transactionTemplate;
     private final OrderPaymentIntegrationService orderPaymentIntegrationService;
 
-    public OrderCreateResponse createOrder(OrderCreateRequest request) {
+    public OrderCreateResponse createOrder(Long authenticatedBuyerId, OrderCreateRequest request) {
+        OrderCreateRequest normalizedRequest = normalizeRequest(authenticatedBuyerId, request);
         OrderCreateContext context = transactionTemplate.execute(status -> {
-            OrderCreateContext txContext = prepareCreateContext(request);
+            OrderCreateContext txContext = prepareCreateContext(normalizedRequest);
             OrderEntity order = createOrderEntity(
-                    request,
+                    normalizedRequest,
                     txContext.orderNo(),
                     txContext.orderedAt(),
                     txContext.amountSummary()
             );
-            List<ReservePayloadItem> payloadItems = appendItemsAndBuildReservePayload(order, request.items());
+            List<ReservePayloadItem> payloadItems = appendItemsAndBuildReservePayload(order, normalizedRequest.items());
             saveCreatedOrder(order, txContext.eventId());
             startSaga(order, txContext.eventId());
-            publishInventoryReserveRequested(order, request, txContext, payloadItems);
+            publishInventoryReserveRequested(order, normalizedRequest, txContext, payloadItems);
             return txContext;
         });
 
@@ -81,12 +82,12 @@ public class BuyerOrderCreateOrchestrationService {
         OrderCreateResponse.OrderCreateResponseBuilder responseBuilder = OrderCreateResponse.builder()
                 .orderNo(context.orderNo())
                 .customerId(context.customerId())
-                .customerName(request.recipientName())
+                .customerName(normalizedRequest.recipientName())
                 .payAmount(context.amountSummary().payAmount());
 
-        if (request.paymentMethod() == PaymentMethod.STABLE && request.buyerId() != null) {
+        if (normalizedRequest.paymentMethod() == PaymentMethod.STABLE && normalizedRequest.buyerId() != null) {
             OrderPaymentPrepareResponse prepareResponse = orderPaymentIntegrationService.preparePayment(
-                    request.buyerId(),
+                    normalizedRequest.buyerId(),
                     context.orderNo(),
                     null
             );
@@ -279,6 +280,26 @@ public class BuyerOrderCreateOrchestrationService {
         String customerId = UUID.nameUUIDFromBytes(customerKey.getBytes(StandardCharsets.UTF_8)).toString();
 
         return new OrderCreateContext(orderNo, orderedAt, eventId, customerId, amountSummary);
+    }
+
+    private OrderCreateRequest normalizeRequest(Long authenticatedBuyerId, OrderCreateRequest request) {
+        if (request == null) {
+            throw new ErrorException(OrderErrorCode.INVALID_ORDER_AMOUNT);
+        }
+        return new OrderCreateRequest(
+                authenticatedBuyerId,
+                request.paymentMethod(),
+                request.recipientName(),
+                request.recipientPhone(),
+                request.zipCode(),
+                request.address1(),
+                request.address2(),
+                request.deliveryRequest(),
+                request.shippingFee(),
+                request.discountAmount(),
+                request.pointUsedAmount(),
+                request.items()
+        );
     }
 
     private void publishDomainEvent(

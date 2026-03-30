@@ -6,6 +6,7 @@ import com.wearhouse.common.security.passport.gateway.GatewayRequestPolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -30,9 +31,11 @@ public class ApiGatewaySecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(GatewayRequestPolicy.PUBLIC_URL_PATTERNS).permitAll()
+                        .requestMatchers(HttpMethod.GET, GatewayRequestPolicy.BUYER_PUBLIC_PRODUCT_PATTERN).permitAll()
+                        .requestMatchers(HttpMethod.POST, GatewayRequestPolicy.BUYER_GUEST_ORDER_PATTERN).permitAll()
                         .requestMatchers(GatewayRequestPolicy.BUYER_MYPAGE_PATTERN).authenticated()
                         .requestMatchers(GatewayRequestPolicy.BUYER_CART_PATTERN).authenticated()
-                        .requestMatchers(GatewayRequestPolicy.BUYER_PATTERN).permitAll()
+                        .requestMatchers(GatewayRequestPolicy.BUYER_ORDER_PATTERN).hasRole("BUYER")
                         .requestMatchers(GatewayRequestPolicy.SELLER_PATTERN).hasRole("SELLER")
                         .anyRequest().authenticated()
                 )

@@ -11,7 +11,11 @@ public class BuyerOrderCreateService {
 
     private final BuyerOrderCreateOrchestrationService orderCreateOrchestrationService;
 
-    public OrderCreateResponse createOrder(OrderCreateRequest request) {
-        return orderCreateOrchestrationService.createOrder(request);
+    public OrderCreateResponse createMemberOrder(Long buyerId, OrderCreateRequest request) {
+        return orderCreateOrchestrationService.createOrder(buyerId, request);
+    }
+
+    public OrderCreateResponse createGuestOrder(OrderCreateRequest request) {
+        return orderCreateOrchestrationService.createOrder(null, request);
     }
 }

@@ -11,7 +11,7 @@ public class BuyerOrderCancelService {
 
     private final BuyerOrderCancelOrchestrationService orderCancelOrchestrationService;
 
-    public OrderCancelResponse cancelOrder(String orderNo, OrderCancelRequest request) {
-        return orderCancelOrchestrationService.cancelOrder(orderNo, request);
+    public OrderCancelResponse cancelOrder(Long buyerId, String orderNo, OrderCancelRequest request) {
+        return orderCancelOrchestrationService.cancelOrder(buyerId, orderNo, request);
     }
 }

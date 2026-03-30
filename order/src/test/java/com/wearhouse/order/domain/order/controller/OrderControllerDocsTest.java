@@ -103,9 +103,9 @@ class OrderControllerDocsTest {
                 .appLaunchUrl("wallet://checkout/cs_test_1")
                 .checkoutExpiresAt("2026-03-06T12:30:00Z")
                 .build();
-        given(buyerOrderCreateService.createOrder(any(OrderCreateRequest.class))).willReturn(response);
+        given(buyerOrderCreateService.createGuestOrder(any(OrderCreateRequest.class))).willReturn(response);
 
-        mockMvc.perform(post("/api/v1/orders")
+        mockMvc.perform(post("/api/v1/buyer/guest/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -182,9 +182,9 @@ class OrderControllerDocsTest {
                         .status("CONFIRMED")
                         .build()))
                 .build();
-        given(buyerOrderQueryService.getOrderDetail(eq("O202603060001"))).willReturn(response);
+        given(buyerOrderQueryService.getOrderDetail(eq(1L), eq("O202603060001"))).willReturn(response);
 
-        mockMvc.perform(get("/api/v1/orders/{orderNo}", "O202603060001"))
+        mockMvc.perform(get("/api/v1/buyer/orders/{orderNo}", "O202603060001"))
                 .andExpect(status().isOk())
                 .andDo(document("order-get",
                         getDocumentRequest(),
@@ -240,15 +240,13 @@ class OrderControllerDocsTest {
                         .build()
         ));
 
-        mockMvc.perform(get("/api/v1/orders")
-                        .queryParam("buyerId", "1")
+        mockMvc.perform(get("/api/v1/buyer/orders")
                         .queryParam("limit", "20"))
                 .andExpect(status().isOk())
                 .andDo(document("order-list",
                         getDocumentRequest(),
                         getDocumentResponse(),
                         queryParameters(
-                                parameterWithName("buyerId").description("구매자 ID"),
                                 parameterWithName("limit").optional().description("조회 건수(기본 20)")
                         ),
                         responseFields(
@@ -278,9 +276,10 @@ class OrderControllerDocsTest {
                 .cancelledAt(LocalDateTime.of(2026, 3, 6, 13, 30, 0))
                 .build();
 
-        given(buyerOrderCancelService.cancelOrder(eq("O202603060001"), any(OrderCancelRequest.class))).willReturn(response);
+        given(buyerOrderCancelService.cancelOrder(eq(1L), eq("O202603060001"), any(OrderCancelRequest.class)))
+                .willReturn(response);
 
-        mockMvc.perform(post("/api/v1/orders/{orderNo}/cancel", "O202603060001")
+        mockMvc.perform(post("/api/v1/buyer/orders/{orderNo}/cancel", "O202603060001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

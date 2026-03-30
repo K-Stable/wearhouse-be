@@ -45,8 +45,7 @@ public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver 
     }
 
     private boolean hasLoginAnnotation(MethodParameter parameter) {
-        return parameter.hasParameterAnnotation(CurrentUser.class)
-                || parameter.hasParameterAnnotation(LoginBuyer.class)
+        return parameter.hasParameterAnnotation(LoginBuyer.class)
                 || parameter.hasParameterAnnotation(LoginSeller.class);
     }
 }

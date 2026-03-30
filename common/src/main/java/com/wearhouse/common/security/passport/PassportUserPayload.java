@@ -1,8 +1,8 @@
-package com.wearhouse.common.security.passport.inventory;
+package com.wearhouse.common.security.passport;
 
 import java.util.List;
 
-public record InventoryPassportPayload(
+public record PassportUserPayload(
         Long userId,
         String userType,
         List<String> roles,

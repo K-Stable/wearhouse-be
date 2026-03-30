@@ -1,6 +1,6 @@
 package com.wearhouse.cart.support.security;
 
-import com.wearhouse.common.security.passport.cart.CartPassportAuthenticationFilter;
+import com.wearhouse.common.security.passport.authentication.CartPassportAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;

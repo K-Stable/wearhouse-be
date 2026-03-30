@@ -155,7 +155,7 @@ class OrderCheckoutOrchestrationServiceTest {
     @Test
     void 주문생성은_즉시_응답한다() {
         OrderCreateRequest request = sampleRequest(PaymentMethod.CARD);
-        OrderCreateResponse result = orderCreateOrchestrationService.createOrder(request);
+        OrderCreateResponse result = orderCreateOrchestrationService.createOrder(1L, request);
 
         assertThat(result.orderNo()).isNotBlank();
         assertThat(result.customerId()).isNotBlank();
@@ -189,7 +189,7 @@ class OrderCheckoutOrchestrationServiceTest {
                         "2026-03-26T00:00:00Z"
                 )));
 
-        OrderCreateResponse result = orderCreateOrchestrationService.createOrder(request);
+        OrderCreateResponse result = orderCreateOrchestrationService.createOrder(1L, request);
 
         assertThat(result.orderNo()).isNotBlank();
         assertThat(result.checkoutSessionId()).isEqualTo("cs-created");

@@ -1,4 +1,4 @@
-package com.wearhouse.common.security.passport.product;
+package com.wearhouse.common.security.passport.authentication;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.security.passport.PassportHeaders;
 import com.wearhouse.common.security.passport.PassportSigner;
+import com.wearhouse.common.security.passport.PassportUserPayload;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
@@ -60,7 +61,7 @@ class ProductPassportAuthenticationFilterTest {
             List<String> roles,
             Long userVersion
     ) throws Exception {
-        ProductPassportPayload payload = new ProductPassportPayload(userId, userType, roles, userVersion);
+        PassportUserPayload payload = new PassportUserPayload(userId, userType, roles, userVersion);
         String payloadJson = objectMapper.writeValueAsString(payload);
         String encodedUser = Base64.getUrlEncoder()
                 .withoutPadding()

@@ -1,6 +1,6 @@
 package com.wearhouse.inventory.support.security;
 
-import com.wearhouse.common.security.passport.inventory.InventoryPassportAuthenticationFilter;
+import com.wearhouse.common.security.passport.authentication.InventoryPassportAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

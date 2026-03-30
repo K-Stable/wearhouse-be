@@ -33,30 +33,42 @@ public class BuyerOrderController {
     private final BuyerOrderCancelService buyerOrderCancelService;
     private final BuyerOrderQueryService buyerOrderQueryService;
 
-    @PostMapping("/orders")
-    public OrderCreateResponse createOrder(@Valid @RequestBody OrderCreateRequest request) {
-        return buyerOrderCreateService.createOrder(request);
+    @PostMapping("/buyer/orders")
+    public OrderCreateResponse createMemberOrder(
+            @LoginBuyer LoginUser currentUser,
+            @Valid @RequestBody OrderCreateRequest request
+    ) {
+        return buyerOrderCreateService.createMemberOrder(currentUser.userId(), request);
     }
 
-    @GetMapping("/orders/{orderNo}")
-    public OrderDetailResponse getOrder(@PathVariable String orderNo) {
-        return buyerOrderQueryService.getOrderDetail(orderNo);
+    @PostMapping("/buyer/guest/orders")
+    public OrderCreateResponse createGuestOrder(@Valid @RequestBody OrderCreateRequest request) {
+        return buyerOrderCreateService.createGuestOrder(request);
     }
 
-    @GetMapping("/orders")
+    @GetMapping("/buyer/orders/{orderNo}")
+    public OrderDetailResponse getOrder(
+            @LoginBuyer LoginUser currentUser,
+            @PathVariable String orderNo
+    ) {
+        return buyerOrderQueryService.getOrderDetail(currentUser.userId(), orderNo);
+    }
+
+    @GetMapping("/buyer/orders")
     public List<OrderSummaryResponse> getBuyerOrders(
-            @RequestParam Long buyerId,
+            @LoginBuyer LoginUser currentUser,
             @RequestParam(defaultValue = "20") int limit
     ) {
-        return buyerOrderQueryService.getBuyerOrders(buyerId, limit);
+        return buyerOrderQueryService.getBuyerOrders(currentUser.userId(), limit);
     }
 
-    @PostMapping("/orders/{orderNo}/cancel")
+    @PostMapping("/buyer/orders/{orderNo}/cancel")
     public OrderCancelResponse cancelOrder(
+            @LoginBuyer LoginUser currentUser,
             @PathVariable String orderNo,
             @RequestBody(required = false) OrderCancelRequest request
     ) {
-        return buyerOrderCancelService.cancelOrder(orderNo, request);
+        return buyerOrderCancelService.cancelOrder(currentUser.userId(), orderNo, request);
     }
 
     @PostMapping("/buyer/orders/checkout")
@@ -67,7 +79,7 @@ public class BuyerOrderController {
         return buyerOrderQueryService.previewForBuyer(currentUser.userId(), request);
     }
 
-    @PostMapping("/buyer/orders/guest-checkout")
+    @PostMapping("/buyer/guest/orders/checkout")
     public OrderPreviewResponse guestCheckout(@Valid @RequestBody OrderPreviewRequest request) {
         return buyerOrderQueryService.previewForGuest(request);
     }

@@ -36,9 +36,10 @@ public class BuyerOrderCancelOrchestrationService {
     private final OrderKafkaTopicsProperties kafkaTopicsProperties;
     private final DeliveryValidationService deliveryValidationService;
 
-    public OrderCancelResponse cancelOrder(String orderNo, OrderCancelRequest request) {
+    public OrderCancelResponse cancelOrder(Long buyerId, String orderNo, OrderCancelRequest request) {
         OrderEntity order = orderRepository.findDetailByOrderNo(orderNo)
                 .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
+        validateOwnedByBuyer(order, buyerId);
         OrderStatus currentStatus = order.getStatus();
 
         validateNotInDelivery(order.getId());
@@ -69,6 +70,12 @@ public class BuyerOrderCancelOrchestrationService {
     private void validateCancellableStatus(OrderStatus currentStatus) {
         if (!OrderStatusPolicy.CANCELLABLE_STATUSES.contains(currentStatus)) {
             throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE);
+        }
+    }
+
+    private void validateOwnedByBuyer(OrderEntity order, Long buyerId) {
+        if (order.getBuyerId() == null || !order.getBuyerId().equals(buyerId)) {
+            throw new ErrorException(OrderErrorCode.ORDER_NOT_FOUND);
         }
     }
 

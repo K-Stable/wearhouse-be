@@ -1,9 +1,10 @@
 package com.wearhouse.product.support.security;
 
-import com.wearhouse.common.security.passport.product.ProductPassportAuthenticationFilter;
+import com.wearhouse.common.security.passport.authentication.ProductPassportAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -24,7 +25,7 @@ public class ProductSecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/v1/internal/**", "/actuator/**", "/error").permitAll()
-                        .requestMatchers("/api/v1/buyer/products/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/buyer/products/**").permitAll()
                         .requestMatchers("/api/v1/seller/products/**").hasRole("SELLER")
                         .anyRequest().denyAll()
                 )

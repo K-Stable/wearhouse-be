@@ -56,9 +56,10 @@ public class BuyerOrderQueryService {
     private final BuyerOrderResponseMapper buyerOrderResponseMapper;
 
     @ReadTx
-    public OrderDetailResponse getOrderDetail(String orderNo) {
+    public OrderDetailResponse getOrderDetail(Long buyerId, String orderNo) {
         OrderEntity order = orderRepository.findDetailByOrderNo(orderNo)
                 .orElseThrow(() -> new ErrorException(OrderErrorCode.ORDER_NOT_FOUND));
+        validateOwnedByBuyer(order, buyerId);
 
         boolean retryable = RETRYABLE_STATUSES.contains(order.getStatus());
         return buyerOrderResponseMapper.toOrderDetailResponse(
@@ -228,6 +229,12 @@ public class BuyerOrderQueryService {
             return "";
         }
         return value.trim();
+    }
+
+    private void validateOwnedByBuyer(OrderEntity order, Long buyerId) {
+        if (order.getBuyerId() == null || !order.getBuyerId().equals(buyerId)) {
+            throw new ErrorException(OrderErrorCode.ORDER_NOT_FOUND);
+        }
     }
 
     private record AggregatedPreviewItem(

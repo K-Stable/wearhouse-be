@@ -39,10 +39,10 @@ class LoginUserArgumentResolverTest {
     }
 
     @Test
-    void supportsParameterForCurrentUserAnnotation() {
-        MethodParameter parameter = methodParameter("anyLoginUser", 0);
+    void doesNotSupportParameterWithoutLoginAnnotation() {
+        MethodParameter parameter = methodParameter("plainLoginUser", 0);
 
-        assertTrue(resolver.supportsParameter(parameter));
+        assertFalse(resolver.supportsParameter(parameter));
     }
 
     @Test
@@ -99,7 +99,7 @@ class LoginUserArgumentResolverTest {
 
     @Test
     void throwsUnauthorizedWhenAuthenticationIsMissing() {
-        MethodParameter parameter = methodParameter("anyLoginUser", 0);
+        MethodParameter parameter = methodParameter("buyerOnly", 0);
 
         ErrorException exception = assertThrows(
                 ErrorException.class,
@@ -111,7 +111,7 @@ class LoginUserArgumentResolverTest {
 
     @Test
     void throwsUnauthorizedWhenPrincipalIsNotLoginUser() {
-        MethodParameter parameter = methodParameter("anyLoginUser", 0);
+        MethodParameter parameter = methodParameter("buyerOnly", 0);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("anonymous", null, List.of())
         );
@@ -151,7 +151,7 @@ class LoginUserArgumentResolverTest {
         void sellerOnly(@LoginSeller LoginUser loginUser) {
         }
 
-        void anyLoginUser(@CurrentUser LoginUser loginUser) {
+        void plainLoginUser(LoginUser loginUser) {
         }
 
         void wrongType(@LoginBuyer String userId) {
