@@ -31,8 +31,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,10 +74,10 @@ class ProductQueryServiceFlowBenchmarkTest {
     @Autowired
     private SellerProductQueryService sellerProductQueryService;
 
-    @MockBean
+    @MockitoBean
     private ProductInventoryClient productInventoryClient;
 
-    @MockBean
+    @MockitoBean
     private S3StorageService s3StorageService;
 
     private Long randomProductId;

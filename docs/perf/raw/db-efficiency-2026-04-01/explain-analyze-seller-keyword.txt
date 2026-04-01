@@ -1,0 +1,1 @@
+-> Limit: 20 row(s)  (cost=4.88 rows=20) (actual time=0.0761..0.192 rows=5 loops=1)\n    -> Filter: (lower(product.`name`) like '%pants%')  (cost=4.88 rows=39) (actual time=0.0754..0.191 rows=5 loops=1)\n        -> Index lookup on product using idx_product_seller_id (seller_id=900001) (reverse)  (cost=4.88 rows=39) (actual time=0.0707..0.155 rows=39 loops=1)\n

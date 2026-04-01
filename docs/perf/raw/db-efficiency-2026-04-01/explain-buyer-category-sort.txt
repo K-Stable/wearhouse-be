@@ -1,0 +1,1 @@
+1	SIMPLE	product	NULL	ref	idx_product_status_created_at,idx_product_category_created_at	idx_product_category_created_at	242	const	8	100.00	Using where; Using filesort
