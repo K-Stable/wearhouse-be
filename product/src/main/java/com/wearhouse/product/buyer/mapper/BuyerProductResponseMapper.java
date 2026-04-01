@@ -5,6 +5,7 @@ import com.wearhouse.product.domain.dto.response.BuyerProductListResponse;
 import com.wearhouse.product.domain.dto.response.ProductOptionResponse;
 import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
 import com.wearhouse.product.domain.entity.ProductEntity;
+import com.wearhouse.product.domain.entity.ProductImageEntity;
 import com.wearhouse.product.domain.entity.ProductOptionEntity;
 import com.wearhouse.product.domain.entity.ProductSeasonEntity;
 import com.wearhouse.product.domain.model.Category;
@@ -29,6 +30,15 @@ public class BuyerProductResponseMapper {
                 product.getName(),
                 product.getPrice(),
                 productImageUrlResolver.resolveMainImageUrl(product)
+        );
+    }
+
+    public BuyerProductListResponse toBuyerListResponse(ProductEntity product, List<ProductImageEntity> images) {
+        return new BuyerProductListResponse(
+                product.getId(),
+                product.getName(),
+                product.getPrice(),
+                productImageUrlResolver.resolveMainImageUrl(images)
         );
     }
 

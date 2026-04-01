@@ -1,22 +1,15 @@
 package com.wearhouse.order.buyer.service;
 
 import com.wearhouse.common.global.error.ErrorException;
-import com.wearhouse.common.global.response.ApiResponse;
-import com.wearhouse.common.infra.feign.inventory.InventoryStockFeignClient;
-import com.wearhouse.common.infra.feign.inventory.dto.InventorySellerResolveRequest;
-import com.wearhouse.common.infra.feign.inventory.dto.InventorySellerResolveResponse;
-import com.wearhouse.common.infra.feign.inventory.dto.InventorySellerResolveResponse.InventorySkuSellerLine;
 import com.wearhouse.order.buyer.dto.request.OrderCreateRequest;
 import com.wearhouse.order.buyer.dto.request.OrderCreateRequest.OrderCreateItemRequest;
 import com.wearhouse.order.buyer.dto.response.OrderCreateResponse;
-import com.wearhouse.order.buyer.dto.response.OrderPaymentPrepareResponse;
 import com.wearhouse.order.common.event.OrderEventType;
 import com.wearhouse.order.common.exception.OrderErrorCode;
 import com.wearhouse.order.common.util.OrderIdGenerator;
 import com.wearhouse.order.domain.entity.OrderEntity;
 import com.wearhouse.order.domain.entity.OrderInfo;
 import com.wearhouse.order.domain.entity.OrderSagaEntity;
-import com.wearhouse.order.domain.entity.OrderStatusHistoryEntity;
 import com.wearhouse.order.domain.event.OrderDomainEvent;
 import com.wearhouse.order.domain.event.OrderDomainEventPublisher;
 import com.wearhouse.order.domain.model.OrderSagaState;
@@ -24,18 +17,14 @@ import com.wearhouse.order.domain.model.OrderStatus;
 import com.wearhouse.order.domain.model.PaymentMethod;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
-import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
-import com.wearhouse.order.paymentintegration.service.OrderPaymentIntegrationService;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
-import com.wearhouse.order.support.config.OrderInventoryInternalProperties;
+import com.wearhouse.order.support.monitoring.OrderFlowMetrics;
+import com.wearhouse.order.support.monitoring.OrderInventoryReservationMetrics;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -46,17 +35,15 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class BuyerOrderCreateOrchestrationService {
 
     private static final String AGGREGATE_TYPE_ORDER = "ORDER";
-    private static final String REASON_ORDER_CREATED = "ORDER_CREATED";
+    private static final Long DEFAULT_SELLER_ID = 1L;
 
     private final OrderRepository orderRepository;
     private final OrderSagaRepository orderSagaRepository;
-    private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderDomainEventPublisher orderDomainEventPublisher;
-    private final InventoryStockFeignClient inventoryStockFeignClient;
     private final OrderKafkaTopicsProperties kafkaTopicsProperties;
-    private final OrderInventoryInternalProperties orderInventoryInternalProperties;
     private final TransactionTemplate transactionTemplate;
-    private final OrderPaymentIntegrationService orderPaymentIntegrationService;
+    private final OrderInventoryReservationMetrics orderInventoryReservationMetrics;
+    private final OrderFlowMetrics orderFlowMetrics;
 
     public OrderCreateResponse createOrder(Long authenticatedBuyerId, OrderCreateRequest request) {
         OrderCreateRequest normalizedRequest = normalizeRequest(authenticatedBuyerId, request);
@@ -69,7 +56,7 @@ public class BuyerOrderCreateOrchestrationService {
                     txContext.amountSummary()
             );
             List<ReservePayloadItem> payloadItems = appendItemsAndBuildReservePayload(order, normalizedRequest.items());
-            saveCreatedOrder(order, txContext.eventId());
+            saveCreatedOrder(order);
             startSaga(order, txContext.eventId());
             publishInventoryReserveRequested(order, normalizedRequest, txContext, payloadItems);
             return txContext;
@@ -84,19 +71,6 @@ public class BuyerOrderCreateOrchestrationService {
                 .customerId(context.customerId())
                 .customerName(normalizedRequest.recipientName())
                 .payAmount(context.amountSummary().payAmount());
-
-        if (normalizedRequest.paymentMethod() == PaymentMethod.STABLE && normalizedRequest.buyerId() != null) {
-            OrderPaymentPrepareResponse prepareResponse = orderPaymentIntegrationService.preparePayment(
-                    normalizedRequest.buyerId(),
-                    context.orderNo(),
-                    null
-            );
-            responseBuilder
-                    .checkoutSessionId(prepareResponse.checkoutSessionId())
-                    .checkoutUrl(prepareResponse.checkoutUrl())
-                    .appLaunchUrl(prepareResponse.appLaunchUrl())
-                    .checkoutExpiresAt(prepareResponse.checkoutExpiresAt());
-        }
 
         return responseBuilder.build();
     }
@@ -149,19 +123,13 @@ public class BuyerOrderCreateOrchestrationService {
             OrderEntity order,
             List<OrderCreateItemRequest> requestItems
     ) {
-        Map<Long, Long> sellerIdBySku = resolveSellerIds(requestItems);
         List<ReservePayloadItem> payloadItems = new ArrayList<>(requestItems.size());
         for (OrderCreateItemRequest requestItem : requestItems) {
-            Long skuId = resolveSkuId(requestItem);
-            Long sellerId = sellerIdBySku.get(skuId);
-            if (sellerId == null) {
-                throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "sellerId를 확인할 수 없는 상품이 있습니다.");
-            }
             BigDecimal lineAmount = requestItem.unitPrice().multiply(BigDecimal.valueOf(requestItem.quantity()));
             order.addItem(
                     requestItem.productId(),
                     requestItem.optionId(),
-                    sellerId,
+                    resolveSellerId(requestItem),
                     requestItem.productName(),
                     requestItem.optionName(),
                     requestItem.unitPrice(),
@@ -173,38 +141,8 @@ public class BuyerOrderCreateOrchestrationService {
         return payloadItems;
     }
 
-    private Map<Long, Long> resolveSellerIds(List<OrderCreateItemRequest> requestItems) {
-        LinkedHashSet<Long> skuIds = new LinkedHashSet<>();
-        for (OrderCreateItemRequest item : requestItems) {
-            skuIds.add(resolveSkuId(item));
-        }
-
-        try {
-            ApiResponse<InventorySellerResolveResponse> response = inventoryStockFeignClient.resolveSellers(
-                    orderInventoryInternalProperties.sharedSecret(),
-                    new InventorySellerResolveRequest(new ArrayList<>(skuIds))
-            );
-            if (response == null || !response.success() || response.data() == null || response.data().items() == null) {
-                throw new ErrorException(OrderErrorCode.INVENTORY_PREVIEW_INVALID_RESPONSE);
-            }
-
-            Map<Long, Long> sellerIdBySku = new LinkedHashMap<>();
-            for (InventorySkuSellerLine line : response.data().items()) {
-                if (line == null || line.skuId() == null || line.sellerId() == null) {
-                    continue;
-                }
-                sellerIdBySku.put(line.skuId(), line.sellerId());
-            }
-            return sellerIdBySku;
-        } catch (ErrorException exception) {
-            throw exception;
-        } catch (Exception exception) {
-            throw new ErrorException(OrderErrorCode.INVENTORY_PREVIEW_UNAVAILABLE);
-        }
-    }
-
-    private Long resolveSkuId(OrderCreateItemRequest requestItem) {
-        return requestItem.optionId() != null ? requestItem.optionId() : requestItem.productId();
+    private Long resolveSellerId(OrderCreateItemRequest requestItem) {
+        return DEFAULT_SELLER_ID;
     }
 
     private ReservePayloadItem toReservePayloadItem(OrderCreateItemRequest requestItem) {
@@ -215,9 +153,8 @@ public class BuyerOrderCreateOrchestrationService {
         );
     }
 
-    private void saveCreatedOrder(OrderEntity order, String eventId) {
+    private void saveCreatedOrder(OrderEntity order) {
         orderRepository.save(order);
-        saveStatusHistory(order, null, OrderStatus.PENDING_RESERVE, eventId, REASON_ORDER_CREATED);
     }
 
     private void startSaga(OrderEntity order, String eventId) {
@@ -229,6 +166,11 @@ public class BuyerOrderCreateOrchestrationService {
                 eventId
         );
         orderSagaRepository.save(saga);
+        orderFlowMetrics.recordSagaTransition(
+                null,
+                OrderSagaState.WAITING_INVENTORY,
+                "ORDER_CREATED"
+        );
     }
 
     private void publishInventoryReserveRequested(
@@ -245,6 +187,7 @@ public class BuyerOrderCreateOrchestrationService {
                 kafkaTopicsProperties.inventoryReserveTopic(),
                 payload
         );
+        orderInventoryReservationMetrics.recordReserveRequested();
     }
 
     private InventoryReserveRequestedPayload buildInventoryReservePayload(
@@ -320,22 +263,6 @@ public class BuyerOrderCreateOrchestrationService {
                 .payload(payload)
                 .build();
         orderDomainEventPublisher.publish(event);
-    }
-
-    private void saveStatusHistory(
-            OrderEntity order,
-            OrderStatus fromStatus,
-            OrderStatus toStatus,
-            String eventId,
-            String reasonCode
-    ) {
-        orderStatusHistoryRepository.save(OrderStatusHistoryEntity.of(
-                order,
-                fromStatus,
-                toStatus,
-                eventId,
-                reasonCode
-        ));
     }
 
     private void validateCreateRequest(OrderCreateRequest request) {

@@ -21,7 +21,6 @@ public class InventoryRuntimePropertiesValidator {
         requirePositive("wearhouse.inventory.reservation-expire-interval-ms", inventoryProperties.reservationExpireIntervalMs());
         requirePositive("wearhouse.inventory.reservation-expire-batch-size", inventoryProperties.reservationExpireBatchSize());
         requirePositive("wearhouse.inventory.lock.wait-time-ms", inventoryProperties.lock().waitTimeMs());
-        requirePositive("wearhouse.inventory.lock.lease-time-ms", inventoryProperties.lock().leaseTimeMs());
         requirePositive("wearhouse.inventory.lock.retry-interval-ms", inventoryProperties.lock().retryIntervalMs());
     }
 

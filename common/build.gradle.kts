@@ -34,5 +34,6 @@ dependencies {
 
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.springframework:spring-test")
+    testImplementation("org.springframework:spring-jdbc")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

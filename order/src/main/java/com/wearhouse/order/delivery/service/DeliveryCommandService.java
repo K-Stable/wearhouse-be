@@ -19,6 +19,7 @@ import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.common.util.OrderIdGenerator;
 import com.wearhouse.order.support.config.OrderProperties;
+import com.wearhouse.order.support.monitoring.OrderFlowMetrics;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -50,6 +51,7 @@ public class DeliveryCommandService {
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderProperties orderProperties;
     private final DeliveryResponseMapper deliveryResponseMapper;
+    private final OrderFlowMetrics orderFlowMetrics;
 
     @WriteTx
     public DeliveryBatchUpdateResponse registerDeliveries(LoginUser currentUser, DeliveryRegisterRequest request) {
@@ -195,5 +197,6 @@ public class DeliveryCommandService {
                 OrderIdGenerator.newEventId(),
                 reasonCode
         ));
+        orderFlowMetrics.recordStatusTransition(fromStatus, toStatus, reasonCode);
     }
 }

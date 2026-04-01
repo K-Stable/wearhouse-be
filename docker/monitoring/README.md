@@ -8,14 +8,32 @@
 - `prometheus`: 메트릭 수집/저장 및 알람 룰 평가
 - `alertmanager`: 알람 라우팅
 - `grafana`: 대시보드 시각화
+- `otel-collector`: OTLP trace 수집 + spanmetrics 생성
+- `tempo`: distributed trace 저장/조회
 
 기본 동작:
 
 - Prometheus가 `kafka-exporter:9308/metrics`를 스크랩한다.
+- Prometheus가 `otel-collector:9464/metrics`를 스크랩한다. (spanmetrics)
 - Prometheus가 `order-service:8104/actuator/prometheus`를 스크랩한다.
 - `docker/monitoring/prometheus/alert.rules.yml` 룰을 기준으로 알람을 발생시킨다.
 - Alertmanager가 기본 webhook(`http://host.docker.internal:18080/alerts`)으로 알람을 전송한다.
 - Grafana에 Kafka/Order 대시보드가 자동 프로비저닝된다.
+- Grafana에 Tempo datasource가 자동 프로비저닝된다.
+
+Distributed Tracing:
+
+1. 각 서비스가 OTLP endpoint(`OTEL_EXPORTER_OTLP_ENDPOINT`)로 trace를 전송
+2. OTel Collector가 trace를 Tempo로 전달
+3. Collector의 `spanmetrics` connector가 서비스별 호출/지연 메트릭 생성
+4. Prometheus가 해당 메트릭을 수집하고 Grafana 대시보드에서 시각화
+
+관련 대시보드:
+
+- `Distributed Tracing Overview`
+  - `Trace Calls / sec by Service`
+  - `Trace p95 Latency by Service`
+  - `Trace Error Calls / sec by Service`
 
 주의:
 

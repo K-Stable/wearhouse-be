@@ -1,10 +1,9 @@
 package com.wearhouse.order.kafka.publisher;
 
-import com.wearhouse.common.support.config.OutboxProperties;
-import java.util.concurrent.TimeUnit;
-
+import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -12,17 +11,15 @@ import org.springframework.stereotype.Service;
 public class OrderKafkaProducer {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final OutboxProperties outboxProperties;
 
-    public void send(
+    public CompletableFuture<SendResult<String, String>> send(
             String topic,
             String partitionKey,
             String payload
     ) {
         String key = partitionKey == null || partitionKey.isBlank() ? null : partitionKey;
         try {
-            // outbox 재시도 판단을 위해 send 결과를 timeout 내 동기 확인한다.
-            kafkaTemplate.send(topic, key, payload).get(outboxProperties.sendTimeoutMs(), TimeUnit.MILLISECONDS);
+            return kafkaTemplate.send(topic, key, payload);
         } catch (Exception exception) {
             throw new IllegalStateException("주문 Kafka 메시지 전송에 실패했습니다.", exception);
         }

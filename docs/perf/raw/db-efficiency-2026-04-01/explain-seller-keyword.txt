@@ -1,0 +1,1 @@
+1	SIMPLE	product	NULL	ref	idx_product_seller_id	idx_product_seller_id	8	const	39	100.00	Using where; Backward index scan

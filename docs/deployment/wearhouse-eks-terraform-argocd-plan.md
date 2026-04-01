@@ -5,6 +5,7 @@
 - EKS OIDC(IRSA) 기반 권한 분리
 - AWS Load Balancer Controller + Ingress로 `api-gateway`만 외부 공개
 - Argo CD + Helm 기반 GitOps 배포
+- GitOps 대상 저장소: `https://github.com/K-Stable/wearhouse-be.git`
 - RDS(MySQL), MSK(Kafka), SSM Parameter Store 사용
 - Probe(readiness/liveness/startup), graceful shutdown, HPA 반영
 

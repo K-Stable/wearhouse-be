@@ -32,7 +32,9 @@ public final class GatewayRequestPolicy {
     };
 
     public static final String BUYER_PUBLIC_PRODUCT_PATTERN = "/api/v1/buyer/products/**";
+    public static final String BUYER_PUBLIC_PRODUCT_SERVICE_PATTERN = "/product-service/api/v1/buyer/products/**";
     public static final String BUYER_GUEST_ORDER_PATTERN = "/api/v1/buyer/guest/orders/**";
+    public static final String BUYER_GUEST_ORDER_SERVICE_PATTERN = "/order-service/api/v1/buyer/guest/orders/**";
     public static final String BUYER_ORDER_PATTERN = "/api/v1/buyer/orders/**";
     public static final String BUYER_MYPAGE_PATTERN = "/api/v1/buyer/mypage/**";
     public static final String BUYER_CART_PATTERN = "/api/v1/buyer/carts/**";
@@ -80,11 +82,16 @@ public final class GatewayRequestPolicy {
     }
 
     private static String normalizeServicePrefixedPath(String path) {
-        if (path.startsWith("/auth-service/")) {
-            return path.substring("/auth-service".length());
+        if (path == null || path.isBlank()) {
+            return path;
         }
-        if (path.startsWith("/user-service/")) {
-            return path.substring("/user-service".length());
+
+        int secondSlash = path.indexOf('/', 1);
+        if (secondSlash > 1) {
+            String firstSegment = path.substring(1, secondSlash);
+            if (firstSegment.endsWith("-service")) {
+                return path.substring(secondSlash);
+            }
         }
         return path;
     }

@@ -5,6 +5,7 @@ import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductResponse;
 import com.wearhouse.product.domain.entity.ProductEntity;
+import com.wearhouse.product.domain.entity.ProductImageEntity;
 import com.wearhouse.product.domain.entity.ProductOptionEntity;
 import com.wearhouse.product.domain.entity.ProductSeasonEntity;
 import com.wearhouse.product.domain.model.Category;
@@ -33,10 +34,21 @@ public class SellerProductResponseMapper {
     }
 
     public SellerProductListResponse toSellerListResponse(ProductEntity product, Map<Long, Integer> stockQuantities) {
+        return toSellerListResponse(product, product.getOptions(), product.getImages(), stockQuantities);
+    }
+
+    public SellerProductListResponse toSellerListResponse(
+            ProductEntity product,
+            List<ProductOptionEntity> options,
+            List<ProductImageEntity> images,
+            Map<Long, Integer> stockQuantities
+    ) {
+        List<ProductOptionEntity> optionList = options == null ? List.of() : options;
+        List<ProductImageEntity> imageList = images == null ? List.of() : images;
         Set<String> sizes = new LinkedHashSet<>();
         Set<String> colors = new LinkedHashSet<>();
         int totalStock = 0;
-        for (ProductOptionEntity option : product.getOptions()) {
+        for (ProductOptionEntity option : optionList) {
             sizes.add(option.getSize());
             colors.add(option.getColor());
             totalStock += stockQuantities.getOrDefault(option.getId(), option.getStockQuantity());
@@ -48,7 +60,7 @@ public class SellerProductResponseMapper {
                 product.getPrice(),
                 formatCategory(product.getCategory()),
                 product.getStatus(),
-                productImageUrlResolver.resolveMainImageUrl(product),
+                productImageUrlResolver.resolveMainImageUrl(imageList),
                 List.copyOf(sizes),
                 List.copyOf(colors),
                 totalStock

@@ -160,6 +160,10 @@ public class InventoryStockEntity extends BaseEntity {
         syncProductStatusByAvailableQty();
     }
 
+    public void markSoldOut() {
+        this.productStatus = InventoryProductStatus.SOLD_OUT.name();
+    }
+
     public void updateSnapshot(
             Long sellerId,
             Long productId,

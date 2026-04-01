@@ -32,7 +32,9 @@ public class ApiGatewaySecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(GatewayRequestPolicy.PUBLIC_URL_PATTERNS).permitAll()
                         .requestMatchers(HttpMethod.GET, GatewayRequestPolicy.BUYER_PUBLIC_PRODUCT_PATTERN).permitAll()
+                        .requestMatchers(HttpMethod.GET, GatewayRequestPolicy.BUYER_PUBLIC_PRODUCT_SERVICE_PATTERN).permitAll()
                         .requestMatchers(HttpMethod.POST, GatewayRequestPolicy.BUYER_GUEST_ORDER_PATTERN).permitAll()
+                        .requestMatchers(HttpMethod.POST, GatewayRequestPolicy.BUYER_GUEST_ORDER_SERVICE_PATTERN).permitAll()
                         .requestMatchers(GatewayRequestPolicy.BUYER_MYPAGE_PATTERN).authenticated()
                         .requestMatchers(GatewayRequestPolicy.BUYER_CART_PATTERN).authenticated()
                         .requestMatchers(GatewayRequestPolicy.BUYER_ORDER_PATTERN).hasRole("BUYER")

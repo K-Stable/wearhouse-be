@@ -23,18 +23,21 @@ public class OrderPaymentIntegrationGatewayAdapter {
     private final OrderInternalProperties orderInternalProperties;
     private final OrderProperties orderProperties;
 
-    public String requestStableConfirmStatus(OrderEntity order, OrderPaymentConfirmRequest request) {
+    public PaymentConfirmInternalResponse requestStableConfirm(OrderEntity order, OrderPaymentConfirmRequest request) {
         ApiResponse<PaymentConfirmInternalResponse> confirmResponse = orderPaymentIntegrationClient.confirmStablepayPayment(
                 orderInternalProperties.sharedSecret(),
                 new PaymentConfirmInternalRequest(
                         order.getId(),
-                        request.orderId(),
+                        request.orderNo(),
                         request.paymentKey(),
                         request.amount()
                 )
         );
         PaymentConfirmInternalResponse data = confirmResponse == null ? null : confirmResponse.data();
-        return data == null || data.paymentStatus() == null ? "" : data.paymentStatus();
+        if (data == null) {
+            throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "결제 확정 응답이 비어 있습니다.");
+        }
+        return data;
     }
 
     public PaymentPrepareInternalResponse requestStablePrepare(

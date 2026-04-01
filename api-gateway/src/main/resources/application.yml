@@ -45,10 +45,22 @@ spring:
               uri: lb://product-service
               predicates:
                 - Path=/api/v1/buyer/products/**
+            - id: product-service-buyer-compat
+              uri: lb://product-service
+              predicates:
+                - Path=/product-service/api/v1/buyer/products/**
+              filters:
+                - StripPrefix=1
             - id: product-service-seller
               uri: lb://product-service
               predicates:
                 - Path=/api/v1/seller/products/**
+            - id: product-service-seller-compat
+              uri: lb://product-service
+              predicates:
+                - Path=/product-service/api/v1/seller/products/**
+              filters:
+                - StripPrefix=1
             - id: cart-service
               uri: lb://cart-service
               predicates:

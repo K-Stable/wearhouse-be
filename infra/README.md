@@ -26,6 +26,12 @@
 6. `terraform plan`
 7. `terraform apply`
 
+## GitHub Repo 이전 반영 체크
+- 현재 기준 백엔드 저장소: `https://github.com/K-Stable/wearhouse-be`
+- GitHub Actions OIDC를 쓰는 경우, AWS IAM Role trust policy의 `sub` 조건을 새 repo로 바꿔야 합니다.
+  - 예: `repo:K-Stable/wearhouse-be:*`
+- 샘플 trust policy는 `infra/environments/prod/github-oidc-trust-policy.example.json`에 추가되어 있습니다.
+
 ## 상태 저장소(backend) 설명
 `S3 + DynamoDB` 조합의 DynamoDB는 **애플리케이션 DB가 아니라 Terraform 상태 잠금(lock)** 용도입니다.
 MySQL/RDS와 역할이 완전히 다릅니다.

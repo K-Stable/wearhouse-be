@@ -9,18 +9,25 @@ import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductListResponse;
 import com.wearhouse.product.domain.dto.response.SellerProductResponse;
 import com.wearhouse.product.domain.entity.ProductEntity;
+import com.wearhouse.product.domain.entity.ProductImageEntity;
 import com.wearhouse.product.domain.entity.ProductOptionEntity;
 import com.wearhouse.product.domain.entity.ProductSeasonEntity;
 import com.wearhouse.product.domain.model.ProductStatus;
+import com.wearhouse.product.domain.repository.ProductImageRepository;
+import com.wearhouse.product.domain.repository.ProductOptionRepository;
 import com.wearhouse.product.domain.repository.ProductRepository;
 import com.wearhouse.product.domain.repository.ProductSeasonRepository;
 import com.wearhouse.product.domain.service.common.ProductStockResolver;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,12 +36,14 @@ public class SellerProductQueryService {
     private static final int DEFAULT_LIMIT = 20;
 
     private final ProductRepository productRepository;
+    private final ProductOptionRepository productOptionRepository;
+    private final ProductImageRepository productImageRepository;
     private final ProductSeasonRepository productSeasonRepository;
     private final SellerProductAccessValidator sellerProductAccessValidator;
     private final ProductStockResolver productStockResolver;
     private final SellerProductResponseMapper sellerProductResponseMapper;
 
-    @ReadTx
+    @Transactional(readOnly = true)
     public CursorPageResponse<SellerProductListResponse> getSellerProducts(
             LoginUser currentUser,
             ProductStatus status,
@@ -54,12 +63,19 @@ public class SellerProductQueryService {
                 seasonId,
                 pageLimit + 1
         );
-        Map<Long, Integer> stockByOptionId = productStockResolver.resolveOptionStocks(extractAllOptions(products));
+        Map<Long, List<ProductOptionEntity>> optionsByProductId = loadOptionsByProductId(products);
+        Map<Long, List<ProductImageEntity>> imagesByProductId = loadImagesByProductId(products);
+        Map<Long, Integer> stockByOptionId = productStockResolver.resolveOptionStocks(extractAllOptions(optionsByProductId));
         return CursorPaginationSupport.toCursorPage(
                 products,
                 pageLimit,
                 ProductEntity::getId,
-                product -> sellerProductResponseMapper.toSellerListResponse(product, stockByOptionId)
+                product -> sellerProductResponseMapper.toSellerListResponse(
+                        product,
+                        optionsByProductId.getOrDefault(product.getId(), List.of()),
+                        imagesByProductId.getOrDefault(product.getId(), List.of()),
+                        stockByOptionId
+                )
         );
     }
 
@@ -91,7 +107,7 @@ public class SellerProductQueryService {
         return sellerProductResponseMapper.toSeasonListResponse(season);
     }
 
-    @ReadTx
+    @Transactional(readOnly = true)
     public SellerProductResponse getSellerProduct(LoginUser currentUser, Long productId) {
         Long sellerId = sellerProductAccessValidator.requireSellerId(currentUser);
         ProductEntity product = sellerProductAccessValidator.requireProduct(sellerId, productId);
@@ -99,10 +115,10 @@ public class SellerProductQueryService {
         return sellerProductResponseMapper.toSellerProductResponse(product, stockByOptionId);
     }
 
-    private List<ProductOptionEntity> extractAllOptions(List<ProductEntity> products) {
+    private List<ProductOptionEntity> extractAllOptions(Map<Long, List<ProductOptionEntity>> optionsByProductId) {
         List<ProductOptionEntity> options = new ArrayList<>();
-        for (ProductEntity product : products) {
-            options.addAll(product.getOptions());
+        for (List<ProductOptionEntity> optionEntities : optionsByProductId.values()) {
+            options.addAll(optionEntities);
         }
         return options;
     }
@@ -116,5 +132,31 @@ public class SellerProductQueryService {
             return DEFAULT_LIMIT;
         }
         return limit;
+    }
+
+    private Map<Long, List<ProductOptionEntity>> loadOptionsByProductId(List<ProductEntity> products) {
+        List<Long> productIds = products.stream()
+                .map(ProductEntity::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (productIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return productOptionRepository.findAllByProduct_IdIn(productIds).stream()
+                .filter(option -> option.getProductId() != null)
+                .collect(Collectors.groupingBy(ProductOptionEntity::getProductId));
+    }
+
+    private Map<Long, List<ProductImageEntity>> loadImagesByProductId(List<ProductEntity> products) {
+        List<Long> productIds = products.stream()
+                .map(ProductEntity::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (productIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return productImageRepository.findAllByProduct_IdIn(productIds).stream()
+                .filter(image -> image.getProductId() != null)
+                .collect(Collectors.groupingBy(ProductImageEntity::getProductId));
     }
 }

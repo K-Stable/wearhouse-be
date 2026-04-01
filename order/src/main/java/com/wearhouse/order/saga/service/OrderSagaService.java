@@ -1,7 +1,10 @@
 package com.wearhouse.order.saga.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.common.global.error.ErrorException;
 import com.wearhouse.order.domain.entity.OrderEntity;
+import com.wearhouse.order.domain.entity.OrderSagaHistoryEntity;
 import com.wearhouse.order.domain.entity.OrderStatusHistoryEntity;
 import com.wearhouse.order.domain.event.OrderDomainEvent;
 import com.wearhouse.order.domain.event.OrderDomainEventPublisher;
@@ -13,10 +16,13 @@ import com.wearhouse.order.kafka.dto.InventoryEventPayload;
 import com.wearhouse.order.kafka.dto.PaymentEventPayload;
 import com.wearhouse.order.infra.jpa.repository.OrderInboxRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
+import com.wearhouse.order.infra.jpa.repository.OrderSagaHistoryRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.common.util.OrderIdGenerator;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
+import com.wearhouse.order.support.monitoring.OrderFlowMetrics;
+import com.wearhouse.order.support.monitoring.OrderInventoryReservationMetrics;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,22 +40,33 @@ public class OrderSagaService {
 
     private final OrderRepository orderRepository;
     private final OrderSagaRepository orderSagaRepository;
+    private final OrderSagaHistoryRepository orderSagaHistoryRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderInboxRepository orderInboxRepository;
     private final OrderDomainEventPublisher orderDomainEventPublisher;
     private final OrderKafkaTopicsProperties kafkaTopicsProperties;
+    private final OrderInventoryReservationMetrics orderInventoryReservationMetrics;
+    private final OrderFlowMetrics orderFlowMetrics;
+    private final ObjectMapper objectMapper;
 
 
     @WriteTx
     public void onInventoryEvent(
             String eventId,
             String eventType,
+            String topic,
+            String partitionKey,
             InventoryEventPayload payload
     ) {
         processEvent(
                 INVENTORY_CONSUMER,
                 eventId,
+                eventType,
+                topic,
+                partitionKey,
                 payload.orderId(),
+                payload.orderNo(),
+                payload,
                 order -> dispatchInventoryEvent(order, eventType, eventId, payload)
         );
     }
@@ -58,12 +75,19 @@ public class OrderSagaService {
     public void onPaymentEvent(
             String eventId,
             String eventType,
+            String topic,
+            String partitionKey,
             PaymentEventPayload payload
     ) {
         processEvent(
                 PAYMENT_CONSUMER,
                 eventId,
+                eventType,
+                topic,
+                partitionKey,
                 payload.orderId(),
+                payload.orderNo(),
+                payload,
                 order -> dispatchPaymentEvent(order, eventType, eventId, payload)
         );
     }
@@ -71,11 +95,27 @@ public class OrderSagaService {
     private void processEvent(
             String consumerName,
             String eventId,
+            String eventType,
+            String topic,
+            String partitionKey,
             Long orderId,
+            String orderNo,
+            Object payload,
             SagaEventProcessor processor
     ) {
+        String payloadJson = payloadToJson(payload);
+
         // Inbox로 중복 소비를 차단한다. (이미 처리된 eventId는 즉시 무시)
-        if (!orderInboxRepository.tryReceive(eventId, consumerName)) {
+        if (!orderInboxRepository.tryReceive(
+                eventId,
+                consumerName,
+                eventType,
+                topic,
+                partitionKey,
+                payloadJson,
+                orderId,
+                orderNo
+        )) {
             return;
         }
 
@@ -84,8 +124,19 @@ public class OrderSagaService {
             processor.process(order);
             orderInboxRepository.markProcessed(eventId, consumerName);
         } catch (Exception exception) {
-            orderInboxRepository.markFailed(eventId, consumerName);
+            orderInboxRepository.markFailed(eventId, consumerName, "PROCESSING_ERROR", exception.getMessage());
             throw exception;
+        }
+    }
+
+    private String payloadToJson(Object payload) {
+        if (payload == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException exception) {
+            return "{\"serializationError\":true}";
         }
     }
 
@@ -113,6 +164,7 @@ public class OrderSagaService {
         order.updateStatus(OrderStatus.RESERVED, null, null, null);
         order.markItemsReserved();
         saveStatusHistory(order, currentStatus, OrderStatus.RESERVED, eventId, "STOCK_RESERVED");
+        orderInventoryReservationMetrics.recordReserveSucceeded();
         transitionSaga(order.getId(), OrderSagaState.WAITING_PAYMENT_PREPARE, eventId, null);
         publishPaymentPrepareRequested(order);
     }
@@ -131,6 +183,7 @@ public class OrderSagaService {
         String reasonCode = resolveReasonCode(payload.reasonCode(), DEFAULT_STOCK_RESERVE_FAIL_REASON);
         order.updateStatus(OrderStatus.RESERVE_FAILED, reasonCode, null, null);
         saveStatusHistory(order, currentStatus, OrderStatus.RESERVE_FAILED, eventId, reasonCode);
+        orderInventoryReservationMetrics.recordReserveFailed();
         transitionSaga(order.getId(), OrderSagaState.RESERVE_FAILED, eventId, reasonCode);
     }
 
@@ -198,6 +251,7 @@ public class OrderSagaService {
                 eventId,
                 reasonCode
         ));
+        orderFlowMetrics.recordStatusTransition(fromStatus, toStatus, reasonCode);
     }
 
     private void transitionSaga(
@@ -207,7 +261,18 @@ public class OrderSagaService {
             String failReasonCode
     ) {
         orderSagaRepository.findByOrder_Id(orderId)
-                .ifPresent(saga -> saga.transition(nextState, eventId, failReasonCode));
+                .ifPresent(saga -> {
+                    OrderSagaState fromState = saga.getState();
+                    saga.transition(nextState, eventId, failReasonCode);
+                    orderSagaHistoryRepository.save(OrderSagaHistoryEntity.of(
+                            saga.getOrder(),
+                            fromState,
+                            nextState,
+                            eventId,
+                            failReasonCode
+                    ));
+                    orderFlowMetrics.recordSagaTransition(fromState, nextState, failReasonCode);
+                });
     }
 
     private void publishPaymentPrepareRequested(OrderEntity order) {

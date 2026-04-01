@@ -1,0 +1,24 @@
+apiVersion: 1
+datasources:
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://otel-tempo.wearhouse.svc.cluster.local:3200
+    isDefault: false
+    editable: true
+    jsonData:
+      nodeGraph:
+        enabled: true
+      tracesToMetrics:
+        datasourceUid: prometheus
+        spanStartTimeShift: 1h
+        spanEndTimeShift: -1h
+        tags:
+          - key: service.name
+            value: service_name
+          - key: span.name
+            value: span_name
+        queries:
+          - name: Trace Calls
+            query: sum(rate(traces_spanmetrics_calls_total{$$__tags}[5m]))
