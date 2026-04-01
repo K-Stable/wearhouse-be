@@ -27,6 +27,7 @@ import com.wearhouse.inventory.infra.redis.InventoryRedisStockCacheService;
 import com.wearhouse.inventory.kafka.dto.InventoryReserveRequestedEvent;
 import com.wearhouse.inventory.support.config.InventoryKafkaTopicsProperties;
 import com.wearhouse.inventory.support.config.InventoryProperties;
+import com.wearhouse.inventory.support.monitoring.InventoryFlowMetrics;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.util.List;
@@ -61,6 +62,8 @@ class InventoryCommandServiceConcurrencyTest {
     private InventoryProductStatusClient inventoryProductStatusClient;
     @Mock
     private EntityManager entityManager;
+    @Mock
+    private InventoryFlowMetrics inventoryFlowMetrics;
 
     @Test
     void 핫SKU_락_획득_실패시_예약실패_이벤트를_발행한다() {
@@ -178,7 +181,7 @@ class InventoryCommandServiceConcurrencyTest {
                 30000L,
                 200,
                 hotSkuRaw,
-                new InventoryProperties.Lock(1200L, 3000L, 40L, "inventory:lock:sku:"),
+                new InventoryProperties.Lock(1200L, 40L, "inventory:lock:sku:"),
                 new InventoryProperties.Cache(30L, "inventory:stock:available:"),
                 new InventoryProperties.Internal("wearhouse-inventory-internal-secret")
         );
@@ -199,7 +202,8 @@ class InventoryCommandServiceConcurrencyTest {
                 inventoryProductStatusClient,
                 entityManager,
                 inventoryProperties,
-                inventoryKafkaTopicsProperties
+                inventoryKafkaTopicsProperties,
+                inventoryFlowMetrics
         );
         return service;
     }

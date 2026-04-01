@@ -42,5 +42,5 @@ wearhouse:
     payment-prepare-wait-interval-ms: ${ORDER_PAYMENT_PREPARE_WAIT_INTERVAL_MS:100}
     delivery-purchase-confirm-delay-days: ${ORDER_DELIVERY_PURCHASE_CONFIRM_DELAY_DAYS:7}
     delivery-purchase-confirm-scheduler-interval-ms: ${ORDER_DELIVERY_PURCHASE_CONFIRM_SCHEDULER_INTERVAL_MS:60000}
-    payment-prepare-success-url-template: ${ORDER_PAYMENT_PREPARE_SUCCESS_URL_TEMPLATE:https://mall.wearhouse.com/orders/{orderNo}/payments/success}
-    payment-prepare-fail-url-template: ${ORDER_PAYMENT_PREPARE_FAIL_URL_TEMPLATE:https://mall.wearhouse.com/orders/{orderNo}/payments/fail}
+    payment-prepare-success-url-template: ${ORDER_PAYMENT_PREPARE_SUCCESS_URL_TEMPLATE:https://wear-house.shop/payments/stable/success}
+    payment-prepare-fail-url-template: ${ORDER_PAYMENT_PREPARE_FAIL_URL_TEMPLATE:https://wear-house.shop/payments/stable/fail}

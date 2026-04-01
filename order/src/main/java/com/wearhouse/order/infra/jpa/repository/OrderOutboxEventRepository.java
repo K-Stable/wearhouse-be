@@ -11,6 +11,9 @@ import org.springframework.data.repository.query.Param;
 public interface OrderOutboxEventRepository extends JpaRepository<OrderOutboxEventEntity, Long> {
 
     Optional<OrderOutboxEventEntity> findByEventId(String eventId);
+
+    List<OrderOutboxEventEntity> findByPartitionKeyOrderByIdAsc(String partitionKey);
+
     long countByStatus(OrderOutboxStatus status);
 
     @Query(value = """

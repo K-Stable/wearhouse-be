@@ -10,19 +10,25 @@ import com.wearhouse.product.domain.dto.response.BuyerProductListResponse;
 import com.wearhouse.product.domain.dto.response.ProductOptionResponse;
 import com.wearhouse.product.domain.dto.response.ProductSeasonListResponse;
 import com.wearhouse.product.domain.entity.ProductEntity;
+import com.wearhouse.product.domain.entity.ProductImageEntity;
 import com.wearhouse.product.domain.entity.ProductSeasonEntity;
 import com.wearhouse.product.domain.exception.ProductErrorCode;
 import com.wearhouse.product.domain.model.BuyerProductSortType;
 import com.wearhouse.product.domain.model.Category;
 import com.wearhouse.product.domain.model.ProductStatus;
+import com.wearhouse.product.domain.repository.ProductImageRepository;
 import com.wearhouse.product.domain.repository.ProductRepository;
 import com.wearhouse.product.domain.repository.ProductSeasonRepository;
 import com.wearhouse.product.domain.service.common.ProductStockResolver;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,11 +37,12 @@ public class BuyerProductQueryService {
     private static final int DEFAULT_LIMIT = 10;
 
     private final ProductRepository productRepository;
+    private final ProductImageRepository productImageRepository;
     private final ProductSeasonRepository productSeasonRepository;
     private final ProductStockResolver productStockResolver;
     private final BuyerProductResponseMapper buyerProductResponseMapper;
 
-    @ReadTx
+    @Transactional(readOnly = true)
     public CursorPageResponse<BuyerProductListResponse> getBuyerProducts(
             Category category,
             BuyerProductSortType sort,
@@ -50,11 +57,15 @@ public class BuyerProductQueryService {
                 normalizedSort,
                 pageLimit + 1
         );
+        Map<Long, List<ProductImageEntity>> imagesByProductId = loadImagesByProductId(products);
         return CursorPaginationSupport.toCursorPage(
                 products,
                 pageLimit,
                 ProductEntity::getId,
-                buyerProductResponseMapper::toBuyerListResponse
+                product -> buyerProductResponseMapper.toBuyerListResponse(
+                        product,
+                        imagesByProductId.getOrDefault(product.getId(), List.of())
+                )
         );
     }
 
@@ -73,7 +84,7 @@ public class BuyerProductQueryService {
         );
     }
 
-    @ReadTx
+    @Transactional(readOnly = true)
     public BuyerProductDetailResponse getBuyerProductDetail(Long productId) {
         ProductEntity product = productRepository.findByIdAndStatus(productId, ProductStatus.RELEASED)
                 .orElseThrow(() -> new ErrorException(ProductErrorCode.PRODUCT_NOT_FOUND));
@@ -99,5 +110,18 @@ public class BuyerProductQueryService {
             return DEFAULT_LIMIT;
         }
         return limit;
+    }
+
+    private Map<Long, List<ProductImageEntity>> loadImagesByProductId(List<ProductEntity> products) {
+        List<Long> productIds = products.stream()
+                .map(ProductEntity::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (productIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return productImageRepository.findAllByProduct_IdIn(productIds).stream()
+                .filter(image -> image.getProductId() != null)
+                .collect(Collectors.groupingBy(ProductImageEntity::getProductId));
     }
 }

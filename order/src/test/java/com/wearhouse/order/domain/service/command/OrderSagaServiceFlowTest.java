@@ -10,6 +10,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wearhouse.order.domain.entity.OrderEntity;
 import com.wearhouse.order.domain.entity.OrderInfo;
 import com.wearhouse.order.domain.entity.OrderSagaEntity;
@@ -24,9 +25,12 @@ import com.wearhouse.order.domain.model.PaymentMethod;
 import com.wearhouse.order.domain.model.OrderStatus;
 import com.wearhouse.order.infra.jpa.repository.OrderInboxRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
+import com.wearhouse.order.infra.jpa.repository.OrderSagaHistoryRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
+import com.wearhouse.order.support.monitoring.OrderFlowMetrics;
+import com.wearhouse.order.support.monitoring.OrderInventoryReservationMetrics;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -47,11 +51,17 @@ class OrderSagaServiceFlowTest {
     @Mock
     private OrderSagaRepository orderSagaRepository;
     @Mock
+    private OrderSagaHistoryRepository orderSagaHistoryRepository;
+    @Mock
     private OrderStatusHistoryRepository orderStatusHistoryRepository;
     @Mock
     private OrderInboxRepository orderInboxRepository;
     @Mock
     private OrderDomainEventPublisher orderDomainEventPublisher;
+    @Mock
+    private OrderInventoryReservationMetrics orderInventoryReservationMetrics;
+    @Mock
+    private OrderFlowMetrics orderFlowMetrics;
 
     private OrderSagaService orderSagaService;
 
@@ -69,10 +79,14 @@ class OrderSagaServiceFlowTest {
         orderSagaService = new OrderSagaService(
                 orderRepository,
                 orderSagaRepository,
+                orderSagaHistoryRepository,
                 orderStatusHistoryRepository,
                 orderInboxRepository,
                 orderDomainEventPublisher,
-                topicsProperties
+                topicsProperties,
+                orderInventoryReservationMetrics,
+                orderFlowMetrics,
+                new ObjectMapper()
         );
     }
 
@@ -84,8 +98,8 @@ class OrderSagaServiceFlowTest {
 
         InventoryEventPayload inventoryPayload = inventoryPayload(order.getId(), order.getOrderNo(), null);
         PaymentEventPayload paymentPayload = paymentPayload(order.getId(), order.getOrderNo(), null);
-        orderSagaService.onInventoryEvent("inv-evt-1", OrderEventType.STOCK_RESERVED, inventoryPayload);
-        orderSagaService.onPaymentEvent("pay-evt-1", OrderEventType.PAYMENT_AUTHORIZED, paymentPayload);
+        orderSagaService.onInventoryEvent("inv-evt-1", OrderEventType.STOCK_RESERVED, "wearhouse.inventory.event.v1", "1", inventoryPayload);
+        orderSagaService.onPaymentEvent("pay-evt-1", OrderEventType.PAYMENT_AUTHORIZED, "wearhouse.payment.event.v1", "1", paymentPayload);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(order.getConfirmedAt()).isNotNull();
@@ -110,12 +124,12 @@ class OrderSagaServiceFlowTest {
         stubCommon(order, saga);
 
         InventoryEventPayload inventoryPayload = inventoryPayload(order.getId(), order.getOrderNo(), null);
-        orderSagaService.onInventoryEvent("inv-evt-2", OrderEventType.STOCK_RESERVED, inventoryPayload);
+        orderSagaService.onInventoryEvent("inv-evt-2", OrderEventType.STOCK_RESERVED, "wearhouse.inventory.event.v1", "2", inventoryPayload);
 
         PaymentEventPayload paymentFailedPayload = paymentPayload(order.getId(), order.getOrderNo(), "PAYMENT_FAILED");
-        orderSagaService.onPaymentEvent("pay-evt-2", OrderEventType.PAYMENT_FAILED, paymentFailedPayload);
+        orderSagaService.onPaymentEvent("pay-evt-2", OrderEventType.PAYMENT_FAILED, "wearhouse.payment.event.v1", "2", paymentFailedPayload);
 
-        orderSagaService.onInventoryEvent("inv-evt-3", OrderEventType.INVENTORY_RELEASED, inventoryPayload);
+        orderSagaService.onInventoryEvent("inv-evt-3", OrderEventType.INVENTORY_RELEASED, "wearhouse.inventory.event.v1", "2", inventoryPayload);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PAYMENT_FAILED);
         assertThat(order.getCancelledAt()).isNull();
@@ -138,7 +152,7 @@ class OrderSagaServiceFlowTest {
     }
 
     private void stubCommon(OrderEntity order, OrderSagaEntity saga) {
-        when(orderInboxRepository.tryReceive(anyString(), anyString()))
+        when(orderInboxRepository.tryReceive(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), any(), anyString()))
                 .thenReturn(true);
         when(orderRepository.findDetailById(eq(order.getId()))).thenReturn(Optional.of(order));
         when(orderSagaRepository.findByOrder_Id(eq(order.getId()))).thenReturn(Optional.of(saga));

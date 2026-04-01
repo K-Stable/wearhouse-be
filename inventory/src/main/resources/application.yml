@@ -75,7 +75,6 @@ wearhouse:
     hot-skus: ${INVENTORY_HOT_SKUS:}
     lock:
       wait-time-ms: ${INVENTORY_LOCK_WAIT_TIME_MS:1200}
-      lease-time-ms: ${INVENTORY_LOCK_LEASE_TIME_MS:3000}
       retry-interval-ms: ${INVENTORY_LOCK_RETRY_INTERVAL_MS:40}
       key-prefix: ${INVENTORY_LOCK_KEY_PREFIX:inventory:lock:sku:}
     cache:
@@ -83,6 +82,8 @@ wearhouse:
       stock-key-prefix: ${INVENTORY_STOCK_CACHE_KEY_PREFIX:inventory:stock:available:}
     kafka:
       send-timeout-ms: ${INVENTORY_KAFKA_SEND_TIMEOUT_MS:3000}
+  redisson:
+    lock-watchdog-timeout-ms: ${REDISSON_LOCK_WATCHDOG_TIMEOUT_MS:30000}
   outbox:
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:3000}
     stale-minutes: ${OUTBOX_STALE_MINUTES:10}

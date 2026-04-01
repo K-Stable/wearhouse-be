@@ -1,0 +1,79 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: wearhouse-order-service
+  namespace: monitoring
+  labels:
+    release: wearhouse-monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - wearhouse
+  selector:
+    matchLabels:
+      app: order-service
+  podMetricsEndpoints:
+    - path: /actuator/prometheus
+      targetPort: 8104
+      interval: 15s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: wearhouse-inventory-service
+  namespace: monitoring
+  labels:
+    release: wearhouse-monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - wearhouse
+  selector:
+    matchLabels:
+      app: inventory-service
+  podMetricsEndpoints:
+    - path: /actuator/prometheus
+      targetPort: 8106
+      interval: 15s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: wearhouse-payment-service
+  namespace: monitoring
+  labels:
+    release: wearhouse-monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - wearhouse
+  selector:
+    matchLabels:
+      app: payment-service
+  podMetricsEndpoints:
+    - path: /actuator/prometheus
+      targetPort: 8105
+      interval: 15s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: wearhouse-otel-collector
+  namespace: monitoring
+  labels:
+    release: wearhouse-monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - wearhouse
+  selector:
+    matchLabels:
+      app: otel-tempo
+  podMetricsEndpoints:
+    - path: /metrics
+      targetPort: 9464
+      interval: 15s
+      scrapeTimeout: 10s

@@ -21,6 +21,7 @@ import com.wearhouse.inventory.kafka.dto.OrderConfirmedEvent;
 import com.wearhouse.inventory.support.InventoryIdGenerator;
 import com.wearhouse.inventory.support.config.InventoryKafkaTopicsProperties;
 import com.wearhouse.inventory.support.config.InventoryProperties;
+import com.wearhouse.inventory.support.monitoring.InventoryFlowMetrics;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.OptimisticLockException;
 import java.time.LocalDateTime;
@@ -52,6 +53,7 @@ public class BuyerInventoryCommandService {
     private final EntityManager entityManager;
     private final InventoryProperties inventoryProperties;
     private final InventoryKafkaTopicsProperties inventoryKafkaTopicsProperties;
+    private final InventoryFlowMetrics inventoryFlowMetrics;
 
     @WriteTx
     public void onReserveRequested(
@@ -66,6 +68,7 @@ public class BuyerInventoryCommandService {
         if (!received) {
             return;
         }
+        inventoryFlowMetrics.recordReserveRequested();
 
         InventoryReserveCommand command = null;
         try {
@@ -292,6 +295,7 @@ public class BuyerInventoryCommandService {
             InventoryStockEntity stock = inventoryStockRepository.findBySkuId(skuId)
                     .orElseThrow(() -> new ErrorException(InventoryErrorCode.STOCK_NOT_FOUND));
             if (!stock.canReserve(quantity)) {
+                markSoldOutOnReserveFailed(stock);
                 throw new ErrorException(InventoryErrorCode.OUT_OF_STOCK);
             }
 
@@ -306,6 +310,19 @@ public class BuyerInventoryCommandService {
                 }
                 entityManager.clear();
             }
+        }
+    }
+
+    private void markSoldOutOnReserveFailed(InventoryStockEntity stock) {
+        stock.markSoldOut();
+        try {
+            inventoryStockRepository.saveAndFlush(stock);
+            inventoryRedisStockCacheService.cacheAvailableQty(stock.getSkuId(), stock.getAvailableQty());
+            if (stock.getProductId() != null) {
+                syncSoldOutProducts(Set.of(stock.getProductId()));
+            }
+        } catch (ObjectOptimisticLockingFailureException | OptimisticLockException exception) {
+            entityManager.clear();
         }
     }
 
@@ -364,6 +381,7 @@ public class BuyerInventoryCommandService {
     }
 
     private void publishStockReserved(InventoryReserveCommand command, List<ReservationLineResult> results) {
+        inventoryFlowMetrics.recordReserveSucceeded();
         List<StockReservedReservationPayload> reservationPayload = results.stream()
                 .map(result -> new StockReservedReservationPayload(
                         result.reservationId(),
@@ -393,6 +411,7 @@ public class BuyerInventoryCommandService {
     }
 
     private void publishStockReserveFailed(Long orderId, String orderNo, String reasonCode, String reasonMessage) {
+        inventoryFlowMetrics.recordReserveFailed(reasonCode);
         if (orderId == null) {
             return;
         }

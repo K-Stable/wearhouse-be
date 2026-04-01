@@ -21,6 +21,7 @@ import com.wearhouse.order.infra.jpa.repository.DeliveryRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.support.config.OrderProperties;
+import com.wearhouse.order.support.monitoring.OrderFlowMetrics;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,8 @@ class DeliveryCommandServiceTest {
     private DeliveryRepository deliveryRepository;
     @Mock
     private OrderStatusHistoryRepository orderStatusHistoryRepository;
+    @Mock
+    private OrderFlowMetrics orderFlowMetrics;
 
     private DeliveryCommandService deliveryCommandService;
 
@@ -58,7 +61,8 @@ class DeliveryCommandServiceTest {
                 deliveryRepository,
                 orderStatusHistoryRepository,
                 orderProperties,
-                new DeliveryResponseMapper()
+                new DeliveryResponseMapper(),
+                orderFlowMetrics
         );
     }
 

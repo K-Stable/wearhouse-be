@@ -1,0 +1,373 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=~\"monitoring/wearhouse-order-service|monitoring/wearhouse-payment-service\",method=\"POST\",uri=~\"/api/v1/buyer/orders|/api/v1/buyer/orders/\\\\{orderNo\\\\}/payments/confirm|/api/v1/internal/payments/prepare|/api/v1/internal/payments/confirm\"}[5m]))",
+          "legendFormat": "order_payment_tps",
+          "refId": "A"
+        }
+      ],
+      "title": "주문~결제 처리량 (TPS, 5m)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=~\"monitoring/wearhouse-order-service|monitoring/wearhouse-payment-service\",method=\"POST\",uri=~\"/api/v1/buyer/orders|/api/v1/buyer/orders/\\\\{orderNo\\\\}/payments/confirm|/api/v1/internal/payments/prepare|/api/v1/internal/payments/confirm\"}[5m]))) * 1000",
+          "legendFormat": "p95",
+          "refId": "A"
+        }
+      ],
+      "title": "주문~결제 지연 p95 (ms)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{job=~\"monitoring/wearhouse-order-service|monitoring/wearhouse-payment-service\",method=\"POST\",uri=~\"/api/v1/buyer/orders|/api/v1/buyer/orders/\\\\{orderNo\\\\}/payments/confirm|/api/v1/internal/payments/prepare|/api/v1/internal/payments/confirm\"}[5m]))) * 1000",
+          "legendFormat": "p99",
+          "refId": "A"
+        }
+      ],
+      "title": "주문~결제 지연 p99 (ms)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=~\"monitoring/wearhouse-order-service|monitoring/wearhouse-payment-service\",method=\"POST\",status=~\"4..|5..\",uri=~\"/api/v1/buyer/orders|/api/v1/buyer/orders/\\\\{orderNo\\\\}/payments/confirm|/api/v1/internal/payments/prepare|/api/v1/internal/payments/confirm\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job=~\"monitoring/wearhouse-order-service|monitoring/wearhouse-payment-service\",method=\"POST\",uri=~\"/api/v1/buyer/orders|/api/v1/buyer/orders/\\\\{orderNo\\\\}/payments/confirm|/api/v1/internal/payments/prepare|/api/v1/internal/payments/confirm\"}[5m])), 0.0001) * 100",
+          "legendFormat": "error_rate",
+          "refId": "A"
+        }
+      ],
+      "title": "주문~결제 에러율 (4xx+5xx, 5m)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (job,uri) (rate(http_server_requests_seconds_count{job=~\"monitoring/wearhouse-order-service|monitoring/wearhouse-payment-service\",method=\"POST\",uri=~\"/api/v1/buyer/orders|/api/v1/buyer/orders/\\\\{orderNo\\\\}/payments/confirm|/api/v1/internal/payments/prepare|/api/v1/internal/payments/confirm\"}[5m]))",
+          "legendFormat": "{{job}} {{uri}}",
+          "refId": "A"
+        }
+      ],
+      "title": "주문/결제 API 처리량 추이",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (job,uri,status) (rate(http_server_requests_seconds_count{job=~\"monitoring/wearhouse-order-service|monitoring/wearhouse-payment-service\",method=\"POST\",status=~\"4..|5..\",uri=~\"/api/v1/buyer/orders|/api/v1/buyer/orders/\\\\{orderNo\\\\}/payments/confirm|/api/v1/internal/payments/prepare|/api/v1/internal/payments/confirm\"}[5m]))",
+          "legendFormat": "{{job}} {{uri}} {{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "주문/결제 에러량 (4xx/5xx)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 15
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (service_name) (rate(traces_spanmetrics_calls_total{service_name=~\"api-gateway|order-service|payment-service\"}[5m]))",
+          "legendFormat": "{{service_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "트랜잭션 Trace 호출량 (Spanmetrics)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 15
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(traces_spanmetrics_calls_total{service_name=~\"api-gateway|order-service|payment-service\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / clamp_min(sum(rate(traces_spanmetrics_calls_total{service_name=~\"api-gateway|order-service|payment-service\"}[5m])), 0.0001) * 100",
+          "legendFormat": "trace_error_rate",
+          "refId": "A"
+        }
+      ],
+      "title": "트랜잭션 Trace 에러율 (5m)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "wearhouse",
+    "order",
+    "payment",
+    "tracing",
+    "sli"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Order-Payment Transaction Overview",
+  "uid": "wearhouse-order-payment-tx",
+  "version": 1,
+  "weekStart": ""
+}

@@ -46,9 +46,6 @@ public record InventoryProperties(
             @DefaultValue("1200")
             long waitTimeMs,
             @Positive
-            @DefaultValue("3000")
-            long leaseTimeMs,
-            @Positive
             @DefaultValue("40")
             long retryIntervalMs,
             @NotBlank

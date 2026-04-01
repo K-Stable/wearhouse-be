@@ -4,6 +4,11 @@
 - AWS CLI profile: `eks-role`
 - region: `ap-northeast-2`
 - Terraform: `1.5+`
+- GitHub repository: `K-Stable/wearhouse-be`
+
+OIDC( GitHub Actions -> AWS AssumeRoleWithWebIdentity )를 쓰는 경우, IAM Role trust policy `sub` 조건이 기존 repo면 배포가 실패합니다.
+- 필수 반영값: `repo:K-Stable/wearhouse-be:*`
+- 샘플 JSON: `infra/environments/prod/github-oidc-trust-policy.example.json`
 
 ## 1) 값 파일 준비
 ```bash
@@ -40,6 +45,9 @@ kubectl -n argocd get pods
 Terraform은 Argo CD까지 설치합니다. 앱은 Argo CD `Application`(Helm chart 기준)으로 배포하세요.
 - 외부 공개는 `api-gateway` Ingress만 생성
 - 나머지 서비스는 ClusterIP 유지
+
+Argo CD에서 Git repo를 직접 연결 중이면 `repoURL`도 새 저장소로 바꾸세요.
+- `https://github.com/K-Stable/wearhouse-be.git`
 
 ## 6) 파괴
 ```bash

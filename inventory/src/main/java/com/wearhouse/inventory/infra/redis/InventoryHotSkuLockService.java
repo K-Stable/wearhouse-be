@@ -6,7 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import com.wearhouse.inventory.support.config.InventoryProperties;
-import java.util.concurrent.TimeUnit;
+import com.wearhouse.inventory.support.monitoring.InventoryFlowMetrics;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
@@ -21,6 +21,7 @@ public class InventoryHotSkuLockService {
 
     private final RedissonClient redissonClient;
     private final InventoryProperties inventoryProperties;
+    private final InventoryFlowMetrics inventoryFlowMetrics;
 
     public <T> T withHotSkuLocks(
             Set<Long> skuIds,
@@ -29,30 +30,46 @@ public class InventoryHotSkuLockService {
     ) {
         // deadlock 회피를 위해 정렬된 순서로 락을 획득하고, 실행 후 역순 해제한다.
         List<SkuLockHandle> lockHandles = acquireAll(skuIds, ownerToken);
+        long startedAt = System.currentTimeMillis();
+        String result = "success";
         try {
             return action.get();
+        } catch (RuntimeException exception) {
+            result = "failed";
+            throw exception;
         } finally {
             // 트랜잭션 경계와 맞춰 락을 해제한다.
             releaseAfterTransaction(lockHandles);
+            inventoryFlowMetrics.recordLockBatch(
+                    result,
+                    lockHandles.size(),
+                    System.currentTimeMillis() - startedAt
+            );
         }
     }
 
     public SkuLockHandle acquire(Long skuId, String ownerToken) {
         String key = lockKey(skuId);
         RLock lock = redissonClient.getLock(key);
+        long startedAt = System.currentTimeMillis();
         try {
             boolean acquired = lock.tryLock(
                     inventoryProperties.lock().waitTimeMs(),
-                    inventoryProperties.lock().leaseTimeMs(),
-                    TimeUnit.MILLISECONDS
+                    java.util.concurrent.TimeUnit.MILLISECONDS
             );
             if (!acquired) {
+                inventoryFlowMetrics.recordLockAcquire("timeout", System.currentTimeMillis() - startedAt);
                 return null;
             }
+            inventoryFlowMetrics.recordLockAcquire("success", System.currentTimeMillis() - startedAt);
             return new SkuLockHandle(key, ownerToken, lock);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            inventoryFlowMetrics.recordLockAcquire("interrupted", System.currentTimeMillis() - startedAt);
             return null;
+        } catch (RuntimeException exception) {
+            inventoryFlowMetrics.recordLockAcquire("error", System.currentTimeMillis() - startedAt);
+            throw exception;
         }
     }
 

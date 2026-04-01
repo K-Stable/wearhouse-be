@@ -1,0 +1,52 @@
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    scrapeInterval: 15s
+    evaluationInterval: 30s
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    podMonitorSelector:
+      matchLabels:
+        release: wearhouse-monitoring
+    serviceMonitorSelector:
+      matchLabels:
+        release: wearhouse-monitoring
+    ruleSelector:
+      matchLabels:
+        release: wearhouse-monitoring
+    podMonitorNamespaceSelector: {}
+    serviceMonitorNamespaceSelector: {}
+    ruleNamespaceSelector: {}
+
+grafana:
+  adminPassword: "wearhouse-admin"
+  defaultDashboardsEnabled: false
+  forceDeployDashboards: false
+  service:
+    type: ClusterIP
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+
+alertmanager:
+  enabled: false
+
+kubeStateMetrics:
+  enabled: false
+
+nodeExporter:
+  enabled: false
+
+defaultRules:
+  create: false
+
+prometheusOperator:
+  admissionWebhooks:
+    enabled: false
+    patch:
+      enabled: false

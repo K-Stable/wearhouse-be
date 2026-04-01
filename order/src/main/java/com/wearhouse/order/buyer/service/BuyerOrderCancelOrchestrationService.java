@@ -8,15 +8,18 @@ import com.wearhouse.order.common.exception.OrderErrorCode;
 import com.wearhouse.order.common.util.OrderIdGenerator;
 import com.wearhouse.order.delivery.service.DeliveryValidationService;
 import com.wearhouse.order.domain.entity.OrderEntity;
+import com.wearhouse.order.domain.entity.OrderSagaHistoryEntity;
 import com.wearhouse.order.domain.entity.OrderStatusHistoryEntity;
 import com.wearhouse.order.domain.event.OrderDomainEvent;
 import com.wearhouse.order.domain.event.OrderDomainEventPublisher;
 import com.wearhouse.order.domain.model.OrderSagaState;
 import com.wearhouse.order.domain.model.OrderStatus;
 import com.wearhouse.order.infra.jpa.repository.OrderRepository;
+import com.wearhouse.order.infra.jpa.repository.OrderSagaHistoryRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderSagaRepository;
 import com.wearhouse.order.infra.jpa.repository.OrderStatusHistoryRepository;
 import com.wearhouse.order.support.config.OrderKafkaTopicsProperties;
+import com.wearhouse.order.support.monitoring.OrderFlowMetrics;
 import java.time.LocalDateTime;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -32,9 +35,11 @@ public class BuyerOrderCancelOrchestrationService {
     private final OrderRepository orderRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderSagaRepository orderSagaRepository;
+    private final OrderSagaHistoryRepository orderSagaHistoryRepository;
     private final OrderDomainEventPublisher orderDomainEventPublisher;
     private final OrderKafkaTopicsProperties kafkaTopicsProperties;
     private final DeliveryValidationService deliveryValidationService;
+    private final OrderFlowMetrics orderFlowMetrics;
 
     public OrderCancelResponse cancelOrder(Long buyerId, String orderNo, OrderCancelRequest request) {
         OrderEntity order = orderRepository.findDetailByOrderNo(orderNo)
@@ -157,6 +162,7 @@ public class BuyerOrderCancelOrchestrationService {
                 eventId,
                 reasonCode
         ));
+        orderFlowMetrics.recordStatusTransition(fromStatus, toStatus, reasonCode);
     }
 
     private void transitionSaga(
@@ -166,7 +172,18 @@ public class BuyerOrderCancelOrchestrationService {
             String failReasonCode
     ) {
         orderSagaRepository.findByOrder_Id(orderId)
-                .ifPresent(saga -> saga.transition(nextState, eventId, failReasonCode));
+                .ifPresent(saga -> {
+                    OrderSagaState fromState = saga.getState();
+                    saga.transition(nextState, eventId, failReasonCode);
+                    orderSagaHistoryRepository.save(OrderSagaHistoryEntity.of(
+                            saga.getOrder(),
+                            fromState,
+                            nextState,
+                            eventId,
+                            failReasonCode
+                    ));
+                    orderFlowMetrics.recordSagaTransition(fromState, nextState, failReasonCode);
+                });
     }
 
     private boolean isBlank(String value) {

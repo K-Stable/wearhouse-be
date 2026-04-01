@@ -33,8 +33,8 @@ public class OrderPaymentIntegrationValidator {
         if (order.getBuyerId() == null || !order.getBuyerId().equals(buyerId)) {
             throw new ErrorException(OrderErrorCode.ORDER_NOT_FOUND);
         }
-        if (order.getOrderNo() == null || !order.getOrderNo().equals(request.orderId())) {
-            throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "orderId 값이 주문 정보와 일치하지 않습니다.");
+        if (order.getOrderNo() == null || !order.getOrderNo().equals(request.orderNo())) {
+            throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "orderNo 값이 주문 정보와 일치하지 않습니다.");
         }
         if (!PAYMENT_CONFIRMABLE_STATUSES.contains(order.getStatus())) {
             throw new ErrorException(OrderErrorCode.INVALID_ORDER_STATE, "결제 확정 요청 가능한 주문 상태가 아닙니다.");

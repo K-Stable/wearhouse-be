@@ -12,6 +12,7 @@ import com.wearhouse.product.domain.model.BuyerProductSortType;
 import com.wearhouse.product.domain.model.Category;
 import com.wearhouse.product.domain.model.ProductImageType;
 import com.wearhouse.product.domain.model.ProductStatus;
+import com.wearhouse.product.domain.repository.ProductImageRepository;
 import com.wearhouse.product.domain.repository.ProductRepository;
 import com.wearhouse.product.domain.repository.ProductSeasonRepository;
 import com.wearhouse.product.domain.service.buyer.BuyerProductQueryService;
@@ -39,6 +40,9 @@ class BuyerProductQueryServiceTest {
     private ProductSeasonRepository productSeasonRepository;
 
     @Mock
+    private ProductImageRepository productImageRepository;
+
+    @Mock
     private ProductInventoryClient productInventoryClient;
 
     @Mock
@@ -53,6 +57,7 @@ class BuyerProductQueryServiceTest {
         BuyerProductResponseMapper buyerProductResponseMapper = new BuyerProductResponseMapper(productImageUrlResolver);
         buyerProductQueryService = new BuyerProductQueryService(
                 productRepository,
+                productImageRepository,
                 productSeasonRepository,
                 productStockResolver,
                 buyerProductResponseMapper

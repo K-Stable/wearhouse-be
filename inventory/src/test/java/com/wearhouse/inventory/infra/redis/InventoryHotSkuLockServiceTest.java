@@ -5,8 +5,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.concurrent.TimeUnit;
 import com.wearhouse.inventory.support.config.InventoryProperties;
+import com.wearhouse.inventory.support.monitoring.InventoryFlowMetrics;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -21,12 +21,14 @@ class InventoryHotSkuLockServiceTest {
     private RedissonClient redissonClient;
     @Mock
     private RLock rLock;
+    @Mock
+    private InventoryFlowMetrics inventoryFlowMetrics;
 
     @Test
     void 락_획득에_성공하면_핸들을_반환한다() throws Exception {
         InventoryHotSkuLockService service = newService();
         when(redissonClient.getLock("inventory:lock:sku:101")).thenReturn(rLock);
-        when(rLock.tryLock(1200L, 3000L, TimeUnit.MILLISECONDS)).thenReturn(true);
+        when(rLock.tryLock(1200L, java.util.concurrent.TimeUnit.MILLISECONDS)).thenReturn(true);
 
         InventoryHotSkuLockService.SkuLockHandle handle = service.acquire(101L, "owner-token");
 
@@ -39,7 +41,7 @@ class InventoryHotSkuLockServiceTest {
     void 락_획득에_실패하면_null을_반환한다() throws Exception {
         InventoryHotSkuLockService service = newService();
         when(redissonClient.getLock("inventory:lock:sku:102")).thenReturn(rLock);
-        when(rLock.tryLock(1200L, 3000L, TimeUnit.MILLISECONDS)).thenReturn(false);
+        when(rLock.tryLock(1200L, java.util.concurrent.TimeUnit.MILLISECONDS)).thenReturn(false);
 
         InventoryHotSkuLockService.SkuLockHandle handle = service.acquire(102L, "owner-token");
 
@@ -77,10 +79,10 @@ class InventoryHotSkuLockServiceTest {
                 30000L,
                 200,
                 "",
-                new InventoryProperties.Lock(1200L, 3000L, 40L, "inventory:lock:sku:"),
+                new InventoryProperties.Lock(1200L, 40L, "inventory:lock:sku:"),
                 new InventoryProperties.Cache(30L, "inventory:stock:available:"),
                 new InventoryProperties.Internal("wearhouse-inventory-internal-secret")
         );
-        return new InventoryHotSkuLockService(redissonClient, inventoryProperties);
+        return new InventoryHotSkuLockService(redissonClient, inventoryProperties, inventoryFlowMetrics);
     }
 }

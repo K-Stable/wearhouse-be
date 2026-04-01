@@ -34,11 +34,11 @@ public record OrderProperties(
         long deliveryPurchaseConfirmSchedulerIntervalMs,
 
         @NotBlank
-        @DefaultValue("https://mall.wearhouse.com/orders/{orderNo}/payments/success")
+        @DefaultValue("https://wear-house.shop/payments/stable/success")
         String paymentPrepareSuccessUrlTemplate,
 
         @NotBlank
-        @DefaultValue("https://mall.wearhouse.com/orders/{orderNo}/payments/fail")
+        @DefaultValue("https://wear-house.shop/payments/stable/fail")
         String paymentPrepareFailUrlTemplate
 ) {
 }

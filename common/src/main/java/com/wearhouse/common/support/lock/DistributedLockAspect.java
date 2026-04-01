@@ -87,7 +87,14 @@ public class DistributedLockAspect {
 
     private boolean tryAcquire(RLock lock, DistributedLock distributedLock) {
         try {
-            return lock.tryLock(distributedLock.waitTimeMs(), distributedLock.leaseTimeMs(), java.util.concurrent.TimeUnit.MILLISECONDS);
+            if (distributedLock.leaseTimeMs() > 0) {
+                return lock.tryLock(
+                        distributedLock.waitTimeMs(),
+                        distributedLock.leaseTimeMs(),
+                        java.util.concurrent.TimeUnit.MILLISECONDS
+                );
+            }
+            return lock.tryLock(distributedLock.waitTimeMs(), java.util.concurrent.TimeUnit.MILLISECONDS);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return false;

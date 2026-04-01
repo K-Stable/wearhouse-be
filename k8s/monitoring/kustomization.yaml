@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+resources:
+  - wearhouse-podmonitor.yaml
+configMapGenerator:
+  - name: wearhouse-order-payment-sli-dashboard
+    files:
+      - order-payment-transaction-overview.json=order-payment-transaction-overview.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+        release: wearhouse-monitoring
+  - name: wearhouse-distributed-tracing-dashboard
+    files:
+      - distributed-tracing-overview.json=distributed-tracing-overview.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+        release: wearhouse-monitoring
+  - name: wearhouse-tempo-datasource
+    files:
+      - tempo-datasource.yaml=tempo-datasource.yaml
+    options:
+      labels:
+        grafana_datasource: "1"
+        release: wearhouse-monitoring
+generatorOptions:
+  disableNameSuffixHash: true

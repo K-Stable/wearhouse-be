@@ -56,4 +56,8 @@ public class ProductImageEntity extends BaseEntity {
                 sortOrder
         );
     }
+
+    public Long getProductId() {
+        return product == null ? null : product.getId();
+    }
 }

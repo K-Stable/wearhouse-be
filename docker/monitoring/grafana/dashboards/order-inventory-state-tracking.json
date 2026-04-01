@@ -1,0 +1,411 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "11.1.5",
+      "targets": [
+        {
+          "expr": "sum(rate(wearhouse_order_inventory_reserve_result_total{result=\"reserved\"}[5m])) / clamp_min(sum(rate(wearhouse_order_inventory_reserve_result_total{result=\"requested\"}[5m])), 1) * 100",
+          "legendFormat": "reserve_success_rate",
+          "refId": "A"
+        }
+      ],
+      "title": "Order Reserve Success Rate (5m)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "11.1.5",
+      "targets": [
+        {
+          "expr": "sum(rate(wearhouse_inventory_lock_acquire_total{result=\"success\"}[5m])) / clamp_min(sum(rate(wearhouse_inventory_lock_acquire_total[5m])), 1) * 100",
+          "legendFormat": "lock_success_rate",
+          "refId": "A"
+        }
+      ],
+      "title": "Inventory Lock Acquire Success Rate (5m)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "11.1.5",
+      "targets": [
+        {
+          "expr": "sum(increase(wearhouse_payment_kafka_consume_total{result=\"failed\"}[5m]))",
+          "legendFormat": "payment_consume_failed_5m",
+          "refId": "A"
+        }
+      ],
+      "title": "Payment Kafka Failed Consume (5m)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "11.1.5",
+      "targets": [
+        {
+          "expr": "sum(rate(wearhouse_inventory_lock_hold_seconds_sum[5m])) / clamp_min(sum(rate(wearhouse_inventory_lock_hold_seconds_count[5m])), 1)",
+          "legendFormat": "avg_lock_hold_seconds",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Inventory Lock Hold (5m)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 6
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.1.5",
+      "targets": [
+        {
+          "expr": "sum(increase(wearhouse_order_status_transition_total[$__rate_interval])) by (to_status)",
+          "legendFormat": "to={{to_status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Order Status Transitions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 6
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.1.5",
+      "targets": [
+        {
+          "expr": "sum(increase(wearhouse_order_saga_transition_total[$__rate_interval])) by (to_state)",
+          "legendFormat": "to={{to_state}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Order Saga Transitions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 6
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.1.5",
+      "targets": [
+        {
+          "expr": "sum(increase(wearhouse_inventory_reserve_result_total[$__rate_interval])) by (result,reason_code)",
+          "legendFormat": "{{result}}/{{reason_code}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Inventory Reserve Result by Reason",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 15
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.1.5",
+      "targets": [
+        {
+          "expr": "sum(increase(wearhouse_inventory_lock_acquire_total[$__rate_interval])) by (result)",
+          "legendFormat": "{{result}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Inventory Lock Acquire Result",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 15
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.1.5",
+      "targets": [
+        {
+          "expr": "sum(increase(wearhouse_order_payment_prepare_wait_total[$__rate_interval])) by (result,resolved_status)",
+          "legendFormat": "{{result}}/{{resolved_status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Order Prepare Wait Result",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": [
+    "wearhouse",
+    "order",
+    "inventory",
+    "saga"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Order-Inventory State Tracking",
+  "uid": "wearhouse-order-inventory-state",
+  "version": 1,
+  "weekStart": ""
+}

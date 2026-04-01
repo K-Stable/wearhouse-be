@@ -17,7 +17,7 @@ public @interface DistributedLock {
 
     long waitTimeMs() default 1200L;
 
-    long leaseTimeMs() default 3000L;
+    long leaseTimeMs() default -1L;
 
     boolean releaseAfterTransaction() default true;
 

@@ -12,6 +12,8 @@ import com.wearhouse.product.seller.mapper.SellerProductResponseMapper;
 import com.wearhouse.product.domain.entity.ProductSeasonEntity;
 import com.wearhouse.product.domain.exception.ProductErrorCode;
 import com.wearhouse.product.domain.model.ProductStatus;
+import com.wearhouse.product.domain.repository.ProductImageRepository;
+import com.wearhouse.product.domain.repository.ProductOptionRepository;
 import com.wearhouse.product.domain.repository.ProductRepository;
 import com.wearhouse.product.domain.repository.ProductSeasonRepository;
 import com.wearhouse.product.domain.service.common.ProductImageUrlResolver;
@@ -37,6 +39,12 @@ class SellerProductQueryServiceTest {
     private ProductSeasonRepository productSeasonRepository;
 
     @Mock
+    private ProductOptionRepository productOptionRepository;
+
+    @Mock
+    private ProductImageRepository productImageRepository;
+
+    @Mock
     private ProductInventoryClient productInventoryClient;
 
     @Mock
@@ -53,6 +61,8 @@ class SellerProductQueryServiceTest {
         SellerProductResponseMapper sellerProductResponseMapper = new SellerProductResponseMapper(productImageUrlResolver);
         sellerProductQueryService = new SellerProductQueryService(
                 productRepository,
+                productOptionRepository,
+                productImageRepository,
                 productSeasonRepository,
                 accessValidator,
                 productStockResolver,
